@@ -1,0 +1,21 @@
+/* User-approved change: committee registration drawer only. */
+#p .committee-registration {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px 20px;
+}
+#p .committee-registration .registration-scope { grid-column: 1 / -1; }
+#p .committee-registration .field { min-width: 0; gap: 6px; }
+#p .committee-registration input,
+#p .committee-registration select { width: 100%; min-width: 0; min-height: 42px; padding: 8px 12px; }
+#p .committee-registration .seg { width: fit-content; max-width: 100%; }
+#p .committee-registration .seg button { white-space: normal; }
+@media (max-height: 780px) and (min-width: 561px) {
+  #p:has(.committee-registration) header,
+  #p:has(.committee-registration) footer { padding: 12px 20px; }
+  #p:has(.committee-registration) .dbody { padding: 16px 20px; }
+  #p .committee-registration { gap: 8px 16px; }
+}
+@media (max-width: 560px) {
+  #p .committee-registration { grid-template-columns: minmax(0, 1fr); }
+}

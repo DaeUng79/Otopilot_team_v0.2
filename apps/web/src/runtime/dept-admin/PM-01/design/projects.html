@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사업 목록 · 심사임당 사업담당자</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../../super-admin/_shell.css">
+<style>
+td.nm{max-width:420px}
+.dots{display:inline-flex;gap:4px;margin-left:10px;vertical-align:middle}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--gray-20)}
+.dots i.on{background:var(--primary-50)}
+.form{display:flex;flex-direction:column;gap:18px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.toolbar select{width:auto;min-width:150px;min-height:44px;appearance:auto}
+.toolbar .btn{min-height:44px}
+.pager{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;border-top:1px solid var(--line);flex:none}
+.pager button{appearance:none;min-width:40px;min-height:40px;border-radius:var(--radius-sm);border:1px solid var(--gray-20);background:var(--gray-0);font-size:var(--t-base);cursor:pointer;padding:0 10px}
+.pager button:hover:not(:disabled){background:var(--gray-5)}
+.pager button[aria-current="page"]{background:var(--primary-5);border-color:var(--primary-50);color:var(--primary-60);font-weight:700}
+.pager button:disabled{color:var(--gray-30);cursor:not-allowed}
+.mats{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.mats li{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);font-size:var(--t-body)}
+.mats li:last-child{border:0}
+.mats a,.mats .off{font-weight:700;flex:1}
+.mats a{color:var(--primary-60)}
+.mats .off{color:var(--text-3)}
+.dbs{display:flex;flex-direction:column;gap:8px}
+.dbs div{display:flex;align-items:center;gap:12px;font-size:var(--t-base)}
+.dbs b{width:64px}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <button class="brand" type="button" data-href="../../PM-01/design/projects.html" aria-label="심사임당 사업 목록으로"><span class="brand-mark">심</span><span>심사임당</span></button>
+  <p class="role">(가상) 정보화담당관</p>
+  <nav aria-label="주 메뉴">
+    <a href="../../PM-01/design/projects.html" aria-current="page">사업 목록</a>
+    <a href="../../PM-07/design/pool.html">위원 풀</a>
+  </nav>
+  <div class="bottom">
+    <a href="#" data-account>내 계정</a>
+    <a href="../../PM-00/design/login.html#logout">로그아웃</a>
+  </div>
+</aside>
+<div class="main">
+  <header class="head">
+    <div><h1>사업 목록</h1><p class="sub">우리 부서 사업이에요. 누르면 단계별로 이어서 할 수 있어요.</p></div>
+    <button class="btn primary" type="button" id="b-new">사업 등록</button>
+  </header>
+  <div class="body">
+    <section class="card" aria-label="사업 목록">
+      <div class="toolbar">
+        <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input type="search" id="q" placeholder="검색어 (사업명·성명)" aria-label="검색어"></div>
+        <select id="f-dept" aria-label="부서" disabled title="본인 부서만 볼 수 있어요"><option>정보화담당관 (우리 부서)</option></select>
+        <select id="f-st" aria-label="상태"><option value="">상태 전체</option><option>준비</option><option>평가 중</option><option>완료</option></select>
+        <button class="btn" type="button" id="b-reset">초기화</button>
+        <span class="count" id="count"></span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>사업명</th><th>담당자</th><th>평가일</th><th>진행 단계</th><th>상태</th><th>자료</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="state" id="none" hidden></div>
+      </div>
+      <nav class="pager" id="pager" aria-label="쪽 이동"></nav>
+    </section>
+  </div>
+  <details class="demo" id="demo"><summary>시안 상태</summary><div class="demo-in"><button type="button" data-st="base" aria-pressed="true">기본</button>
+    <button type="button" data-st="empty" aria-pressed="false">빈 목록</button>
+    <span class="muted" style="margin-left:auto">행을 누르면 그 사업의 단계 화면으로 가요</span></div></details>
+</div>
+</div>
+
+<div class="scrim" id="scrim"></div><div class="scrim top" id="scrim2"></div>
+<aside class="drawer" id="p" role="dialog" aria-modal="true" aria-labelledby="p-t">
+  <header><h2 id="p-t">사업 등록</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
+  <form class="dbody form" id="f-new" novalidate>
+    <label class="field">사업명<input id="n-name" placeholder="예: 통합 민원 시스템 구축 용역" aria-describedby="n-name-e"><span class="err" id="n-name-e" hidden></span></label>
+    <div class="two">
+      <label class="field">소속<input id="n-org" value="(가상)시청" aria-describedby="n-org-e"><span class="err" id="n-org-e" hidden></span></label>
+      <label class="field">부서<input id="n-dept" value="정보화담당관" disabled></label>
+    </div>
+    <div class="two">
+      <label class="field">직책/직급<input id="n-pos" placeholder="예: 주무관" aria-describedby="n-pos-e"><span class="err" id="n-pos-e" hidden></span></label>
+      <label class="field">성명<input id="n-owner" aria-describedby="n-owner-e"><span class="err" id="n-owner-e" hidden></span></label>
+    </div>
+    <label class="field">전화<input id="n-tel" type="tel" inputmode="tel" placeholder="010-0000-0000" aria-describedby="n-tel-e"><span class="err" id="n-tel-e" hidden></span></label>
+    <label class="field"><span>이메일 <span class="hint">(선택)</span></span><input id="n-mail" type="email" placeholder="example@gov.test"></label>
+  </form>
+  <footer><button class="btn" type="button" data-close>취소</button><button class="btn primary" type="submit" form="f-new">등록</button></footer>
+</aside>
+<aside class="drawer" id="pm" role="dialog" aria-modal="true" aria-labelledby="pm-t">
+  <header><h2 id="pm-t">자료 열기</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
+  <div class="dbody" id="pm-body"></div>
+  <footer><button class="btn" type="button" data-close>닫기</button></footer>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="../../_ui.js"></script>
+<script>
+const STEP=['사업 정보','문서','평가항목','평가위원','참석·위원장','결과'];
+let P=[
+ {id:1,name:'(가상) 통합 민원 시스템 구축 용역',owner:'김가상',date:'2026-11-05',step:2,s:'준비',doc:'wait',ev:'none'},
+ {id:3,name:'(가상) 시민 앱 고도화 용역',owner:'박다상',date:'2026-10-20',step:6,s:'평가 중',doc:'ok',ev:'wait'},
+ {id:8,name:'(가상) 공공 와이파이 확대 사업',owner:'장아상',date:'2026-10-24',step:6,s:'평가 중',doc:'ok',ev:'ok'},
+ {id:13,name:'(가상) 업무 시스템 클라우드 전환',owner:'최가상',date:'2026-11-12',step:3,s:'준비',doc:'ok',ev:'none'},
+ {id:14,name:'(가상) 정보보안 점검 용역',owner:'김가상',date:'2026-11-20',step:4,s:'준비',doc:'ok',ev:'wait'},
+ {id:15,name:'(가상) 홈페이지 개편 용역',owner:'이나상',date:'2026-09-18',step:6,s:'완료',doc:'ok',ev:'ok'},
+ {id:16,name:'(가상) 데이터 표준화 용역',owner:'박다상',date:'',step:1,s:'준비',doc:'none',ev:'none'},
+];
+let nextId=20,q='',fs='',empty=false,pg=1;const PS=5;
+const st={'준비':'','평가 중':'primary','완료':'success'},mark={'준비':'○','평가 중':'●','완료':'✓'};
+const DOCB={ok:['success','✓ 문서 준비됨'],wait:['warning','⟳ 문서 준비 중'],none:['','○ 문서 없음']};
+const EVB={ok:['success','✓ 평가 준비됨'],wait:['warning','⟳ 평가 수신 대기'],none:['','○ 평가 시작 전']};
+const bd=(m,k)=>`<span class="badge ${m[k][0]}">${m[k][1]}</span>`;
+function render(keep){
+  if(keep!==true)pg=1;
+  const L=empty?[]:P.filter(r=>(!q||(r.name+r.owner).includes(q))&&(!fs||r.s===fs));
+  const pages=Math.max(1,Math.ceil(L.length/PS));if(pg>pages)pg=pages;const V=L.slice((pg-1)*PS,pg*PS);
+  $('#count').textContent=L.length+'개 사업'+(L.length?' · '+pg+'/'+pages+'쪽':'');
+  $('table').hidden=!L.length;const n=$('#none');n.hidden=L.length>0;
+  if(!L.length)n.innerHTML=empty?'<div class="ico" aria-hidden="true">+</div><strong>아직 등록한 사업이 없어요</strong><p>[사업 등록]을 눌러 첫 사업을 만들어 보세요.</p>':'<div class="ico" aria-hidden="true">?</div><strong>맞는 사업이 없어요</strong><p>검색어나 상태를 바꾸거나 [초기화]를 눌러 보세요.</p>';
+  $('#rows').innerHTML=V.map(r=>`<tr tabindex="0" data-id="${r.id}" aria-label="${h(r.name)} 열기"><td class="strong nm">${h(r.name)}</td><td>${h(r.owner)}</td><td class="tnum">${r.date||'<span class="muted">아직 안 정함</span>'}</td><td>${r.s==='완료'?'6 결과 (끝)':r.step+' '+STEP[r.step-1]}<span class="dots" aria-hidden="true">${[1,2,3,4,5,6].map(i=>`<i class="${i<=r.step?'on':''}"></i>`).join('')}</span></td><td><span class="badge ${st[r.s]}">${mark[r.s]} ${r.s}</span></td><td><button class="btn sm" type="button" data-m="${r.id}" aria-label="${h(r.name)} 자료 열기">자료 열기</button></td></tr>`).join('');
+  $$('#rows tr').forEach(tr=>rowKey(tr,()=>{location.href='overview.html?id='+tr.dataset.id}));
+  $$('#rows [data-m]').forEach(b=>{b.addEventListener('click',e=>e.stopPropagation());b.addEventListener('keydown',e=>e.stopPropagation());b.onclick=()=>openMats(+b.dataset.m)});
+  let b=`<button type="button" data-p="${pg-1}" ${pg<2?'disabled':''} aria-label="이전 쪽">‹</button>`;
+  for(let i=1;i<=pages;i++)b+=`<button type="button" data-p="${i}" ${i===pg?'aria-current="page"':''}>${i}</button>`;
+  b+=`<button type="button" data-p="${pg+1}" ${pg>=pages?'disabled':''} aria-label="다음 쪽">›</button>`;
+  $('#pager').innerHTML=b;$('#pager').hidden=!L.length;
+  $$('#pager button').forEach(x=>x.onclick=()=>{pg=+x.dataset.p;render(true)});
+}
+/* PRJ-05 상세 / 자료 열기: 문서 DB · 평가 DB 준비 상태를 따로 */
+function openMats(id){const r=P.find(x=>x.id===id);$('#pm-t').textContent=r.name;
+  const lk=(t,href,ok)=>ok?`<a href="${href}">${t}</a>`:`<span class="off">${t}</span>`;
+  const docOk=r.doc==='ok',evOk=r.ev==='ok';
+  $('#pm-body').innerHTML=`<div class="dbs"><div><b>문서 DB</b>${bd(DOCB,r.doc)}</div><div><b>평가 DB</b>${bd(EVB,r.ev)}</div></div>
+  <ul class="mats">
+   <li>${lk('제안요청서 (RFP)','../../PM-02/design/documents.html',r.doc!=='none')}${bd(DOCB,r.doc)}</li>
+   <li>${lk('업체별 제안서','../../PM-02/design/documents.html',docOk)}${bd(DOCB,r.doc)}</li>
+   <li>${lk('평가','../../PM-06/design/results.html',evOk)}${bd(EVB,r.ev)}</li>
+   <li>${lk('결과','../../PM-06/design/results.html',evOk&&r.s==='완료')}${evOk&&r.s==='완료'?'<span class="badge success">✓ 결과 있음</span>':'<span class="badge">○ 결과 아직 없음</span>'}</li>
+  </ul><p class="muted">문서 DB와 평가 DB는 따로 준비돼요. 한쪽이 늦어도 다른 쪽 자료는 열 수 있어요.</p>`;
+  openLayer($('#pm'),'.x')}
+$('#f-st').onchange=e=>{fs=e.target.value;render()};
+$('#b-reset').onclick=()=>{q='';fs='';$('#q').value='';$('#f-st').value='';render()};
+$('#q').oninput=e=>{q=e.target.value.trim();render()};
+const sh=(id,m)=>{const e=$('#'+id+'-e'),i=$('#'+id);e.textContent=m||'';e.hidden=!m;m?i.setAttribute('aria-invalid','true'):i.removeAttribute('aria-invalid');return !m};
+$('#b-new').onclick=()=>{['n-name','n-owner','n-pos','n-tel','n-mail'].forEach(i=>{$('#'+i).value='';if($('#'+i+'-e'))sh(i,'')});openLayer($('#p'),'#n-name')};
+$('#f-new').addEventListener('submit',e=>{e.preventDefault();
+  const name=$('#n-name').value.trim(),owner=$('#n-owner').value.trim(),pos=$('#n-pos').value.trim(),tel=$('#n-tel').value.trim();
+  const org=$('#n-org').value.trim();
+  const ok=[sh('n-name',name?'':'사업명을 적어 주세요'),sh('n-org',org?'':'소속을 적어 주세요'),sh('n-owner',owner?'':'성명을 적어 주세요'),sh('n-pos',pos?'':'직책/직급을 적어 주세요'),sh('n-tel',/^01\d-?\d{3,4}-?\d{4}$/.test(tel)?'':'전화번호를 010-0000-0000 모양으로 적어 주세요')];
+  if(ok.includes(false)){const f=$$('#f-new input').find(i=>i.getAttribute('aria-invalid')==='true');f&&f.focus();return}
+  P.unshift({id:nextId++,name:name.startsWith('(가상)')?name:'(가상) '+name,owner,date:'',step:2,s:'준비',doc:'none',ev:'none'});
+  empty=false;sync('base');closeLayer($('#p'));render();toast('사업을 만들었어요. 다음은 문서 단계예요')});
+function sync(s){$$('#demo [data-st]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.st===s))}
+$$('#demo [data-st]').forEach(b=>b.onclick=()=>{empty=b.dataset.st==='empty';sync(b.dataset.st);render()});
+render();
+if(location.hash==='#new')$('#b-new').click();
+</script>
+</body>
+</html>

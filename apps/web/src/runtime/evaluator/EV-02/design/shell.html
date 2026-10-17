@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>평가위원 공통 틀</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../_eval.css">
+<style>
+  .body { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; padding: 24px; }
+  .ph { width: min(920px, 100%); height: 380px; border: 2px dashed var(--gray-30); border-radius: var(--radius-lg); display: grid; place-items: center; text-align: center; color: var(--text-3); background: var(--gray-0); }
+  .ph b { display: block; font-size: 24px; color: var(--text-1); margin-bottom: 8px; }
+  .ctl { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; font-size: 16px; color: var(--text-2); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="ev-app">
+  <header id="hd"></header>
+  <main class="ev-main" id="main">
+    <div class="body">
+      <div class="ph"><div><b>여기에 각 화면의 내용이 들어가요</b>위 한 줄만 고정이고, 나머지는 모두 문서 영역이에요.<br>탭을 누르면 해당 화면으로 이동해요.</div></div>
+      <div class="ctl">
+        <span>보기</span>
+        <span class="ev-seg" id="roleSeg" role="group" aria-label="보기 전환">
+          <button type="button" data-v="member" aria-pressed="true">위원</button>
+          <button type="button" data-v="chair" aria-pressed="false">위원장</button>
+        </span>
+        <span id="lockWrap" hidden><span>평가결과 확인</span>
+          <span class="ev-seg" id="lockSeg" role="group" aria-label="평가결과 확인 잠금 전환">
+            <button type="button" data-l="1" aria-pressed="true">잠김 (제출 전)</button>
+            <button type="button" data-l="0" aria-pressed="false">열림 (모두 제출)</button>
+          </span></span>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="../../_eval.js"></script>
+<script>
+(function () {
+  var S = EvalShell, $ = function (i) { return document.getElementById(i); };
+  S.mount($('hd'), { active: null });
+  function sync() {
+    var chair = S.isChair(), un = S.isUnlocked();
+    [].forEach.call($('roleSeg').children, function (b) { b.setAttribute('aria-pressed', String((b.dataset.v === 'chair') === chair)); });
+    [].forEach.call($('lockSeg').children, function (b) { b.setAttribute('aria-pressed', String((b.dataset.l === '0') === un)); });
+    $('lockWrap').hidden = !chair;
+  }
+  $('roleSeg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; S.setChair(b.dataset.v === 'chair'); sync(); });
+  $('lockSeg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; S.setUnlocked(b.dataset.l === '0'); sync(); });
+  sync();
+})();
+</script>
+</body>
+</html>

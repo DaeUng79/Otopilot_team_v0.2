@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>심사임당 v2 · 시안 보기</title>
+<style>
+  :root { --gray-0:#fff; --gray-5:#f4f5f6; --gray-20:#cdd1d5; --gray-60:#58616a; --gray-90:#1e2124; --primary-5:#ecf2fe; --primary-60:#0b50d0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: 'Pretendard GOV', Pretendard, system-ui, sans-serif; color: var(--gray-90); }
+  body { display: grid; grid-template-columns: 240px 1fr; }
+  nav { background: var(--gray-5); border-right: 1px solid var(--gray-20); padding: 16px 12px; overflow-y: auto; }
+  nav h1 { font-size: 18px; margin: 0 8px 16px; }
+  nav h2 { font-size: 14px; color: var(--gray-60); margin: 16px 8px 4px; font-weight: 700; }
+  nav button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px; border-radius: var(--radius-sm); font: inherit; font-size: 16px; color: var(--gray-90); cursor: pointer; }
+  nav button:hover { background: var(--gray-0); }
+  nav button[aria-current="true"] { background: var(--primary-5); color: var(--primary-60); font-weight: 700; }
+  nav button small { display: block; font-size: 14px; color: var(--gray-60); font-weight: 400; }
+  nav p { font-size: 14px; color: var(--gray-60); margin: 16px 8px 0; }
+  iframe { width: 100%; height: 100%; border: 0; background: var(--gray-0); }
+</style>
+</head>
+<body>
+<nav aria-label="시안 목록">
+  <h1>심사임당 v2 시안</h1>
+  <p style="margin:0 8px 8px">기준: 팀 기능명세 v2</p>
+  <h2>입장</h2>
+  <button data-src="entry/design/entry.html">ENTRY 입장 화면<small>B안 · 결정</small></button>
+  <h2>총괄관리자</h2>
+  <button data-src="super-admin/SA-00/design/login.html">SA-00 로그인·권한</button>
+  <button data-src="super-admin/SA-01/design/dashboard.html">SA-01 대시보드</button>
+  <button data-src="super-admin/SA-02/design/departments.html">SA-02 부서·계정</button>
+  <button data-src="super-admin/SA-03/design/projects.html">SA-03 전체 사업</button>
+  <button data-src="super-admin/SA-04/design/data.html">SA-04 자료 관리</button>
+  <h2>사업담당자</h2>
+  <button data-src="dept-admin/PM-00/design/login.html">PM-00 로그인</button>
+  <button data-src="dept-admin/PM-01/design/projects.html">PM-01 사업 목록·등록</button>
+  <button data-src="dept-admin/PM-01/design/overview.html">PM-01 사업 한눈에 보기</button>
+  <button data-src="dept-admin/PM-02/design/documents.html">PM-02 문서·업체·목차</button>
+  <button data-src="dept-admin/PM-03/design/criteria.html">PM-03 평가항목</button>
+  <button data-src="dept-admin/PM-04/design/committee.html">PM-04 평가위원 선정</button>
+  <button data-src="dept-admin/PM-05/design/attendance.html">PM-05 참석·위원장</button>
+  <button data-src="dept-admin/PM-06/design/results.html">PM-06 평가 결과</button>
+  <button data-src="dept-admin/PM-07/design/pool.html">PM-07 위원 풀</button>
+  <button data-src="dept-admin/PM-08/design/evidence.html">PM-08 근거 연결 (새 화면)</button>
+  <h2>평가위원</h2>
+  <button data-src="evaluator/EV-00/design/login.html">EV-00 로그인</button>
+  <button data-src="evaluator/EV-01/design/attendance.html">EV-01 참석 확인</button>
+  <button data-src="evaluator/EV-02/design/shell.html">EV-02 공통 틀 (상단 탭)</button>
+  <button data-src="evaluator/EV-03/design/rfp.html">EV-03 제안요청서 보기</button>
+  <button data-src="evaluator/EV-04/design/proposals.html">EV-04 제안서 업체별</button>
+  <button data-src="evaluator/EV-05/design/compare.html">EV-05 항목별 비교 + 챗봇</button>
+  <button data-src="evaluator/EV-06/design/scoring.html">EV-06 평가하기 (서명·제출)</button>
+  <button data-src="evaluator/EV-07/design/chair.html">EV-07 평가결과 확인 (위원장)</button>
+</nav>
+<iframe title="선택한 시안" id="view"></iframe>
+<script>
+  const view = document.getElementById('view');
+  const buttons = [...document.querySelectorAll('nav button')];
+  function open(btn) {
+    buttons.forEach(b => b.setAttribute('aria-current', String(b === btn)));
+    view.src = btn.dataset.src;
+    history.replaceState(null, '', '#' + encodeURIComponent(btn.dataset.src));
+  }
+  buttons.forEach(b => b.addEventListener('click', () => open(b)));
+  const start = decodeURIComponent(location.hash.slice(1));
+  open(buttons.find(b => b.dataset.src === start) || buttons[0]);
+</script>
+</body>
+</html>

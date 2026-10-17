@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# 개인 키·로컬 생성 파일 무시
+.env
+*.sqlite3
+**/keys.bin
+**/access-code.txt
+MANIFEST.sha256
+apps/server/data/database/
+apps/server/data/production/
+apps/server/contracts/excluded_daeung_v2.json
+apps/server/contracts/roster_confirmed_v2.fixture.json

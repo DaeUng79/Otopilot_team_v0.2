@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>근거 연결 · 심사임당 사업담당자</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../../super-admin/_shell.css">
+<link rel="stylesheet" href="../../_steps.css">
+<style>
+.body{padding-bottom:16px}
+.card.split{flex-direction:row}
+.items{flex:none;width:312px;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:var(--gray-0)}
+.items h2{font-size:var(--t-lg);padding:14px 16px 4px}
+.items .sub{padding:0 16px 10px;color:var(--text-3);font-size:var(--t-base)}
+.ilist{list-style:none;margin:0;padding:0 8px 8px;overflow:auto;flex:1;min-height:0;display:flex;flex-direction:column;gap:4px}
+.ib2{appearance:none;width:100%;text-align:left;border:1px solid transparent;background:none;border-radius:var(--radius-sm);padding:8px 10px;cursor:pointer;display:grid;grid-template-columns:36px 1fr;gap:2px 8px;align-items:center;min-height:56px}
+.ib2:hover{background:var(--gray-5)}
+.ib2[aria-current="true"]{background:var(--primary-5);border-color:var(--primary-50)}
+.ib2 .cd{grid-row:1/3;font-weight:700;color:var(--text-2);font-size:var(--t-base)}
+.ib2 .nm{font-weight:700;line-height:1.3}
+.ib2 .st{font-size:14px;color:var(--text-3);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:0 8px;border-radius:var(--radius-full);font-size:14px;font-weight:700;background:var(--gray-10);color:var(--text-2)}
+.pill.ok{background:var(--success-5);color:var(--success-60)}
+.pill.warn{background:var(--warning-5);color:var(--warning-60)}
+.pill.info{background:var(--info-5);color:var(--info-60)}
+.items .foot{padding:10px 16px;border-top:1px solid var(--line);color:var(--text-3);font-size:var(--t-base)}
+.panel{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
+.ph{flex:none;padding:14px 24px 10px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.ph .t{flex:1;min-width:300px}
+.ph h2{font-size:var(--t-xl)}
+.ph .rq{color:var(--text-2);font-size:var(--t-base);margin-top:2px}
+.ph .acts{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.ph .acts .hint{color:var(--text-3);font-size:14px}
+.ph .btn{min-height:44px}
+.pb{flex:1;min-height:0;overflow:auto;padding:12px 24px 16px;display:flex;flex-direction:column;gap:14px}
+.vsec{border:1px solid var(--gray-20);border-radius:var(--radius-sm);overflow:hidden;flex:none}
+.vh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 14px;background:var(--gray-5);border-bottom:1px solid var(--gray-20);min-height:48px}
+.vh .code{display:inline-grid;place-items:center;min-width:40px;height:30px;border-radius:var(--radius-sm);background:var(--gray-10);font-weight:700}
+.vh b{font-size:var(--t-base)}
+.vh .r{margin-left:auto;color:var(--text-3);font-size:var(--t-base)}
+.vb{display:flex;flex-direction:column}
+.ev{display:grid;grid-template-columns:1fr auto;gap:6px 16px;padding:10px 14px;border-bottom:1px solid var(--line);align-items:center}
+.ev:last-child{border-bottom:0}
+.ev .loc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:700}
+.ev .loc .p{color:var(--text-1)}
+.ev q{grid-column:1;display:block;quotes:none;color:var(--text-2);font-size:var(--t-base);line-height:1.5;border-left:3px solid var(--gray-20);padding-left:10px}
+.ev .eb{grid-column:2;grid-row:1/3;display:flex;gap:6px;align-items:center}
+.ev .eb .btn{min-height:40px;padding:0 14px;font-size:var(--t-base)}
+.ev.R{background:var(--warning-5)}
+.ev.N{background:var(--gray-5)}
+.ev.C .loc .p{color:var(--success-60)}
+.ev .why{grid-column:1/3;color:var(--warning-60);font-size:var(--t-base);font-weight:700}
+.vmsg{padding:10px 14px;color:var(--text-2);font-size:var(--t-base);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.vmsg.info{background:var(--info-5);color:var(--info-60);font-weight:700}
+.vmsg.warn{background:var(--warning-5);color:var(--warning-60);font-weight:700;border-bottom:1px solid var(--warning-10)}
+.pf{flex:none;display:flex;align-items:center;gap:12px;padding:10px 24px;border-top:1px solid var(--line);min-height:60px}
+.pf .l{flex:1;color:var(--text-2);font-size:var(--t-base)}
+.drawer.wide{width:min(600px,100vw)}
+.pick{display:grid;grid-template-columns:200px 1fr;gap:16px;min-height:0}
+.pick h3{font-size:var(--t-base);color:var(--text-3);margin-bottom:6px}
+.toclist,.blks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.tl,.bk{appearance:none;width:100%;text-align:left;border:1px solid var(--gray-20);background:var(--gray-0);border-radius:var(--radius-sm);padding:8px 10px;cursor:pointer;font-size:var(--t-base);min-height:44px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.tl:hover,.bk:hover{background:var(--gray-5)}
+.tl[aria-pressed="true"],.bk[aria-pressed="true"]{background:var(--primary-5);border-color:var(--primary-50)}
+.tl.l2{margin-left:12px;width:calc(100% - 12px)}
+.bk{display:block}
+.bk b{display:block}
+.bk span{color:var(--text-2);font-weight:400;line-height:1.4;display:block}
+.pfx{color:var(--text-3);font-size:14px}
+.sp{display:inline-block;width:16px;height:16px;border:2px solid var(--primary-20);border-top-color:var(--primary-50);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.sp{animation:none}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <button class="brand" type="button" data-href="../../PM-01/design/projects.html" aria-label="심사임당 사업 목록으로"><span class="brand-mark">심</span><span>심사임당</span></button>
+  <p class="role">(가상) 정보화담당관</p>
+  <nav aria-label="주 메뉴">
+    <a href="../../PM-01/design/projects.html" aria-current="page">사업 목록</a>
+    <a href="../../PM-07/design/pool.html">위원 풀</a>
+  </nav>
+  <div class="bottom">
+    <a href="#" data-account>내 계정</a>
+    <a href="../../PM-00/design/login.html">로그아웃</a>
+  </div>
+</aside>
+<div class="main">
+  <header class="pj-head">
+    <a class="pj-back" href="../../PM-02/design/documents.html">← 문서</a>
+    <div class="pj-row">
+      <div class="pj-title"><h1>(가상) 통합 민원 시스템 구축 용역</h1><span class="badge">○ 준비</span><span class="badge">근거 연결</span></div>
+      <div class="pj-act"><span class="hint">확정한 근거만 평가위원 비교 화면에 나와요</span></div>
+    </div>
+  </header>
+  <nav class="steps" id="steps" aria-label="진행 단계"></nav>
+  <div class="body">
+    <section class="card split" aria-label="근거 연결">
+      <aside class="items" aria-label="평가항목">
+        <h2>평가항목</h2>
+        <p class="sub">승인된 평가표 v1 · 확정 <b class="tnum" id="gdone"></b></p>
+        <ul class="ilist" id="ilist"></ul>
+        <div class="foot">확정한 연결은 평가위원의 업체 비교 화면에 그대로 쓰여요.</div>
+      </aside>
+      <div class="panel" id="panel"></div>
+    </section>
+  </div>
+  <details class="demo" id="demo"><summary>시안 상태</summary><div class="demo-in">업체 수
+    <button type="button" data-n="2" aria-pressed="false">2곳</button>
+    <button type="button" data-n="3" aria-pressed="true">3곳</button>
+    <button type="button" data-n="4" aria-pressed="false">4곳 (D사 PDF)</button>
+    <span class="muted">·</span>
+    <button type="button" data-rs="1" aria-pressed="false">처음 상태</button>
+  </div></details>
+</div>
+</div>
+
+<div class="scrim" id="scrim"></div><div class="scrim top" id="scrim2"></div>
+<aside class="drawer wide" id="pk" role="dialog" aria-modal="true" aria-labelledby="pk-t">
+  <header><h2 id="pk-t">근거 바꾸기</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
+  <div class="dbody">
+    <div class="note" id="pk-note"></div>
+    <div class="pick">
+      <div><h3>목차 · 쪽</h3><ul class="toclist" id="pk-toc"></ul></div>
+      <div><h3 id="pk-bh">이 쪽의 블록</h3><ul class="blks" id="pk-blk"></ul></div>
+    </div>
+  </div>
+  <footer><span class="pfx" id="pk-left" style="margin-right:auto;align-self:center"></span><button class="btn" type="button" data-close>취소</button><button class="btn primary" type="button" id="pk-ok" disabled>이 블록으로 확정</button></footer>
+</aside>
+<div class="dlg" id="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t" aria-describedby="dlg-b">
+  <h2 id="dlg-t"></h2><p id="dlg-b"></p>
+  <div class="acts"><button class="btn" type="button" id="dlg-cancel" data-close>취소</button><button class="btn primary" type="button" id="dlg-ok"></button></div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="../../_ui.js"></script>
+<script>
+const ITEMS=[
+ ['1.1','사업 배경·목표 이해',5,'사업의 배경과 목표를 정확히 이해하고 범위를 구체적으로 제시하였는가 (제안요청서 14쪽)'],
+ ['1.2','추진 전략·일정',5,'단계별 추진 전략과 일정 계획이 현실적인가 (14쪽)'],
+ ['2.1','아키텍처 구성',12,'시스템 구성이 요구 성능·가용성을 충족하는가 (14쪽)'],
+ ['2.2','연계·확장성',8,'외부 기관 연계와 향후 확장 방안이 타당한가 (14쪽)'],
+ ['3','기능 요구사항 충족도',20,'필수 기능 요구사항을 빠짐없이 충족하는가 (14쪽)'],
+ ['4','데이터 이전·연계 방안',10,'기존 데이터 이전 절차와 검증 방법이 구체적인가 (15쪽)'],
+ ['5','정보 보안 대책',10,'개인정보·접근통제 등 보안 요구사항을 충족하는가 (15쪽)'],
+ ['6','유지보수 및 교육 지원',10,'유지보수 체계와 사용자 교육 계획이 적절한가 (24쪽)'],
+];
+const VEND=[
+ {code:'A사',name:'(가상)하늘정보',doc:'v2',latest:'v2'},
+ {code:'B사',name:'(가상)누리시스템',doc:'v1',latest:'v1'},
+ {code:'C사',name:'(가상)한빛소프트',doc:'v2',latest:'v3'},
+ {code:'D사',name:'(가상)미래데이터',doc:'PDF',latest:'PDF',pdf:true},
+];
+const TOC=[['회사 일반 현황',4,1],['사업 이해도',9,1],['추진 전략',10,2],['시스템 구성',15,1],['기능 설계',18,2],['데이터 이전 계획',24,1],['보안 대책',27,1],['품질·시험 계획',33,1],['유지보수 계획',38,1]];
+const EX=['본 시스템은 웹·업무·데이터 3계층으로 구성하고 이중화로 가용성 99.9%를 보장한다.','민원 접수부터 결과 통보까지 전 과정을 한 화면에서 처리하도록 설계하였다.','기존 데이터 약 120만 건을 3단계로 나누어 이전하며 단계마다 정합성을 검증한다.','개인정보는 저장·전송 구간을 모두 암호화하고 접근 기록을 1년간 보관한다.','준공 후 12개월간 무상 유지보수를 제공하고 장애 접수 후 2시간 안에 현장 대응한다.','사업 목표와 범위를 발주기관 요구에 맞춰 재정의하고 단계별 산출물을 제시한다.','외부 기관 연계는 표준 API로 구현하고 확장 시 설정만으로 대응한다.','추진 일정을 분석·설계·개발·시험·이행 5단계로 나누고 단계마다 검수를 받는다.'];
+const BLK=['문단 2','표 3 · 2행 4열','문단 5','그림 4 설명','표 6 · 1행 2열'];
+let cid=0;
+const card=(ver,page,blk,ex,st)=>({id:++cid,ver,page,blk,ex,st});
+const gen=(i,j,k)=>card(VEND[j].doc,6+i*4+j*3+k*2,BLK[(i+j+k)%BLK.length],EX[(i*3+j+k)%EX.length],'S');
+function initData(){const D={};
+  ITEMS.forEach((_,i)=>{D[i]=VEND.map((v,j)=>[])});
+  const set=(i,j,arr)=>D[i][j]=arr;
+  // 1.1
+  set(0,0,[Object.assign(gen(0,0,0),{st:'C'})]);set(0,1,[gen(0,1,0)]);set(0,2,[Object.assign(gen(0,2,0),{st:'C'})]);
+  // 1.2
+  set(1,0,[gen(1,0,0)]);set(1,1,[gen(1,1,0)]);set(1,2,[Object.assign(gen(1,2,0),{st:'N'})]);
+  // 2.1 (기본 선택)
+  set(2,0,[Object.assign(gen(2,0,0),{st:'C'}),gen(2,0,1)]);set(2,1,[gen(2,1,0)]);set(2,2,[Object.assign(gen(2,2,0),{st:'R'}),Object.assign(gen(2,2,1),{st:'C'})]);
+  // 2.2
+  set(3,0,[gen(3,0,0)]);set(3,1,[Object.assign(gen(3,1,0),{st:'C'})]);set(3,2,[Object.assign(gen(3,2,0),{st:'R'})]);
+  // 3
+  set(4,0,[gen(4,0,0),gen(4,0,1)]);set(4,1,[gen(4,1,0)]);
+  // 4,5 : 일부
+  set(5,0,[Object.assign(gen(5,0,0),{st:'C'})]);set(5,1,[Object.assign(gen(5,1,0),{st:'C'})]);set(5,2,[Object.assign(gen(5,2,0),{st:'C'})]);
+  // 6 보안 : 제안 전 일부, 7 유지보수: 아직 제안 전
+  set(6,0,[gen(6,0,0)]);
+  return D}
+let D=initData(),sel=2,nv=3;
+const ST={S:['info','제안됨'],C:['success','✓ 확정됨'],N:['','연결 없음'],R:['warning','! 다시 확인 필요']};
+const vs=()=>VEND.slice(0,nv);
+const eff=(c,j)=>(c.st==='C'||c.st==='S')&&c.ver!==VEND[j].latest?'R':c.st;
+function itemStat(i){let c=0,s=0,r=0,tot=0,vlen=0;
+  vs().forEach((v,j)=>{if(v.pdf)return;vlen++;const a=D[i][j];tot++;
+    const e=a.map(x=>eff(x,j)),best=e.includes('R')?'R':e.includes('S')?'S':a.length&&e.every(x=>x==='N')?'N':e.includes('C')?'C':'';
+    if(best==='C'||best==='N')c++;else if(best==='R')r++;else if(best==='S')s++});
+  return{c,s,r,tot,none:tot-c-s-r}}
+function paint(){
+  let gd=0;
+  $('#ilist').innerHTML=ITEMS.map((it,i)=>{const t=itemStat(i),done=t.c===t.tot&&t.tot>0;if(done)gd++;
+    const pill=t.r?`<span class="pill warn">! 다시 확인 ${t.r}</span>`:done?`<span class="pill ok">✓ 모두 확정</span>`:t.c+t.s===0?'<span class="pill">제안 전</span>':`<span class="pill info">확정 ${t.c}/${t.tot}</span>`;
+    return `<li><button class="ib2" type="button" data-i="${i}" aria-current="${i===sel}"><span class="cd tnum">${it[0]}</span><span class="nm">${h(it[1])} <span class="muted" style="font-weight:400">${it[2]}점</span></span><span class="st">${pill}</span></button></li>`}).join('');
+  $('#gdone').textContent=gd+' / '+ITEMS.length+'개 항목';
+  $$('#ilist [data-i]').forEach(b=>b.onclick=()=>{sel=+b.dataset.i;paint();$('.pb').scrollTop=0});
+  panel();
+}
+function evCard(i,j,c){const st=eff(c,j),r=st==='R';
+  const loc=`<div class="loc"><span class="badge">제안서 ${c.ver}</span><span class="p tnum">${c.page}쪽</span><span>${h(c.blk)}</span><span class="badge ${ST[st][0]}">${ST[st][1]}</span></div>`;
+  if(st==='N')return `<article class="ev N"><div class="loc"><span class="badge">제안서 ${c.ver}</span><span class="badge">연결 없음</span><span class="muted" style="font-weight:400">이 업체는 이 항목의 근거가 없다고 표시했어요</span></div><div class="eb"><button class="btn" type="button" data-a="undo" data-c="${c.id}" data-j="${j}">되돌리기</button></div></article>`;
+  return `<article class="ev ${st}">${loc}<q>${h(c.ex)}</q><div class="eb"><button class="btn primary" type="button" data-a="ok" data-c="${c.id}" data-j="${j}" ${st==='C'?'hidden':''} ${r?'disabled title="새 버전에서 블록을 다시 골라 주세요"':''}>확정</button><button class="btn" type="button" data-a="edit" data-c="${c.id}" data-j="${j}">수정</button><button class="btn" type="button" data-a="none" data-c="${c.id}" data-j="${j}">연결 없음</button></div>${r?`<div class="why">제안서가 ${VEND[j].latest}로 새로 올라왔어요 → ${c.ver}에서 확정한 곳이에요. 새 버전에서 블록을 다시 골라 주세요 (수정)</div>`:''}</article>`}
+function panel(){const it=ITEMS[sel],t=itemStat(sel);
+  const secs=vs().map((v,j)=>{const a=D[sel][j],stale=a.some(x=>eff(x,j)==='R');
+    const cn=a.filter(x=>eff(x,j)==='C').length;
+    const head=`<div class="vh"><span class="code">${v.code}</span><b>${h(v.name)}</b><span class="badge ${v.pdf?'info':''}">${v.pdf?'⟳ PDF 연결 확인 중':'제안서 '+v.doc}</span>${stale?`<span class="badge warning">! 제안서 새 버전 ${v.latest} → 다시 확인 필요</span>`:''}<span class="r tnum">${v.pdf?'':`확정 ${cn} / 후보 ${a.filter(x=>x.st!=='N').length}`}</span></div>`;
+    let body;
+    if(v.pdf)body=`<div class="vmsg info">PDF 연결을 확인하는 중이에요. 성공으로 표시하지 않아요. 확인이 끝나면 근거 후보를 받을 수 있어요.</div>`;
+    else if(!a.length)body=`<div class="vmsg">아직 연결이 없어요. [항목 연결 제안 받기]를 눌러 후보를 받아 보세요.</div>`;
+    else body=(stale?`<div class="vmsg warn">확정했던 연결이 이전 버전(${a.find(x=>eff(x,j)==='R').ver}) 기준이에요. 새 버전 ${v.latest}에서 같은 곳이 맞는지 다시 확인해 주세요.</div>`:'')+`<div class="vb">${a.map(c=>evCard(sel,j,c)).join('')}</div>`;
+    return `<section class="vsec" aria-label="${v.code}">${head}${body}</section>`}).join('');
+  $('#panel').innerHTML=`<div class="ph"><div class="t"><h2><span class="tnum">${it[0]}</span> ${h(it[1])} <span class="muted" style="font-weight:400">· ${it[2]}점</span></h2><div class="rq">평가 기준: ${h(it[3])}</div></div><div class="acts"><button class="btn primary" type="button" id="b-sug">항목 연결 제안 받기</button><span class="hint">출처 없는 연결은 저장하지 않아요</span></div></div>
+   <div class="pb">${secs}</div>
+   <div class="pf"><span class="l">이 항목: 확정 또는 연결 없음 ${t.c}/${t.tot}곳${t.r?` · 다시 확인 ${t.r}곳`:''}${t.s?` · 확인 대기 ${t.s}곳`:''}</span><button class="btn" type="button" id="b-next" ${sel>=ITEMS.length-1?'disabled':''}>다음 항목 →</button></div>`;
+  $('#b-next').onclick=()=>{sel=Math.min(sel+1,ITEMS.length-1);paint()};
+  $('#b-sug').onclick=suggest;
+  $$('#panel [data-a]').forEach(b=>b.onclick=()=>act(b.dataset.a,+b.dataset.j,+b.dataset.c));
+}
+function suggest(){const b=$('#b-sug');b.disabled=true;b.innerHTML='<span class="sp" aria-hidden="true"></span> 제안 받는 중';
+  setTimeout(()=>{let add=0,drop=0;
+    vs().forEach((v,j)=>{if(v.pdf)return;const a=D[sel][j];if(!a.length){a.push(gen(sel,j,0));add++;if((sel+j)%3===2)drop++}});
+    paint();toast(add?`${add}곳에서 후보를 받았어요${drop?` · 출처(쪽·블록)가 없는 후보 ${drop}건은 저장하지 않았어요`:''}`:'새로 받을 후보가 없어요. 이미 제안이 있어요')},1100)}
+function act(a,j,id){const arr=D[sel][j],c=arr.find(x=>x.id===id);if(!c)return;
+  if(a==='ok'){c.st='C';toast(VEND[j].code+' 근거를 확정했어요')}
+  if(a==='none'){c.st='N';toast(VEND[j].code+' 연결 없음으로 표시했어요')}
+  if(a==='undo'){c.st='S';toast('다시 확인할 수 있게 되돌렸어요')}
+  if(a==='edit'){openPick(j,c);return}
+  paint()}
+/* 근거 바꾸기: 미니 목차 + 쪽 블록 */
+let pj=0,pc=null,ptoc=null,pblk=null;
+function blocksFor(page){return [0,1,2].map(k=>({blk:BLK[(page+k)%BLK.length],ex:EX[(page*2+k)%EX.length]}))}
+function openPick(j,c){pj=j;pc=c;ptoc=TOC.findIndex(t=>t[1]>=c.page);if(ptoc<0)ptoc=TOC.length-1;pblk=null;
+  const v=VEND[j];
+  $('#pk-t').textContent=`${v.code} · ${ITEMS[sel][0]} 근거 바꾸기`;
+  $('#pk-note').textContent=`${v.code} 제안서 ${v.latest} 기준 목차예요. 목차나 쪽을 고른 뒤 근거가 될 블록을 골라 주세요.`;
+  drawPick();openLayer($('#pk'),'#pk-toc .tl')}
+function drawPick(){
+  $('#pk-toc').innerHTML=TOC.map((t,i)=>`<li><button class="tl${t[2]===2?' l2':''}" type="button" data-t="${i}" aria-pressed="${i===ptoc}"><span>${h(t[0])}</span><span class="tnum muted">${t[1]}쪽</span></button></li>`).join('');
+  const page=TOC[ptoc][1];$('#pk-bh').textContent=`${page}쪽의 블록`;
+  $('#pk-blk').innerHTML=blocksFor(page).map((b,k)=>`<li><button class="bk" type="button" data-b="${k}" aria-pressed="${pblk===k}"><b>${h(b.blk)}</b><span>${h(b.ex)}</span></button></li>`).join('');
+  $$('#pk-toc [data-t]').forEach(b=>b.onclick=()=>{ptoc=+b.dataset.t;pblk=null;drawPick()});
+  $$('#pk-blk [data-b]').forEach(b=>b.onclick=()=>{pblk=+b.dataset.b;drawPick()});
+  $('#pk-ok').disabled=pblk==null;$('#pk-left').textContent=pblk==null?'블록을 골라 주세요':`${page}쪽 · ${blocksFor(page)[pblk].blk}`}
+$('#pk-ok').onclick=()=>{const page=TOC[ptoc][1],b=blocksFor(page)[pblk],v=VEND[pj];
+  Object.assign(pc,{ver:v.latest,page,blk:b.blk,ex:b.ex,st:'C'});closeLayer($('#pk'));paint();toast('바꿔서 확정했어요 · '+v.code+' '+v.latest+' '+page+'쪽')};
+$$('#demo [data-n]').forEach(b=>b.onclick=()=>{nv=+b.dataset.n;$$('#demo [data-n]').forEach(x=>x.setAttribute('aria-pressed',x===b));paint()});
+$('#demo [data-rs]').onclick=()=>{D=initData();sel=2;paint();toast('처음 상태로 돌렸어요')};
+renderSteps($('#steps'),['done','current','done','locked','locked','locked']);
+paint();
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+/* 사업담당자 프로젝트 상세 틀: 사업 머리(.pj-head) + 단계 막대(.steps > .step). PM-01 상세~PM-06이 같이 쓴다. 클래스 이름 바꾸지 말 것. */
+.pj-head{flex:none;padding:12px 32px 0}
+.pj-back{display:inline-flex;align-items:center;min-height:36px;color:var(--text-3);font-size:var(--t-base);text-decoration:none;border-radius:var(--radius-sm);margin-left:-8px;padding:0 8px}
+.pj-back:hover{background:var(--gray-10);color:var(--text-1)}
+.pj-row{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:52px}
+.pj-title{display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap}
+.pj-title h1{font-size:var(--t-2xl);font-weight:700}
+.pj-act{display:flex;align-items:center;gap:12px;flex:none}
+.pj-act .hint{color:var(--text-3);font-size:var(--t-base)}
+
+.steps{display:flex;gap:8px;margin:0;padding:12px 32px 16px;flex:none}
+.step{appearance:none;flex:1;min-width:0;display:flex;align-items:center;gap:12px;min-height:52px;padding:0 16px;border-radius:var(--radius-sm);background:var(--gray-0);border:0;box-shadow:var(--shadow-1);color:var(--text-2);font:inherit;font-size:var(--t-base);font-weight:700;text-align:left;text-decoration:none;cursor:pointer;transition:background .15s}
+.step:hover{background:var(--gray-5)}
+.step .n{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--gray-10);color:var(--text-2);font-size:var(--t-sm);font-weight:700}
+.step.is-done .n{background:var(--success-5);color:var(--success-60)}
+.step.is-done{color:var(--text-1)}
+.step.is-current{background:var(--primary-5);color:var(--primary-60);box-shadow:inset 0 -3px 0 var(--primary-50)}
+.step.is-current .n{background:var(--primary-50);color:#fff}
+.step.is-locked{background:none;box-shadow:none;color:var(--text-3);font-weight:400;cursor:not-allowed}
+.step.is-locked:hover{background:none}
+.step.is-locked .n{background:none;font-size:var(--t-base)}

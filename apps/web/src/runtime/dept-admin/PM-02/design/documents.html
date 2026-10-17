@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>문서 · 심사임당 사업담당자</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../../super-admin/_shell.css">
+<link rel="stylesheet" href="../../_steps.css">
+<style>
+.body{row-gap:12px;display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);grid-auto-rows:max-content;gap:16px;align-content:start;overflow:auto;min-height:0;padding-bottom:12px}
+.reg{flex:none;overflow:visible}
+.reg-h{display:flex;align-items:center;gap:10px;padding:14px 20px 0;min-height:44px}
+.reg-h h2{font-size:var(--t-xl);display:flex;align-items:center;gap:10px;white-space:nowrap}
+.reg-h .no{flex:none;width:28px;height:28px;border-radius:50%;background:var(--primary-50);color:#fff;display:grid;place-items:center;font-size:14px;font-weight:700}
+.reg-h .hint{margin-left:auto;color:var(--text-3);font-size:var(--t-sm);white-space:nowrap}
+.reg-b{padding:8px 16px 14px;flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
+/* 끌어 놓는 칸 */
+.drop{border:2px dashed var(--primary-50);background:var(--primary-5);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;transition:background .15s}
+.drop.over{background:var(--primary-10);border-style:solid}
+.drop-big{flex:1;flex-direction:column;gap:8px;text-align:center;padding:16px;min-height:0}
+.drop-big .big{font-size:var(--t-lg);font-weight:700}
+.drop-big .rule{color:var(--text-3);font-size:var(--t-base)}
+/* 등록된 제안요청서 */
+.filebox{flex:1;background:var(--gray-5);border-radius:var(--radius-sm);padding:16px;display:flex;flex-direction:column;gap:4px;justify-content:center;min-height:0}
+.filebox .fn{font-size:var(--t-lg);font-weight:700;overflow-wrap:anywhere;line-height:1.35}
+.filebox .path{color:var(--text-3);font-size:var(--t-sm);overflow-wrap:anywhere;line-height:1.4}
+.filebox .msg{font-size:var(--t-base);color:var(--text-2)}
+.filebox .msg.bad{color:var(--danger-60);font-weight:700}
+.filebox .fa{display:flex;gap:8px;align-items:center;margin-top:6px}
+.vt{display:inline-block;margin-left:8px;padding:0 8px;border-radius:var(--radius-sm);background:var(--primary-5);color:var(--primary-60);font-size:14px;font-weight:700;vertical-align:1px}
+/* 업체별 제안서 줄 */
+.vlist{display:flex;flex-direction:column;gap:6px;flex:1;justify-content:flex-start}
+.vrow{display:flex;align-items:center;gap:10px;min-height:60px;padding:4px 12px;border-radius:var(--radius-sm);background:var(--gray-5)}
+.vrow.drop{justify-content:flex-start;padding:8px 12px;border:1px dashed var(--gray-30);background:var(--gray-5)}
+.vrow.drop.over{border-color:var(--primary-50);background:var(--primary-5)}
+.vrow .who{flex:none;width:84px;display:flex;flex-direction:column;gap:2px;align-items:flex-start;min-width:0}.vrow .who small{font-size:var(--t-sm);color:var(--text-3);max-width:84px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vrow .code{flex:none;display:inline-grid;place-items:center;min-width:48px;height:32px;border-radius:var(--radius-sm);background:var(--gray-10);font-weight:700}
+.vrow .vi{flex:1;min-width:0;line-height:1.4}
+.vrow .vi b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vrow .vi span:not(.vt){display:block;font-size:var(--t-sm);color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vrow .vi .bad{color:var(--danger-60);font-weight:700}
+.vrow .vi .info{color:var(--info-60);font-weight:700}
+.vrow .vs{flex:none}
+.vrow .va{flex:none;display:flex;gap:6px}
+.vrow .btn,.filebox .btn{min-height:40px;padding:0 14px;font-size:var(--t-base)}
+.vrow.empty .vi b{color:var(--text-1)}
+.vrow .vx{flex:none;display:flex;gap:0;margin-left:-4px}
+.vrow .vx .tl{min-height:32px;padding:0 8px;font-size:var(--t-sm)}
+.vempty{display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px 16px;border-radius:var(--radius-sm);background:var(--gray-5);text-align:center;color:var(--text-2)}
+.addrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-radius:var(--radius-sm);background:var(--gray-5)}
+.addrow input{flex:1;min-width:200px;min-height:44px}
+.addrow .code{flex:none;display:inline-grid;place-items:center;min-width:48px;height:32px;border-radius:var(--radius-sm);background:var(--gray-10);font-weight:700}
+.addrow .hint{color:var(--text-3);font-size:var(--t-sm)}
+.addrow .err{flex-basis:100%;font-size:var(--t-sm)}
+.vadd{align-self:flex-start;margin-left:-4px}
+/* 더 보기 */
+.morebar{grid-column:1/-1;display:flex;align-items:center;gap:8px;min-height:40px;margin-top:-4px}
+.morebar .sp{flex:1}
+.tl{appearance:none;border:0;background:none;color:var(--text-2);font:inherit;font-size:var(--t-base);min-height:32px;padding:0 10px;border-radius:var(--radius-sm);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.tl:hover{background:var(--gray-10);color:var(--text-1)}
+.tl.pri{color:var(--primary-60);font-weight:700}
+.tl.dng{color:var(--danger-60)}
+.more{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:0;overflow:visible;flex:none;flex-direction:row}
+.more[hidden]{display:none}
+.more section{padding:8px 20px 8px;min-width:0}
+.more section+section{border-left:1px solid var(--line)}
+.more h3{font-size:var(--t-base);margin:0 0 2px;color:var(--text-2)}
+.mrow{display:flex;align-items:center;gap:8px;min-height:32px;border-top:1px solid var(--line)}
+.mrow:first-of-type{border-top:0}
+.vchips{display:flex;flex-wrap:wrap;gap:6px;padding-top:4px}.tl.vc{border:1px solid var(--gray-20);background:var(--gray-0)}.tl.vc:hover{background:var(--gray-10)}
+.mrow .nm{flex:none;width:112px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .nm small{font-weight:400;color:var(--text-3);margin-left:4px}
+.mrow .ls{flex:1;display:flex;justify-content:flex-end;flex-wrap:wrap}
+.mrow .tx{flex:1;min-width:0;color:var(--text-2);font-size:var(--t-sm)}
+.btn.is-off{background:var(--gray-20);border-color:var(--gray-20);color:var(--gray-60);cursor:not-allowed}.btn.is-off:hover{background:var(--gray-20);border-color:var(--gray-20)}
+/* 보조 칸 */
+.drawer.wide{width:min(580px,100vw)}
+.toc{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.toc li{display:grid;grid-template-columns:1fr 84px 104px;gap:8px;align-items:center}
+.toc li.l2 input.tt{margin-left:20px;width:calc(100% - 20px)}
+.toc input{min-height:44px;font-size:var(--t-base)}
+.toc input.pg{text-align:right}
+.toc input.pg.miss{border-color:var(--warning-50);background:var(--warning-5)}
+.toc .mk{font-size:var(--t-base)}
+.toc-h{display:grid;grid-template-columns:1fr 84px 104px;gap:8px;font-size:var(--t-base);color:var(--text-3);font-weight:700}
+.dlg-foot-l{margin-right:auto;color:var(--text-3);font-size:var(--t-base);align-self:center}
+.form{display:flex;flex-direction:column;gap:18px}
+textarea{width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-size:var(--t-base);font-weight:400;resize:vertical;background:var(--gray-0)}
+textarea:focus{outline:none;border-color:var(--primary-50);box-shadow:var(--focus)}
+textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--danger-5)}
+.revs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.rev{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--gray-20);border-radius:var(--radius-sm);background:var(--gray-0)}
+.rev.latest{border-color:var(--primary-50);background:var(--primary-5)}
+.rev .vn{flex:none;width:44px;height:44px;border-radius:var(--radius-sm);background:var(--gray-10);display:grid;place-items:center;font-weight:700}
+.rev.latest .vn{background:var(--primary-50);color:#fff}
+.rev .rt{flex:1;min-width:0;line-height:1.4}
+.rev .rt b{display:block;overflow-wrap:anywhere}
+.rev .rt span{color:var(--text-3);font-size:var(--t-base)}
+.rev .btn{min-height:40px;padding:0 12px;font-size:var(--t-base);flex:none}
+.hsearch{position:relative}
+.hsearch input{padding-left:14px}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <button class="brand" type="button" data-href="../../PM-01/design/projects.html" aria-label="심사임당 사업 목록으로"><span class="brand-mark">심</span><span>심사임당</span></button>
+  <p class="role">(가상) 정보화담당관</p>
+  <nav aria-label="주 메뉴">
+    <a href="../../PM-01/design/projects.html" aria-current="page">사업 목록</a>
+    <a href="../../PM-07/design/pool.html">위원 풀</a>
+  </nav>
+  <div class="bottom">
+    <a href="#" data-account>내 계정</a>
+    <a href="../../PM-00/design/login.html">로그아웃</a>
+  </div>
+</aside>
+<div class="main">
+  <header class="pj-head">
+    <a class="pj-back" href="../../PM-01/design/overview.html">← 사업 정보</a>
+    <div class="pj-row">
+      <div class="pj-title"><h1>(가상) 통합 민원 시스템 구축 용역</h1><span class="badge">○ 준비</span></div>
+      <div class="pj-act"><span class="hint" id="remain"></span><a class="btn" id="b-next" href="../../PM-03/design/criteria.html">다음: 평가항목</a></div>
+    </div>
+  </header>
+  <nav class="steps" id="steps" aria-label="진행 단계"></nav>
+  <div class="body">
+    <section class="card reg" aria-labelledby="h-rfp">
+      <div class="reg-h"><h2 id="h-rfp"><span class="no" aria-hidden="true">1</span>제안요청서 등록</h2><span class="hint">HWPX · 50MB 이하</span></div>
+      <div class="reg-b" id="rfp"></div>
+    </section>
+    <section class="card reg" aria-labelledby="h-pro">
+      <div class="reg-h"><h2 id="h-pro"><span class="no" aria-hidden="true">2</span>제안서 등록</h2><span class="hint">업체마다 1개 · HWPX · PDF</span></div>
+      <div class="reg-b"><div class="vlist" id="rows"></div></div>
+    </section>
+    <div class="morebar">
+      <button class="tl" type="button" id="b-more" aria-expanded="false" aria-controls="more">더 보기 ▾</button>
+      <span class="muted" style="font-size:var(--t-sm)">등록 이력 · 요구사항 추출 · 원본 보기</span>
+      <span class="sp"></span>
+      <a class="tl pri" href="../../PM-08/design/evidence.html">근거 연결 →</a>
+    </div>
+    <section class="card more" id="more" hidden aria-label="더 보기">
+      <section><h3>등록된 파일</h3><div id="m-files"></div></section>
+      <section><h3>요구사항 추출</h3><div id="m-xr"></div></section>
+    </section>
+  </div>
+  <details class="demo" id="demo"><summary>시안 상태</summary><div class="demo-in">요구사항 추출
+    <button type="button" data-r="none" aria-pressed="false">없음</button>
+    <button type="button" data-r="wait" aria-pressed="false">대기</button>
+    <button type="button" data-r="run" aria-pressed="false">처리 중</button>
+    <button type="button" data-r="fail" aria-pressed="false">실패</button>
+    <button type="button" data-r="done" aria-pressed="true">완료</button>
+    <span class="muted">·</span>
+    <button type="button" data-use="1" aria-pressed="true">평가에서 쓰는 중</button>
+    <button type="button" data-vfail="1" aria-pressed="false">C사 실패</button>
+    <button type="button" data-all="done" aria-pressed="false">모두 끝난 상태</button>
+    <button type="button" data-all="init" aria-pressed="false">처음 상태</button>
+  </div></details>
+</div>
+</div>
+<input type="file" id="file" hidden>
+
+<div class="scrim" id="scrim"></div><div class="scrim top" id="scrim2"></div>
+
+<aside class="drawer wide" id="hist" role="dialog" aria-modal="true" aria-labelledby="hist-t">
+  <header><h2 id="hist-t">등록 이력</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
+  <div class="dbody">
+    <div class="hsearch"><label class="sr-only" for="hist-q">이력 검색</label><input id="hist-q" type="search" placeholder="파일 이름·버전·날짜로 찾기"></div>
+    <div class="note" id="hist-note"></div>
+    <ul class="revs" id="hist-list"></ul>
+  </div>
+  <footer><button class="btn text-danger" type="button" id="hist-del" style="margin-right:auto">제안서 삭제</button><button class="btn" type="button" data-close>닫기</button></footer>
+</aside>
+
+<aside class="drawer wide" id="toc" role="dialog" aria-modal="true" aria-labelledby="toc-t">
+  <header><h2 id="toc-t">목차 확인</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
+  <div class="dbody">
+    <div class="note" id="toc-note">보조 기능이에요. 컴퓨터가 읽어 온 초안이라, 제목과 쪽 번호가 틀리면 고친 뒤 [확인 완료]를 눌러 주세요. 안 해도 다음 단계로 갈 수 있어요.</div>
+    <div class="toc-h" aria-hidden="true"><span>목차 제목</span><span style="text-align:right">쪽</span><span></span></div>
+    <ul class="toc" id="toc-list"></ul>
+  </div>
+  <footer><span class="dlg-foot-l" id="toc-left"></span><button class="btn" type="button" data-close>닫기</button><button class="btn primary" type="button" id="toc-ok">확인 완료</button></footer>
+</aside>
+
+<aside class="drawer" id="add" role="dialog" aria-modal="true" aria-labelledby="add-t">
+  <header><h2 id="add-t">업체 추가</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
+  <form class="dbody form" id="f-add" novalidate>
+    <label class="field">법인명<input id="a-name" placeholder="예: (가상)하늘정보" aria-describedby="a-name-e"><span class="err" id="a-name-e" hidden></span></label>
+    <label class="field">표시 코드<input id="a-code" placeholder="예: A사" aria-describedby="a-code-e"><span class="hint" id="a-code-h"></span><span class="err" id="a-code-e" hidden></span></label>
+    <label class="field">순서<input id="a-ord" inputmode="numeric" aria-describedby="a-ord-e"><span class="err" id="a-ord-e" hidden></span></label>
+    <div class="note warn" id="a-lock">평가위원에게는 법인명 대신 이 코드가 보여요. 같은 사업에서 코드는 하나씩만 쓸 수 있어요. 평가 시작 뒤에는 코드를 바꿀 수 없어요.</div>
+    <div class="note bad" id="a-block" hidden>평가에 고정된 업체라 지울 수 없어요. 코드도 바꿀 수 없어요.</div>
+  </form>
+  <footer><button class="btn text-danger" type="button" id="a-del" style="margin-right:auto" hidden>업체 삭제</button><button class="btn" type="button" data-close>취소</button><button class="btn primary" type="submit" form="f-add" id="a-ok">추가</button></footer>
+</aside>
+
+<div class="dlg" id="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t" aria-describedby="dlg-b">
+  <h2 id="dlg-t"></h2><p id="dlg-b"></p>
+  <div class="acts"><button class="btn" type="button" id="dlg-cancel" data-close>취소</button><button class="btn primary" type="button" id="dlg-ok"></button></div>
+</div>
+<div class="dlg" id="rdlg" role="alertdialog" aria-modal="true" aria-labelledby="rdlg-t" aria-describedby="rdlg-b">
+  <h2 id="rdlg-t"></h2><p id="rdlg-b"></p>
+  <label class="field">사유<textarea id="rdlg-r" rows="3" placeholder="예: 잘못 올린 파일이에요" aria-describedby="rdlg-e"></textarea><span class="err" id="rdlg-e" hidden></span></label>
+  <div class="note bad" id="rdlg-blk" hidden></div>
+  <div class="acts"><button class="btn" type="button" data-close>취소</button><button class="btn danger" type="button" id="rdlg-ok">삭제</button></div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="../../_ui.js"></script>
+<script>
+const PN='(가상) 통합 민원 시스템 구축 용역';   /* 폴더 규칙: 사업명/종류/파일명 */
+const pathOf=(kind,file)=>`${PN}/${kind}/${file}`;
+const TPL=[['사업 개요',3,1],['추진 배경',3,2],['사업 범위',null,2],['제안 요청 내용',6,1],['기능 요구사항',null,2],['성능·보안 요구사항',11,2],['제안서 평가 방법',14,1],['평가 항목 및 배점',14,2],['제안서 작성 요령',17,1],['계약 조건',20,1],['별첨 서식',22,1]];
+const VT=[['회사 일반 현황',4,1],['사업 이해도',9,1],['추진 전략',10,2],['시스템 구성',15,1],['기능 설계',18,2],['보안 대책',27,1],['품질·시험 계획',33,1],['유지보수 계획',null,1]];
+const ent=(t)=>t.map(e=>({t:e[0],p:e[1],l:e[2]}));
+const rv=(n,file,at,size,pin)=>({n,file,at,size,pin:pin||''});
+function initState(){return{
+ inUse:true,
+ rfp:{s:'done',toc:'draft',entries:ent(TPL),err:'',revs:[rv(3,'통합민원_제안요청서.hwpx','10-16 09:12','2.4MB'),rv(2,'통합민원_제안요청서.hwpx','10-15 16:40','2.3MB','평가표 v1 승인에 사용'),rv(1,'통합민원_제안요청서_초안.hwpx','10-14 11:03','2.1MB')]},
+ v:[
+  {code:'A사',name:'(가상)하늘정보',ord:1,fx:true,s:'done',toc:'ok',entries:ent(VT).map(e=>({...e,p:e.p||40})),err:'',revs:[rv(2,'하늘정보_제안서.hwpx','10-16 10:20','5.8MB'),rv(1,'하늘정보_제안서.hwpx','10-15 14:02','5.6MB','평가 자료로 고정')]},
+  {code:'B사',name:'(가상)누리시스템',ord:2,fx:true,s:'pdfchk',toc:'none',entries:[],err:'',revs:[rv(1,'누리시스템_제안서.pdf','10-16 08:45','12.1MB','평가 자료로 고정')]},
+  {code:'C사',name:'(가상)한빛소프트',ord:3,fx:false,s:'none',toc:'none',entries:[],err:'',revs:[]},
+ ]}}
+function blankState(){const s=initState();s.rfp={s:'none',toc:'none',entries:[],err:'',revs:[]};s.inUse=false;s.v.forEach(v=>{Object.assign(v,{s:'none',toc:'none',entries:[],err:'',revs:[],fx:false})});return s}
+let S=initState(),adding=false,addErr='',addVal='',target=null,timers=[],histObj=null,editV=null,moreOpen=false;
+const BADGE={none:['','— 파일 없음'],wait:['','○ 대기'],run:['info','⟳ 처리 중'],done:['success','✓ 완료'],fail:['danger','! 실패'],unsup:['danger','! 지원 안 함'],pdfchk:['info','⟳ PDF 확인 중']};
+const bd=s=>`<span class="badge ${BADGE[s][0]}">${BADGE[s][1]}</span>`;
+const fileOf=o=>o.revs.length?o.revs[0].file:'';
+const NOW='10-16 11:20';
+const sorted=()=>S.v.slice().sort((a,b)=>a.ord-b.ord);
+
+function remainCount(){let n=0;
+  if(S.rfp.s!=='done')n++;
+  if(!S.v.length)n++;
+  S.v.forEach(v=>{if(v.s!=='done')n++});return n}
+/* 지금 눌러야 할 한 곳: 비어 있는 제안요청서 → 비어 있는 첫 업체 */
+function primaryKey(){if(!fileOf(S.rfp))return 'rfp';const v=sorted().find(v=>!v.revs.length);return v?String(S.v.indexOf(v)):''}
+const pb=(key,label,pk)=>`<button class="btn${pk===key?' primary':''}" type="button" data-up="${key}">${label}</button>`;
+
+const vx=i=>`<span class="vx"><button class="tl" type="button" data-vedit="${i}" aria-label="${h(S.v[i].code)} 업체 수정">수정</button><button class="tl dng" type="button" data-vdel="${i}" aria-label="${h(S.v[i].code)} 업체 삭제">삭제</button></span>`;
+function addArea(pk){
+  const none=!S.v.length?'<div class="vempty"><span>먼저 업체를 추가하면 그 업체의 제안서를 올릴 수 있어요</span>'+(adding?'':`<button class="btn${pk===''?' primary':''}" type="button" id="b-add">+ 업체 추가</button>`)+'</div>':'';
+  if(!adding)return none||'<button class="tl pri vadd" type="button" id="b-add">+ 업체 추가</button>';
+  return none+`<form class="addrow" id="f-inl" novalidate><label class="sr-only" for="i-name">법인명</label><input id="i-name" placeholder="법인명 (예: (가상)하늘정보)" value="${h(addVal)}"${addErr?' aria-invalid="true" aria-describedby="i-err"':''}><span class="hint">표시 코드</span><span class="code">${nextCode()}</span><button class="btn" type="submit">추가</button><button class="btn" type="button" id="i-cancel">취소</button>${addErr?`<span class="err" id="i-err">${h(addErr)}</span>`:''}</form>`}
+function paint(){
+  const r=S.rfp,f=fileOf(r),top=r.revs[0],pk=primaryKey();
+  /* ① 제안요청서 */
+  $('#rfp').innerHTML=!f
+   ?`<div class="drop drop-big" data-drop="rfp"><div class="big">제안요청서 파일을 여기에 끌어 놓으세요</div>${pb('rfp','파일 선택',pk).replace('btn','btn lg')}<div class="rule">HWPX · 50MB 이하</div>${r.err?`<div class="rule" style="color:var(--danger-60);font-weight:700">${h(r.err)}</div>`:''}</div>`
+   :`<div class="filebox drop-zone" data-drop="rfp"><div class="fn">${h(f)}<span class="vt">v${top.n}</span></div>
+      <div class="path">${h(pathOf("제안요청서",f))}</div>
+      <div class="${r.err||r.s==='fail'?'msg bad':'msg'}">${h(r.err||(r.s==='fail'?'파일을 읽지 못했어요. 이전 버전은 그대로예요':`${top.at} 등록 · ${top.size}`))}</div>
+      <div class="fa">${bd(r.s)}${r.s==='fail'?'<button class="btn" type="button" data-retry="rfp">다시 시도</button>':''}<button class="btn" type="button" data-up="rfp">파일 바꾸기</button></div></div>`;
+  /* ② 제안서 (업체별 한 줄) */
+  $('#rows').innerHTML=sorted().map(v=>{const i=S.v.indexOf(v),top=v.revs[0],ver=top?`<span class="vt">v${top.n}</span>`:'';
+    if(!top)return `<div class="vrow drop empty" data-drop="${i}"><div class="who"><span class="code">${h(v.code)}</span><small>${h(v.name.replace('(가상)',''))}</small></div><div class="vi"><b>파일 선택 또는 끌어 놓기</b><span>${v.err?`<span class="bad" style="display:inline">${h(v.err)}</span>`:'HWPX · PDF'}</span></div><div class="vs"><span class="badge">○ 제안서 대기</span></div><div class="va">${pb(String(i),'파일 선택',pk)}</div>${vx(i)}</div>`;
+    const sub=v.err?`<span class="bad">${h(v.err)}</span>`:v.s==='pdfchk'?'<span class="info">PDF 연결 확인 중 · 성공으로 표시하지 않아요</span>':v.s==='fail'?'<span class="bad">파일을 읽지 못했어요. 이전 버전은 그대로예요</span>':v.s==='wait'?'<span>처리를 기다리는 중이에요</span>':`<span title="${h(pathOf('제안서',top.file))}">${h(pathOf("제안서",top.file))}</span>`;
+    const act=(v.s==='fail'?`<button class="btn" type="button" data-retry="${i}">다시 시도</button>`:'')+`<button class="btn" type="button" data-up="${i}">${v.s==='unsup'?'다시 올리기':'바꾸기'}</button>`;
+    return `<div class="vrow" data-drop="${i}"><div class="who"><span class="code">${h(v.code)}</span><small>${h(v.name.replace('(가상)',''))}</small></div><div class="vi"><b>${h(top.file)}${ver}</b>${sub}</div><div class="vs">${bd(v.s)}</div><div class="va">${act}</div>${vx(i)}</div>`}).join('')+addArea(pk);
+  /* 더 보기 */
+  const files=[['rfp','제안요청서','',r,'제안요청서'],...sorted().map(v=>[String(S.v.indexOf(v)),v.code,v.name,v,'제안서'])].filter(x=>x[3].revs.length);
+  $('#m-files').innerHTML=files.length?files.map(([k,lab,nm,o,kind])=>`<div class="mrow"><span class="nm" title="${h(nm)}">${h(lab)}<small>v${o.revs[0].n}</small></span><span class="ls"><button class="tl" type="button" data-view="${k}">원본 보기</button><button class="tl" type="button" data-dl="${k}">내려받기</button><button class="tl" type="button" data-hist="${k}">이력 ${o.revs.length}</button>${o.s==='done'?`<button class="tl" type="button" data-toc="${k}" title="보조 기능이에요">목차 확인</button>`:''}<button class="tl dng" type="button" data-del="${k}">삭제</button></span></div>`).join(''):'<p class="muted" style="margin:6px 0">아직 등록된 파일이 없어요</p>';
+  const xr={wait:['','대기','기다리는 중이에요. 몇 초마다 자동으로 확인해요'],run:['info','처리 중','요구사항을 뽑는 중이에요'],fail:['danger','실패','못 뽑았어요. 원본은 그대로예요'],done:['success','완료','요구사항 추출이 끝났어요']}[r.s];
+  $('#m-xr').innerHTML=!f?'<p class="muted" style="margin:6px 0">제안요청서를 올리면 보여요</p>':`<div class="mrow"><span class="badge ${xr[0]}">${xr[1]}</span><span class="tx">${xr[2]}</span>${r.s==='fail'?'<button class="tl pri" type="button" data-retry="rfp">다시 시도</button>':''}<button class="tl" type="button" data-refresh>새로고침</button></div>`;
+  $('#more').hidden=!moreOpen;$('#b-more').textContent=moreOpen?'더 보기 ▴':'더 보기 ▾';$('#b-more').setAttribute('aria-expanded',moreOpen);
+  const ba=$('#b-add');if(ba)ba.onclick=()=>{adding=true;addErr='';addVal='';paint();$('#i-name').focus()};
+  const fi=$('#f-inl');if(fi){$('#i-name').oninput=e=>e.target.removeAttribute('aria-invalid');$('#i-cancel').onclick=()=>{adding=false;addErr='';paint()};
+    fi.onsubmit=e=>{e.preventDefault();const n=$('#i-name').value.trim();addVal=n;
+      addErr=!n?'법인명을 적어 주세요':S.v.some(v=>v.name===n)?'이미 있는 업체예요':'';
+      if(addErr){paint();$('#i-name').focus();return}
+      const c=nextCode();S.v.push({code:c,name:n,ord:S.v.length+1,fx:false,s:'none',toc:'none',entries:[],err:'',revs:[]});adding=false;addVal='';paint();toast(c+'로 추가했어요 · 이제 제안서를 올려 주세요')}}
+  $$('[data-vedit]').forEach(b=>b.onclick=()=>openVend(S.v[+b.dataset.vedit]));
+  $$('[data-vdel]').forEach(b=>b.onclick=()=>delVendor(S.v[+b.dataset.vdel]));
+  $$('[data-up]').forEach(b=>b.onclick=()=>pick(b.dataset.up));
+  $$('[data-retry]').forEach(b=>b.onclick=()=>{const o=b.dataset.retry==='rfp'?S.rfp:S.v[+b.dataset.retry];o.s='wait';o.err='';paint();flow(o)});
+  $$('[data-toc]').forEach(b=>b.onclick=()=>openToc(b.dataset.toc));
+  $$('[data-hist]').forEach(b=>b.onclick=()=>openHist(b.dataset.hist));
+  $$('[data-view]').forEach(b=>b.onclick=()=>toast('원본 파일을 새 창에서 열어요 (시안)'));
+  $$('[data-dl]').forEach(b=>b.onclick=()=>{const o=b.dataset.dl==='rfp'?S.rfp:S.v[+b.dataset.dl];toast('내려받는 이름: '+pathOf(b.dataset.dl==='rfp'?'제안요청서':'제안서',fileOf(o)))});
+  $$('[data-del]').forEach(b=>b.onclick=()=>b.dataset.del==='rfp'?delRfp():delVendorDoc(S.v[+b.dataset.del]));
+  $$('[data-refresh]').forEach(b=>b.onclick=()=>toast(S.rfp.s==='done'?'최신 상태예요':'아직 처리 중이에요. 자동으로 다시 확인해요'));
+  $$('[data-drop]').forEach(z=>{z.ondragover=e=>{e.preventDefault();z.classList.add('over')};z.ondragleave=()=>z.classList.remove('over');
+    z.ondrop=e=>{e.preventDefault();z.classList.remove('over');const f=e.dataTransfer.files[0];if(f)handleFile(z.dataset.drop,f)}});
+  const n=remainCount(),ready=n===0;
+  $('#remain').textContent=ready?'':`남은 일 ${n}가지`;
+  const nx=$('#b-next');nx.toggleAttribute('aria-disabled',!ready);nx.className='btn'+(ready?' primary':' is-off');
+  renderSteps($('#steps'),['done','current',ready?'open':'locked','locked','locked','locked']);
+  $$('#demo [data-r]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.r===S.rfp.s));
+  $('#demo [data-use]').setAttribute('aria-pressed',S.inUse);
+}
+function pick(key){target=key;$('#file').accept=key==='rfp'?'.hwpx':'.hwpx,.pdf';$('#file').value='';$('#file').click()}
+$('#b-more').onclick=()=>{moreOpen=!moreOpen;paint()};
+$('#b-next').addEventListener('click',e=>{if(remainCount()){e.preventDefault();toast('남은 일을 끝내면 열려요 · 남은 일 '+remainCount()+'가지')}});
+function flow(o){timers.push(setTimeout(()=>{if(o.s!=='wait')return;o.s='run';paint();
+  timers.push(setTimeout(()=>{if(o.s!=='run')return;const f=fileOf(o);
+    if(/스캔|scan/i.test(f)&&/\.pdf$/i.test(f)){o.s='unsup';o.err='스캔·이미지 PDF는 지원하지 않아요'}
+    else if(o!==S.rfp&&/\.pdf$/i.test(f)){o.s='pdfchk'}
+    else{o.s='done';o.toc='draft';o.entries=o===S.rfp?ent(TPL):ent(VT)}
+    paint()},1800))},1000))}
+function handleFile(key,f){
+  const o=key==='rfp'?S.rfp:S.v[+key],ext=(f.name.split('.').pop()||'').toLowerCase();
+  const okExt=key==='rfp'?['hwpx']:['hwpx','pdf'];
+  if(!okExt.includes(ext)){o.err=key==='rfp'?'HWPX 파일만 올릴 수 있어요':'HWPX 또는 PDF만 올릴 수 있어요';paint();toast(o.err);return}
+  if(f.size>50*1024*1024){o.err='파일이 너무 커요. 50MB까지 올릴 수 있어요';paint();toast(o.err);return}
+  const n=o.revs.length?o.revs[0].n+1:1;o.revs.unshift(rv(n,f.name,NOW,Math.max(f.size/1048576,0.1).toFixed(1)+'MB'));
+  o.s='wait';o.toc='none';o.err='';o.entries=[];paint();flow(o);toast(`v${n}로 올렸어요 · ${pathOf(key==='rfp'?'제안요청서':'제안서',f.name)}`)}
+$('#file').addEventListener('change',e=>{const f=e.target.files[0];if(f)handleFile(target,f)});
+
+/* 등록 이력 */
+function openHist(key){histObj=key==='rfp'?S.rfp:S.v[+key];
+  const isR=key==='rfp';
+  $('#hist-t').textContent=(isR?'제안요청서':histObj.code+' 제안서')+' 등록 이력';
+  $('#hist-note').textContent=isR?'새로 올리면 새 버전이 되고, 평가표가 쓰고 있는 버전은 고정돼 바뀌지 않아요.':'새로 올려도 이미 시작한 평가 자료는 바뀌지 않아요. 평가에는 고정된 버전이 쓰여요.';
+  $('#hist-del').hidden=isR;$('#hist-q').value='';drawHist();openLayer($('#hist'),'#hist-q')}
+function drawHist(){const q=$('#hist-q').value.trim().toLowerCase(),o=histObj;
+  const L=o.revs.filter(r=>!q||(r.file+' v'+r.n+' '+r.at).toLowerCase().includes(q));
+  $('#hist-list').innerHTML=L.length?L.map(r=>{const latest=r===o.revs[0],pin=S.inUse&&r.pin;
+    const tag=latest?'<span class="badge primary">최신 업로드</span>':pin?'<span class="badge">🔒 고정 버전</span>':'<span class="badge">과거 버전</span>';
+    return `<li class="rev${latest?' latest':''}"><div class="vn tnum">v${r.n}</div><div class="rt"><b>${h(r.file)}</b><span>${r.at} · ${r.size}${pin?' · '+h(r.pin):''}</span></div>${tag}<button class="btn" type="button" data-rv>원본 보기</button></li>`}).join('')
+   :'<li class="muted">찾는 이력이 없어요</li>';
+  $$('[data-rv]').forEach(b=>b.onclick=()=>toast('이 버전의 원본을 열어요 (시안)'))}
+$('#hist-q').addEventListener('input',()=>histObj&&drawHist());
+function delVendorDoc(v){askReason({title:`${v.code} 제안서를 삭제할까요?`,body:'목록에서 빠져요. 서명 증빙은 보존돼요. 이미 시작한 평가 자료는 바뀌지 않아요.',block:'',onOk:()=>{closeLayer($('#hist'));v.revs=[];v.s='none';v.toc='none';v.err='';paint();toast(v.code+' 제안서를 삭제했어요 · 서명 증빙은 보존돼요')}})}
+$('#hist-del').onclick=()=>delVendorDoc(histObj);
+
+/* 사유 입력 삭제 창 */
+function askReason({title,body,block,onOk}){$('#rdlg-t').textContent=title;$('#rdlg-b').textContent=body;$('#rdlg-r').value='';$('#rdlg-r').removeAttribute('aria-invalid');$('#rdlg-e').hidden=true;
+  const bl=$('#rdlg-blk');bl.hidden=true;bl.textContent=block||'';$('#rdlg-ok').onclick=()=>{
+    const r=$('#rdlg-r').value.trim();
+    if(!r){$('#rdlg-e').textContent='사유를 적어 주세요';$('#rdlg-e').hidden=false;$('#rdlg-r').setAttribute('aria-invalid','true');$('#rdlg-r').focus();return}
+    if(block){bl.hidden=false;return}
+    closeLayer($('#rdlg'));onOk()};
+  openLayer($('#rdlg'),'#rdlg-r')}
+function delRfp(){askReason({title:'제안요청서 등록을 삭제할까요?',body:'삭제하면 목록에서 빠지고 이력은 감사 기록에 남아요.',block:S.inUse?'승인된 평가표·평가에서 쓰고 있어 지울 수 없어요. 평가 쪽 사용이 끝난 뒤에 지울 수 있어요.':'',
+  onOk:()=>{timers.forEach(clearTimeout);S.rfp.revs=[];S.rfp.s='none';S.rfp.toc='none';S.rfp.err='';paint();toast('제안요청서 등록을 삭제했어요')}})}
+
+/* 목차 칸 (보조) */
+let tocObj=null;
+function openToc(key){tocObj=key==='rfp'?S.rfp:S.v[+key];
+  $('#toc-t').textContent=(key==='rfp'?'제안요청서':S.v[+key].code+' 제안서')+' 목차 확인 (보조)';
+  $('#toc-list').innerHTML=tocObj.entries.map((e,i)=>`<li class="${e.l===2?'l2':''}"><input class="tt" data-i="${i}" value="${h(e.t)}" aria-label="목차 ${i+1} 제목"><input class="pg tnum" data-i="${i}" inputmode="numeric" value="${e.p==null?'':e.p}" placeholder="쪽" aria-label="목차 ${i+1} 쪽 번호"><span class="mk"></span></li>`).join('');
+  $$('#toc-list .tt').forEach(i=>i.oninput=()=>{tocObj.entries[+i.dataset.i].t=i.value});
+  $$('#toc-list .pg').forEach(i=>i.oninput=()=>{const v=i.value.replace(/\D/g,'');i.value=v;tocObj.entries[+i.dataset.i].p=v?+v:null;tocMarks()});
+  tocMarks();openLayer($('#toc'),'#toc-list .tt')}
+function tocMarks(){let miss=0;
+  $$('#toc-list li').forEach((li,i)=>{const m=tocObj.entries[i].p==null;miss+=m;li.querySelector('.pg').classList.toggle('miss',m);li.querySelector('.mk').innerHTML=m?'<span class="badge warning">? 쪽 미확인</span>':''});
+  $('#toc-ok').disabled=miss>0;$('#toc-left').textContent=miss?`쪽 미확인 ${miss}개를 채워 주세요`:'모두 확인했어요'}
+$('#toc-ok').onclick=()=>{tocObj.toc='ok';closeLayer($('#toc'));paint();toast('목차 확인을 끝냈어요')};
+
+/* 업체 추가·수정 (PRJ-06·07) */
+const nextCode=()=>{const used=S.v.map(v=>v.code);for(let i=0;i<26;i++){const c=String.fromCharCode(65+i)+'사';if(!used.includes(c))return c}return 'Z사'};
+function openVend(v){editV=v||null;const fixed=!!(v&&S.inUse&&v.fx);
+  $('#add-t').textContent=v?'업체 수정':'업체 추가';$('#a-ok').textContent=v?'저장':'추가';
+  $('#a-name').value=v?v.name:'';$('#a-code').value=v?v.code:nextCode();$('#a-ord').value=v?v.ord:S.v.length+1;
+  $('#a-code').disabled=fixed;$('#a-code-h').textContent=fixed?'평가에 고정돼 바꿀 수 없어요':'사업 안에서 겹치지 않게 적어 주세요';
+  ['a-name','a-code','a-ord'].forEach(id=>{$('#'+id+'-e').hidden=true;$('#'+id).removeAttribute('aria-invalid')});
+  $('#a-del').hidden=!v;$('#a-block').hidden=true;$('#a-lock').hidden=fixed;openLayer($('#add'),'#a-name')}
+function delVendor(v){
+  if(S.inUse&&v.fx){toast('평가에 고정된 업체라 지울 수 없어요');return}
+  confirmDlg({title:`${v.code} 업체를 삭제할까요?`,body:'목록에서 빠지고 올린 제안서 이력은 감사 기록에 남아요.',ok:'삭제',danger:true,onOk:()=>{S.v.splice(S.v.indexOf(v),1);paint();toast(v.code+' 업체를 삭제했어요')}})}
+$('#a-del').onclick=()=>{const v=editV;
+  if(S.inUse&&v.fx){$('#a-block').hidden=false;toast('평가에 고정된 업체는 지울 수 없어요');return}
+  closeLayer($('#add'));confirmDlg({title:`${v.code} 업체를 삭제할까요?`,body:'목록에서 빠지고 올린 제안서 이력은 감사 기록에 남아요.',ok:'삭제',danger:true,onOk:()=>{S.v.splice(S.v.indexOf(v),1);paint();toast(v.code+' 업체를 삭제했어요')}})};
+$('#f-add').addEventListener('submit',e=>{e.preventDefault();
+  const n=$('#a-name').value.trim(),c=$('#a-code').value.trim(),o=$('#a-ord').value.trim(),others=S.v.filter(v=>v!==editV);
+  const m={'a-name':!n?'법인명을 적어 주세요':others.some(v=>v.name===n)?'이미 있는 업체예요':'','a-code':!c?'표시 코드를 적어 주세요':others.some(v=>v.code===c)?'이미 쓰는 표시 코드예요':'','a-ord':!/^\d+$/.test(o)||+o<1?'순서는 1 이상의 숫자로 적어 주세요':''};
+  let bad=null;for(const id in m){const el=$('#'+id),er=$('#'+id+'-e');er.hidden=!m[id];if(m[id]){er.textContent=m[id];el.setAttribute('aria-invalid','true');bad=bad||el}else el.removeAttribute('aria-invalid')}
+  if(bad){bad.focus();return}
+  if(editV){Object.assign(editV,{name:n,code:c,ord:+o});toast('저장했어요')}
+  else{S.v.push({code:c,name:n,ord:+o,fx:false,s:'none',toc:'none',entries:[],err:'',revs:[]});toast(c+'로 추가했어요')}
+  closeLayer($('#add'));paint()});
+
+$$('#demo [data-r]').forEach(b=>b.onclick=()=>{timers.forEach(clearTimeout);const r=S.rfp,s=b.dataset.r;r.s=s;r.err='';
+  if(s==='none'){r.revs=[];r.toc='none'}
+  else if(!r.revs.length)r.revs=[rv(1,'통합민원_제안요청서.hwpx',NOW,'2.4MB')];
+  if(s==='done'){r.toc='draft';r.entries=ent(TPL)}paint()});
+$('#demo [data-use]').onclick=()=>{S.inUse=!S.inUse;paint()};
+$('#demo [data-vfail]').onclick=()=>{timers.forEach(clearTimeout);const v=S.v.find(v=>v.code==='C사')||S.v[S.v.length-1];if(!v)return;if(!v.revs.length)v.revs=[rv(1,'한빛소프트_제안서.hwpx',NOW,'6.2MB')];v.s='fail';v.err='';paint()};
+$$('#demo [data-all]').forEach(b=>b.onclick=()=>{timers.forEach(clearTimeout);
+  if(b.dataset.all==='init'){S=blankState()}
+  else{S=initState();S.rfp.toc='ok';S.v.forEach(v=>{if(!v.revs.length)v.revs=[rv(1,v.name.replace('(가상)','')+'_제안서.hwpx',NOW,'5.0MB')];v.revs[0].file=v.revs[0].file.replace(/\.pdf$/,'.hwpx');v.s='done';v.toc='ok';v.err='';v.entries=ent(VT).map(e=>({...e,p:e.p||40}))})}
+  paint()});
+paint();
+if(location.hash==='#more'){moreOpen=true;paint()}
+if(location.hash==='#toc'){openToc('rfp')}
+if(location.hash==='#hist'){moreOpen=true;paint();openHist('rfp')}
+</script>
+</body>
+</html>
