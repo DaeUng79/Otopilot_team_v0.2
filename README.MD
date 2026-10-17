@@ -16,7 +16,7 @@ flowchart TB
     G --> ADMIN[관리자 · 부서 · 사업]
     G --> COM[후보 · 추첨 · 위원 명부]
     G --> EVAL[출석 · 평가 · 서명 · 결과]
-    EV --> DOCAPI[/api/v2/evaluator]
+    EV --> DOCAPI["/api/v2/evaluator"]
     DOCAPI --> DOC[문서 열람 · 근거 비교]
     DOC --> DOCDB[(문서 파싱 DB<br/>읽기 전용)]
     DOC --> CHAT[챗봇 모듈<br/>선택 기능]
