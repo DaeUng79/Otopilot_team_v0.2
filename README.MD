@@ -10,7 +10,7 @@ flowchart TB
     H --> UI[화면 라우팅 · 정적 파일]
     UI --> W[apps/web<br/>runtime · screens · bindings]
     UI --> EV[apps/web/src/evaluator<br/>EV-03 · EV-04 · EV-05]
-    H --> API[/api/v2/actions/{action_id}]
+    H --> API["/api/v2/actions/{action_id}"]
     API --> AUTH[인증 · 권한 확인]
     API --> G[업무 액션 게이트웨이]
     G --> ADMIN[관리자 · 부서 · 사업]
