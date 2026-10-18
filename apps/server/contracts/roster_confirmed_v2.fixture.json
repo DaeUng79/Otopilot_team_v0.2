@@ -1,0 +1,106 @@
+{
+  "event_id": "b7288c05-1fbc-4e96-9ead-d674d2ba47c2",
+  "contract_name": "roster.confirmed",
+  "schema_version": 2,
+  "aggregate_id": "a3bb8574-a534-474b-acbd-13f05c3f1712",
+  "aggregate_version": 1,
+  "destination": "evaluation",
+  "payload_sha256": "1e77b3281c625fdfae822f880c1812f30c0c1f3d006fccfc5fd162b645920284",
+  "project_id": "project-a",
+  "source": "admin",
+  "payload": {
+    "assignments": [
+      {
+        "auth_key_version": 1,
+        "id": "1eca97a0-f18d-4eb7-a209-2e0643810f07",
+        "login_lookup_hmac": "da81fc0f1af66acc8c28dc389fb9c1b92c6954b5fae6a58178b6bd437adf8cbd",
+        "member_kind": "PRIMARY",
+        "name_snapshot": "가상위원7",
+        "organization_snapshot": "가상회사",
+        "project_id": "project-a",
+        "reserve_order": null,
+        "roster_id": "a3bb8574-a534-474b-acbd-13f05c3f1712",
+        "status": "INVITED"
+      },
+      {
+        "auth_key_version": 1,
+        "id": "2ae34744-f8c5-4fdc-8aae-0903ccc3e49f",
+        "login_lookup_hmac": "64338cf0355b34feda679752fd121c619909acf10a9b7033d6e3e4b452d18045",
+        "member_kind": "PRIMARY",
+        "name_snapshot": "가상위원1",
+        "organization_snapshot": "가상회사",
+        "project_id": "project-a",
+        "reserve_order": null,
+        "roster_id": "a3bb8574-a534-474b-acbd-13f05c3f1712",
+        "status": "INVITED"
+      },
+      {
+        "auth_key_version": 1,
+        "id": "3566e2ea-1b57-426a-987b-7fbc0cac2ed1",
+        "login_lookup_hmac": "4c7b2e124c7ce25f5ccbd0c8b74a22f570e9dcf7e1b980ae54349cbb106c0e67",
+        "member_kind": "PRIMARY",
+        "name_snapshot": "가상위원5",
+        "organization_snapshot": "가상회사",
+        "project_id": "project-a",
+        "reserve_order": null,
+        "roster_id": "a3bb8574-a534-474b-acbd-13f05c3f1712",
+        "status": "INVITED"
+      },
+      {
+        "auth_key_version": 1,
+        "id": "5711e2af-30b2-44e1-b49a-b37b70d6e4a9",
+        "login_lookup_hmac": "26445870bc8b7422b196ee6b03a66797321c3561ed019b1ecd673d6c42a9a940",
+        "member_kind": "PRIMARY",
+        "name_snapshot": "가상위원2",
+        "organization_snapshot": "가상회사",
+        "project_id": "project-a",
+        "reserve_order": null,
+        "roster_id": "a3bb8574-a534-474b-acbd-13f05c3f1712",
+        "status": "INVITED"
+      },
+      {
+        "auth_key_version": 1,
+        "id": "837a2a44-c1b7-48cc-858d-277e4a7af36d",
+        "login_lookup_hmac": "a7f78047c4f8915899b4ac2a8fd00eb162ef8d5b78c707dc562e1861e5341a2a",
+        "member_kind": "PRIMARY",
+        "name_snapshot": "가상위원6",
+        "organization_snapshot": "가상회사",
+        "project_id": "project-a",
+        "reserve_order": null,
+        "roster_id": "a3bb8574-a534-474b-acbd-13f05c3f1712",
+        "status": "INVITED"
+      },
+      {
+        "auth_key_version": 1,
+        "id": "b0b88abd-f61f-4fba-9033-ae0a29a8377f",
+        "login_lookup_hmac": "9e03117f2e60902865c463fc325efb5309d63e3eb7cc609481918bf432d02d66",
+        "member_kind": "PRIMARY",
+        "name_snapshot": "가상위원3",
+        "organization_snapshot": "가상회사",
+        "project_id": "project-a",
+        "reserve_order": null,
+        "roster_id": "a3bb8574-a534-474b-acbd-13f05c3f1712",
+        "status": "INVITED"
+      },
+      {
+        "auth_key_version": 1,
+        "id": "e1621683-1075-47ed-8c36-51d3ed19a9df",
+        "login_lookup_hmac": "f2085f073ecb4a0f51b251dc24bfe2da002a9fd2d59bfc65e29a63e956b072d8",
+        "member_kind": "PRIMARY",
+        "name_snapshot": "가상위원4",
+        "organization_snapshot": "가상회사",
+        "project_id": "project-a",
+        "reserve_order": null,
+        "roster_id": "a3bb8574-a534-474b-acbd-13f05c3f1712",
+        "status": "INVITED"
+      }
+    ],
+    "confirmed_at": "2026-10-16T06:05:08.048985+00:00",
+    "project_id": "project-a",
+    "revision_no": 1,
+    "roster_id": "a3bb8574-a534-474b-acbd-13f05c3f1712",
+    "roster_sha256": "c3d71c01b333798391f48a47b58fc0b366f6ad025e8b9dd6a03a9da8655553ac",
+    "status": "CONFIRMED"
+  },
+  "occurred_at": "2026-10-16T06:05:08.051520+00:00"
+}

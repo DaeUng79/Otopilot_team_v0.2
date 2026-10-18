@@ -1,0 +1,2034 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Lex6won 평가위원 관리 API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/committee/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_api_v1_committee_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Health Api V1 Committee Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/local/session": {
+      "post": {
+        "summary": "Login",
+        "operationId": "login_api_v1_committee_local_session_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object",
+                  "title": "Response Login Api V1 Committee Local Session Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/candidates": {
+      "get": {
+        "summary": "List Candidates",
+        "operationId": "list_candidates_api_v1_committee_candidates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CandidateRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Candidates Api V1 Committee Candidates Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add Candidate",
+        "operationId": "add_candidate_api_v1_committee_candidates_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/candidates/{cid}": {
+      "put": {
+        "summary": "Update Candidate",
+        "operationId": "update_candidate_api_v1_committee_candidates__cid__put",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/imports/preview": {
+      "post": {
+        "summary": "Import Preview",
+        "operationId": "import_preview_api_v1_committee_imports_preview_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_preview_api_v1_committee_imports_preview_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/imports/{preview_id}/commit": {
+      "post": {
+        "summary": "Import Commit",
+        "operationId": "import_commit_api_v1_committee_imports__preview_id__commit_post",
+        "parameters": [
+          {
+            "name": "preview_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Preview Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Import Commit Api V1 Committee Imports  Preview Id  Commit Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/projects": {
+      "get": {
+        "summary": "Projects",
+        "operationId": "projects_api_v1_committee_projects_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectRead"
+                  },
+                  "type": "array",
+                  "title": "Response Projects Api V1 Committee Projects Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Project",
+        "operationId": "create_project_api_v1_committee_projects_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/projects/{pid}/pool": {
+      "get": {
+        "summary": "Pool",
+        "operationId": "pool_api_v1_committee_projects__pid__pool_get",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Pool Api V1 Committee Projects  Pid  Pool Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/proposals": {
+      "post": {
+        "summary": "Register Proposal",
+        "operationId": "register_proposal_api_v1_committee_proposals_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_register_proposal_api_v1_committee_proposals_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/projects/{pid}/proposal": {
+      "get": {
+        "summary": "Proposal",
+        "operationId": "proposal_api_v1_committee_projects__pid__proposal_get",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/projects/{pid}/criteria": {
+      "put": {
+        "summary": "Configure Project",
+        "operationId": "configure_project_api_v1_committee_projects__pid__criteria_put",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CriteriaInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/projects/{pid}/draw": {
+      "get": {
+        "summary": "Draw Read",
+        "operationId": "draw_read_api_v1_committee_projects__pid__draw_get",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/DrawRead"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Draw Read Api V1 Committee Projects  Pid  Draw Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Draw Create",
+        "operationId": "draw_create_api_v1_committee_projects__pid__draw_post",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Reviewed"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/projects/{pid}/contacts/{cid}": {
+      "put": {
+        "summary": "Contact",
+        "operationId": "contact_api_v1_committee_projects__pid__contacts__cid__put",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/projects/{pid}/finalize": {
+      "post": {
+        "summary": "Finalize",
+        "operationId": "finalize_api_v1_committee_projects__pid__finalize_post",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/projects/{pid}/assign": {
+      "post": {
+        "summary": "Assign",
+        "operationId": "assign_api_v1_committee_projects__pid__assign_post",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Assign Api V1 Committee Projects  Pid  Assign Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/audit": {
+      "get": {
+        "summary": "Audit",
+        "operationId": "audit_api_v1_committee_audit_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response Audit Api V1 Committee Audit Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/auth/request": {
+      "post": {
+        "summary": "Request Otp",
+        "operationId": "request_otp_api_v1_committee_auth_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Request Otp Api V1 Committee Auth Request Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/auth/project": {
+      "get": {
+        "summary": "Login Project",
+        "operationId": "login_project_api_v1_committee_auth_project_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Login Project Api V1 Committee Auth Project Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/auth/demo-login": {
+      "post": {
+        "summary": "Demo Login",
+        "operationId": "demo_login_api_v1_committee_auth_demo_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/auth/logout": {
+      "post": {
+        "summary": "Logout",
+        "operationId": "logout_api_v1_committee_auth_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object",
+                  "title": "Response Logout Api V1 Committee Auth Logout Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/auth/verify": {
+      "post": {
+        "summary": "Verify Otp",
+        "operationId": "verify_otp_api_v1_committee_auth_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpProof"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Verify Otp Api V1 Committee Auth Verify Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/committee/auth/me": {
+      "get": {
+        "summary": "Assignment Me",
+        "operationId": "assignment_me_api_v1_committee_auth_me_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Assignment Me Api V1 Committee Auth Me Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_import_preview_api_v1_committee_imports_preview_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Password",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_preview_api_v1_committee_imports_preview_post"
+      },
+      "Body_register_proposal_api_v1_committee_proposals_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_register_proposal_api_v1_committee_proposals_post"
+      },
+      "CandidateCore": {
+        "properties": {
+          "source_serial": {
+            "type": "string",
+            "title": "Source Serial",
+            "default": ""
+          },
+          "organization": {
+            "type": "string",
+            "title": "Organization"
+          },
+          "position": {
+            "type": "string",
+            "title": "Position",
+            "default": ""
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "birth_date": {
+            "type": "string",
+            "title": "Birth Date",
+            "default": ""
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "default": ""
+          },
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "default": ""
+          },
+          "department": {
+            "type": "string",
+            "title": "Department",
+            "default": ""
+          },
+          "specialty": {
+            "type": "string",
+            "title": "Specialty"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "default": ""
+          },
+          "memo": {
+            "type": "string",
+            "title": "Memo",
+            "default": ""
+          },
+          "legacy_first": {
+            "type": "string",
+            "title": "Legacy First",
+            "default": ""
+          },
+          "legacy_final": {
+            "type": "string",
+            "title": "Legacy Final",
+            "default": ""
+          },
+          "legacy_project": {
+            "type": "string",
+            "title": "Legacy Project",
+            "default": ""
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "auth_ready": {
+            "type": "boolean",
+            "title": "Auth Ready"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "source_row": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Row"
+          },
+          "source_sheet": {
+            "type": "string",
+            "title": "Source Sheet",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization",
+          "name",
+          "specialty",
+          "phone",
+          "fields",
+          "enabled",
+          "active",
+          "auth_ready",
+          "warnings"
+        ],
+        "title": "CandidateCore"
+      },
+      "CandidateInput": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Name",
+            "default": ""
+          },
+          "organization": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Organization",
+            "default": ""
+          },
+          "position": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Position",
+            "default": ""
+          },
+          "birth_date": {
+            "type": "string",
+            "maxLength": 30,
+            "title": "Birth Date",
+            "default": ""
+          },
+          "region": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Region",
+            "default": ""
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Category",
+            "default": ""
+          },
+          "department": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Department",
+            "default": ""
+          },
+          "specialty": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Specialty",
+            "default": ""
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 30,
+            "title": "Phone",
+            "default": ""
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "title": "Email",
+            "default": ""
+          },
+          "memo": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Memo",
+            "default": ""
+          },
+          "source_serial": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Source Serial",
+            "default": ""
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CandidateInput"
+      },
+      "CandidateRead": {
+        "properties": {
+          "source_serial": {
+            "type": "string",
+            "title": "Source Serial",
+            "default": ""
+          },
+          "organization": {
+            "type": "string",
+            "title": "Organization"
+          },
+          "position": {
+            "type": "string",
+            "title": "Position",
+            "default": ""
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "birth_date": {
+            "type": "string",
+            "title": "Birth Date",
+            "default": ""
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "default": ""
+          },
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "default": ""
+          },
+          "department": {
+            "type": "string",
+            "title": "Department",
+            "default": ""
+          },
+          "specialty": {
+            "type": "string",
+            "title": "Specialty"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "default": ""
+          },
+          "memo": {
+            "type": "string",
+            "title": "Memo",
+            "default": ""
+          },
+          "legacy_first": {
+            "type": "string",
+            "title": "Legacy First",
+            "default": ""
+          },
+          "legacy_final": {
+            "type": "string",
+            "title": "Legacy Final",
+            "default": ""
+          },
+          "legacy_project": {
+            "type": "string",
+            "title": "Legacy Project",
+            "default": ""
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "auth_ready": {
+            "type": "boolean",
+            "title": "Auth Ready"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "source_row": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Row"
+          },
+          "source_sheet": {
+            "type": "string",
+            "title": "Source Sheet",
+            "default": ""
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization",
+          "name",
+          "specialty",
+          "phone",
+          "fields",
+          "enabled",
+          "active",
+          "auth_ready",
+          "warnings",
+          "id",
+          "version"
+        ],
+        "title": "CandidateRead"
+      },
+      "CandidateUpdate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Name",
+            "default": ""
+          },
+          "organization": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Organization",
+            "default": ""
+          },
+          "position": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Position",
+            "default": ""
+          },
+          "birth_date": {
+            "type": "string",
+            "maxLength": 30,
+            "title": "Birth Date",
+            "default": ""
+          },
+          "region": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Region",
+            "default": ""
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Category",
+            "default": ""
+          },
+          "department": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Department",
+            "default": ""
+          },
+          "specialty": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Specialty",
+            "default": ""
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 30,
+            "title": "Phone",
+            "default": ""
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "title": "Email",
+            "default": ""
+          },
+          "memo": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Memo",
+            "default": ""
+          },
+          "source_serial": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Source Serial",
+            "default": ""
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version"
+        ],
+        "title": "CandidateUpdate"
+      },
+      "ContactInput": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "미연락",
+              "연락 불가",
+              "참여 가능",
+              "참여 불가",
+              "제척"
+            ],
+            "title": "Status"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Note",
+            "default": ""
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "expected_version"
+        ],
+        "title": "ContactInput"
+      },
+      "ContactRead": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "candidate_id": {
+            "type": "string",
+            "title": "Candidate Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "미연락",
+              "연락 불가",
+              "참여 가능",
+              "참여 불가",
+              "제척"
+            ],
+            "title": "Status"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "candidate_id",
+          "status",
+          "note",
+          "version",
+          "updated_at"
+        ],
+        "title": "ContactRead"
+      },
+      "CriteriaInput": {
+        "properties": {
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Fields"
+          },
+          "target": {
+            "type": "integer",
+            "enum": [
+              7,
+              8,
+              9
+            ],
+            "title": "Target"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "fields",
+          "target",
+          "expected_version"
+        ],
+        "title": "CriteriaInput"
+      },
+      "DemoLogin": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "contact": {
+            "type": "string",
+            "maxLength": 254,
+            "minLength": 1,
+            "title": "Contact"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "name",
+          "contact"
+        ],
+        "title": "DemoLogin"
+      },
+      "DrawRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "shortlist": {
+            "items": {
+              "$ref": "#/components/schemas/SnapshotRead"
+            },
+            "type": "array",
+            "title": "Shortlist"
+          },
+          "snapshot_sha256": {
+            "type": "string",
+            "title": "Snapshot Sha256"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "final_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Final Ids"
+          },
+          "reserve_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reserve Ids"
+          },
+          "finalized_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized At"
+          },
+          "assigned_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "pool_count": {
+            "type": "integer",
+            "title": "Pool Count"
+          },
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/ContactRead"
+            },
+            "type": "array",
+            "title": "Contacts"
+          },
+          "current_candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateRead"
+            },
+            "type": "array",
+            "title": "Current Candidates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "shortlist",
+          "snapshot_sha256",
+          "method",
+          "actor",
+          "created_at",
+          "final_ids",
+          "reserve_ids",
+          "finalized_at",
+          "assigned_at",
+          "version",
+          "pool_count",
+          "contacts",
+          "current_candidates"
+        ],
+        "title": "DrawRead"
+      },
+      "FinalInput": {
+        "properties": {
+          "candidate_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 9,
+            "minItems": 7,
+            "title": "Candidate Ids"
+          },
+          "reserve_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Reserve Ids"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "candidate_ids",
+          "reserve_ids",
+          "expected_version"
+        ],
+        "title": "FinalInput"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ImportPreview": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateCore"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "active": {
+            "type": "integer",
+            "title": "Active"
+          },
+          "drafts": {
+            "type": "integer",
+            "title": "Drafts"
+          },
+          "conflict_rows": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Conflict Rows"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "rows",
+          "total",
+          "active",
+          "drafts",
+          "conflict_rows",
+          "expires_in"
+        ],
+        "title": "ImportPreview"
+      },
+      "OtpInput": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Phone"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "name",
+          "phone"
+        ],
+        "title": "OtpInput"
+      },
+      "OtpProof": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Request Id"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "title": "Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "request_id",
+          "code"
+        ],
+        "title": "OtpProof"
+      },
+      "ProjectInput": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Fields"
+          },
+          "target": {
+            "type": "integer",
+            "enum": [
+              7,
+              8,
+              9
+            ],
+            "title": "Target"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "fields",
+          "target"
+        ],
+        "title": "ProjectInput"
+      },
+      "ProjectRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "target": {
+            "type": "integer",
+            "enum": [
+              7,
+              8,
+              9
+            ],
+            "title": "Target"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured",
+            "default": true
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "fields",
+          "target",
+          "created_at"
+        ],
+        "title": "ProjectRead"
+      },
+      "Reviewed": {
+        "properties": {
+          "reviewed": {
+            "type": "boolean",
+            "const": true,
+            "title": "Reviewed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reviewed"
+        ],
+        "title": "Reviewed"
+      },
+      "SnapshotRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "organization": {
+            "type": "string",
+            "title": "Organization"
+          },
+          "position": {
+            "type": "string",
+            "title": "Position"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "organization",
+          "position",
+          "fields",
+          "phone",
+          "version"
+        ],
+        "title": "SnapshotRead"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

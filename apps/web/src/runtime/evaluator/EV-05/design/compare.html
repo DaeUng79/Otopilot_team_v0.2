@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>제안서 항목별 비교 · 심사임당</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../_eval.css">
+<style>
+/* 이 화면만 쓰는 스타일 (cp- 접두어) */
+.cp { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.cp-bar { flex: none; height: 56px; display: flex; align-items: center; gap: 16px; padding: 0 24px; background: var(--gray-0); border-bottom: 1px solid var(--line); }
+.cp-bar h1 { font-size: 20px; font-weight: 700; }
+.cp-bar h1 { margin-right: auto; }
+.cp-sub { display: inline-flex; border: 1px solid var(--gray-30); border-radius: var(--radius-sm); padding: 2px; gap: 2px; background: var(--gray-0); }
+.cp-sub a, .cp-sub span { font-size: 16px; color: var(--text-2); padding: 4px 16px; min-height: 36px; border-radius: var(--radius-sm); display: inline-flex; align-items: center; text-decoration: none; }
+.cp-sub a:hover { color: var(--text-1); background: var(--gray-5); }
+.cp-sub span[aria-current="page"] { background: var(--primary-5); color: var(--primary-60); font-weight: 700; box-shadow: inset 0 0 0 1px var(--primary-20); }
+.cp-wrap { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px 1fr; }
+.cp-list { background: var(--gray-0); border-right: 1px solid var(--line); overflow: auto; padding: 12px 10px; }
+.cp-list h2 { font-size: 14px; font-weight: 700; color: var(--text-3); padding: 6px 12px 8px; }
+.cp-it { appearance: none; border: 0; background: none; width: 100%; text-align: left; display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer; font-size: 17px; }
+.cp-it:hover { background: var(--gray-5); }
+.cp-it[aria-current="true"] { background: var(--primary-5); color: var(--primary-60); font-weight: 700; box-shadow: inset 3px 0 0 var(--primary-50); }
+.cp-it .nm { flex: 1; }
+.cp-it .pt { font-size: 14px; color: var(--text-3); font-weight: 400; font-variant-numeric: tabular-nums; }
+.cp-it[aria-current="true"] .pt { color: var(--primary-70); }
+.cp-right { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.cp-scroll { flex: 1; min-height: 0; overflow: auto; padding: 18px 24px 96px; }
+.cp-hd { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+.cp-hd h2 { font-size: 24px; font-weight:700; }
+.cp-hd span { color: var(--text-3); font-size: 16px; }
+.cp-cols { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 14px; }
+.cp-tag { font-size: 14px; line-height: 22px; border: 1px solid var(--primary-20); background: var(--primary-5); color: var(--primary-70); border-radius: var(--radius-lg); padding: 0 10px; font-weight: 700; white-space: nowrap; }
+.cp-col { background: var(--gray-0); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.cp-col h3 { font-size: 20px; font-weight:700; }
+.cp-sec { font-size: 16px; color: var(--text-2); }
+.cp-sec b { color: var(--primary-60); font-variant-numeric: tabular-nums; }
+.cp-ex { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.cp-ex li { font-size: 16px; line-height: 1.55; color: var(--text-1); padding-left: 12px; border-left: 3px solid var(--primary-20); }
+.cp-col .ev-btn { align-self: flex-start; margin-top: 4px; }
+.cp-none { border: 2px dashed var(--gray-30); box-shadow: none; background: var(--gray-5); }
+.cp-none p { font-size: 17px; color: var(--text-2); font-weight: 700; }
+.cp-none p::before { content: "– "; }
+.cp-link { appearance: none; border: 0; background: none; color: var(--primary-60); font-weight: 700; text-decoration: underline; cursor: pointer; font-size: 16px; padding: 4px 0; align-self: flex-start; }
+
+/* 오른쪽 슬라이드 (제안서 해당 쪽) */
+.cp-sl-scrim { position: fixed; inset: 0; background: rgb(19 20 22 / .35); z-index: 50; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.cp-sl-scrim.on { opacity: 1; pointer-events: auto; }
+.cp-sl { position: fixed; top: 0; right: 0; bottom: 0; width: min(860px, 72vw); z-index: 55; background: var(--gray-5); box-shadow: var(--shadow-5); transform: translateX(104%); transition: transform .28s var(--ease); display: flex; flex-direction: column; }
+.cp-sl.on { transform: none; }
+.cp-sl-hd { flex: none; height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 16px 0 24px; background: var(--gray-0); border-bottom: 1px solid var(--line); }
+.cp-sl-hd b { font-size: 18px; }
+.cp-sl-hd .sp { flex: 1; }
+.cp-sl-bd { flex: 1; min-height: 0; position: relative; }
+.cp-rd { position: absolute; inset: 0; }
+@media (prefers-reduced-motion: reduce) { .cp-sl, .cp-sl-scrim { transition: none; } }
+</style>
+</head>
+<body>
+<div class="ev-app">
+  <header id="hd"></header>
+  <main class="ev-main">
+    <div class="cp">
+      <div class="cp-bar"><h1>항목별 비교</h1>
+        <button type="button" class="ev-btn ghost sm" id="ask-open">문서에 질문</button>
+        <nav class="cp-sub" aria-label="제안서 보는 방식"><a href="../../EV-04/design/proposals.html">업체별</a><span aria-current="page">항목별 비교</span></nav>
+      </div>
+      <div class="cp-wrap">
+        <nav class="cp-list" aria-label="평가항목" id="list"></nav>
+        <div class="cp-right">
+          <div class="cp-scroll" id="scroll"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="cp-sl-scrim" id="sl-scrim"></div>
+<aside class="cp-sl" id="sl" role="dialog" aria-modal="true" aria-label="제안서 해당 쪽" aria-hidden="true">
+  <div class="cp-sl-hd"><b id="sl-t">제안서</b><span class="sp"></span><button type="button" class="ev-btn text sm" id="sl-x">닫기 (Esc)</button></div>
+  <div class="cp-sl-bd" id="sl-bd"></div>
+</aside>
+
+<script src="../../EV-04/design/proposals-data.js"></script>
+<script src="../../_eval.js"></script>
+<script>
+(function () {
+  var D = window.PROPOSAL_DATA, CRIT = D.CRIT;
+  var qs0 = new URLSearchParams(location.search), V = (qs0.get('vendors') || 'ABC').split('').filter(function (x) { return 'ABC'.indexOf(x) >= 0; });  // 업체 수는 사업마다 달라요 (시안: ?vendors=AB)
+  var $ = function (s) { return document.querySelector(s); };
+  EvalShell.mount($('#hd'), { active: 'proposals' });
+  var q = new URLSearchParams(location.search), sel = CRIT.some(function (c) { return c.id === q.get('c'); }) ? q.get('c') : 'c3';
+
+  /* 항목 목록 */
+  function renderList() {
+    $('#list').innerHTML = '<h2>평가항목 · 제안요청서 기준</h2>' + CRIT.map(function (c) {
+      return '<button type="button" class="cp-it" data-c="' + c.id + '"' + (c.id === sel ? ' aria-current="true"' : '') + '><span class="nm">' + c.name + '</span><span class="pt">' + c.pts + '점</span></button>';
+    }).join('');
+  }
+  /* 세 업체 비교 */
+  function renderCols() {
+    var c = CRIT.filter(function (x) { return x.id === sel; })[0];
+    $('#scroll').innerHTML = '<div class="cp-hd"><h2>' + c.name + '</h2><span>' + c.pts + '점 · ' + c.hint + '</span><span class="cp-tag">담당자 확정 근거</span></div><div class="cp-cols" style="--n:' + V.length + '">' + V.map(function (v) {
+      var m = D.MATCH[sel][v];
+      if (!m) return '<article class="cp-col cp-none"><h3>' + D.NAME[v] + '</h3><p>담당자가 확정한 근거가 없어요</p><button type="button" class="cp-link" data-open="' + v + '" data-p="1" data-toc="1">목차에서 직접 보기</button></article>';
+      return '<article class="cp-col"><h3>' + D.NAME[v] + '</h3><div class="cp-sec">' + m.title + ' · <b>' + m.page + '–' + m.end + '쪽</b></div><ul class="cp-ex">' + m.lines.map(function (l) { return '<li>' + l + '</li>'; }).join('') + '</ul><button type="button" class="ev-btn ghost sm" data-open="' + v + '" data-p="' + m.page + '">이 쪽 열기 (' + m.page + '쪽)</button></article>';
+    }).join('') + '</div>';
+    try { history.replaceState(null, '', '?c=' + sel); } catch (e) {}
+  }
+  $('#list').addEventListener('click', function (e) { var b = e.target.closest('[data-c]'); if (b) { sel = b.dataset.c; renderList(); renderCols(); } });
+  $('#scroll').addEventListener('click', function (e) { var b = e.target.closest('[data-open]'); if (b) openSlide(b.dataset.open, +b.dataset.p, !!b.dataset.toc, b); });
+
+  /* 슬라이드: 업체별 읽기 화면을 한 번씩만 만들어 둔다 */
+  var readers = {}, slOpen = false, lastBtn = null;
+  function tocOf(v) {
+    var out = []; D.VENDORS[v].toc.forEach(function (c) { out.push({ t: c.title, page: c.page, lv: 1 }); c.children.forEach(function (k) { out.push({ t: k.title, page: k.page, lv: 2 }); }); }); return out;
+  }
+  function ensure(v) {
+    if (readers[v]) return readers[v];
+    var w = document.createElement('div'); w.className = 'cp-rd'; w.id = 'rd-' + v; w.hidden = true; $('#sl-bd').appendChild(w);
+    var d = D.VENDORS[v], el = document.createElement('div'); w.appendChild(el);
+    readers[v] = EvalReader.mount(el, { title: d.name + ' 제안서', toc: tocOf(v),
+      pages: d.pages.map(function (p) { return p.n === 1 ? { cover: true, t: d.name + ' 제안서', p: p.lines.slice(1) } : { t: p.section.replace(/^[\d.]+\s/, ''), p: p.lines, sec: p.chapter }; }), note: '' });
+    readers[v].setMode('single');
+    return readers[v];
+  }
+  function openSlide(v, p, toc, btn) {
+    lastBtn = btn || document.activeElement;
+    V.forEach(function (x) { var w = $('#rd-' + x); if (w) w.hidden = true; });
+    var r = ensure(v); $('#rd-' + v).hidden = false; r.go(p);
+    $('#sl-t').textContent = D.NAME[v] + ' 제안서 · ' + p + '쪽';
+    $('#sl').classList.add('on'); $('#sl').setAttribute('aria-hidden', 'false'); $('#sl-scrim').classList.add('on'); slOpen = true;
+    setTimeout(function () { $('#sl-x').focus(); }, 60);
+    if (toc) EvalShell.toast('왼쪽 목차 띠에 마우스를 올리면 고를 수 있어요');
+  }
+  function closeSlide() {
+    if (!slOpen) return false; slOpen = false;
+    $('#sl').classList.remove('on'); $('#sl').setAttribute('aria-hidden', 'true'); $('#sl-scrim').classList.remove('on');
+    if (lastBtn && document.contains(lastBtn)) lastBtn.focus(); return true;
+  }
+  $('#sl-x').addEventListener('click', closeSlide);
+  $('#sl-scrim').addEventListener('click', closeSlide);
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (slOpen) { e.preventDefault(); closeSlide(); }
+  });
+
+  /* 문서에 질문: 오른쪽 아래 떠 있는 문서 도우미 (_eval.js 공통). 근거 쪽 칩을 누르면 이 화면의 슬라이드로 연다 */
+  EvalChat.setVendors(V);
+  EvalChat.onOpenPage = function (v, p, btn) { openSlide(v, p, false, btn); };
+  $('#ask-open').addEventListener('click', function () { EvalChat.open(); });
+
+  renderList(); renderCols();
+  if (q.get('chat')) EvalChat.open(q.get('chat') !== '1' ? q.get('chat') : null);
+  window.__cp = { openSlide: openSlide };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>평가결과 확인 · 심사임당</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../_eval.css">
+<style>
+/* 이 화면만 쓰는 스타일 (ch- 접두어) */
+.ch { height: 100%; display: flex; flex-direction: column; padding: 20px 32px 76px; max-width: 1240px; margin: 0 auto; }
+.ch-top { flex: none; display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; }
+.ch-top h1 { font-size: 24px; font-weight:700; }
+.ch-top span { color: var(--text-3); font-size: 16px; }
+.ch-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }
+.ch-card { background: var(--gray-0); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); }
+
+/* 표 */
+.ch-tbl { width: 100%; border-collapse: collapse; font-size: 18px; font-variant-numeric: tabular-nums; }
+.ch-tbl th, .ch-tbl td { padding: 0 20px; text-align: right; height: 34px; border-bottom: 1px solid var(--line); }
+.ch-tbl th:first-child, .ch-tbl td:first-child { text-align: left; }
+.ch-tbl thead th { height: 40px; font-size: 17px; font-weight:700; background: var(--gray-0); border-bottom: 1px solid var(--gray-20); }
+.ch-tbl tbody th { font-weight: 400; color: var(--text-2); }
+.ch-tbl .x { text-decoration: line-through; color: var(--text-3); }
+.ch-tag { display: inline-block; font-size: 14px; font-weight: 700; line-height: 20px; padding: 0 7px; border-radius: var(--radius-lg); margin-right: 6px; border: 1px solid var(--gray-50); color: var(--text-2); text-decoration: none; vertical-align: 2px; }
+.ch-tbl tr.avg td, .ch-tbl tr.avg th { height: 60px; background: var(--primary-5); border-bottom: 0; }
+.ch-tbl tr.avg th { color: var(--primary-70); font-weight:700; font-size: 17px; }
+.ch-tbl tr.avg td b { font-size: 30px; font-weight:700; color: var(--primary-60); display: block; line-height: 1.1; }
+.ch-tbl tr.avg td small { font-size: 14px; color: var(--text-3); font-weight: 400; }
+.ch-tbl tr.rank td, .ch-tbl tr.rank th { height: 44px; border-bottom: 0; font-weight:700; }
+.ch-tbl tr.rank td { font-size: 20px; }
+.ch-tbl tr.rank td.first { color: var(--primary-60); }
+.ch-formula { padding: 8px 20px; font-size: 16px; color: var(--text-2); border-top: 1px solid var(--line); }
+.ch-formula b { color: var(--text-1); }
+
+/* 오른쪽: 위원장 확인 */
+.ch-act { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.ch-act h2 { font-size: 20px; font-weight:700; }
+.ch-chk { display: flex; gap: 12px; align-items: center; font-size: 18px; font-weight: 700; cursor: pointer; min-height: 48px; }
+.ch-chk input { width: 26px; height: 26px; accent-color: var(--primary-50); flex: none; cursor: pointer; }
+.ch-sign-l { font-size: 16px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+.ch-cw { border: 2px dashed var(--gray-30); border-radius: var(--radius-lg); background: var(--gray-0); position: relative; }
+.ch-cw canvas { display: block; width: 100%; height: 130px; touch-action: none; cursor: crosshair; }
+.ch-cw .ph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--text-3); pointer-events: none; font-size: 17px; }
+.ch-cw .ph[hidden] { display: none; }
+.ch-cw.off { opacity: .55; background: var(--gray-5); }
+.ch-cw.off canvas { pointer-events: none; }
+.ch-hint { font-size: 16px; color: var(--text-3); }
+.ch-ok { text-align: center; padding: 28px 12px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.ch-ok .mk { width: 56px; height: 56px; border-radius: 50%; background: var(--success-60); color: #fff; display: grid; place-items: center; font-size: 30px; font-weight:700; }
+.ch-ok h2 { font-size: 24px; }
+.ch-ok p { color: var(--text-2); font-size: 17px; }
+
+/* 잠김 */
+.ch-lock { max-width: 560px; margin: 40px auto 0; padding: 48px 40px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.ch-lock .ic { font-size: 36px; line-height: 1; }
+.ch-lock h2 { font-size: 30px; font-weight:700; font-variant-numeric: tabular-nums; }
+.ch-lock p { font-size: 18px; color: var(--text-2); }
+.ch-prog { display: flex; gap: 6px; margin: 6px 0 2px; }
+.ch-prog i { width: 44px; height: 10px; border-radius: var(--radius-sm); background: var(--gray-10); display: block; }
+.ch-prog i.on { background: var(--primary-50); }
+.ch-lock small { color: var(--text-3); font-size: 16px; }
+
+/* 팝업 */
+.ch-sum { width: 100%; border-collapse: collapse; font-size: 18px; }
+.ch-sum td { padding: 10px 4px; border-bottom: 1px solid var(--line); }
+.ch-sum td:last-child { text-align: right; font-weight:700; font-variant-numeric: tabular-nums; }
+.ch-wm { position: relative; overflow: hidden; }
+.ch-wm::after { content: "미확정"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 96px; font-weight:700; letter-spacing: 12px; color: rgb(19 20 22 / .07); transform: rotate(-18deg); pointer-events: none; }
+.ch-rec { padding: 8px 20px 12px; font-size: 16px; color: var(--text-2); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+.ch-rec b { color: var(--text-1); }
+.ch-st { display: inline-block; font-size: 14px; font-weight:700; border-radius: var(--radius-lg); padding: 0 10px; line-height: 24px; background: var(--gray-10); color: var(--text-2); }
+.ch-st.fin { background: var(--success-5); color: var(--success-60); }
+.ch-step { display: flex; flex-direction: column; gap: 8px; }
+.ch-signed { padding: 12px 16px; border-radius: var(--radius-sm); background: var(--success-5); color: var(--success-60); font-weight: 700; font-size: 16px; }
+.ch-stale { margin: 0; }
+.ch-warn { color: var(--danger-60); font-weight: 700; font-size: 16px; }
+</style>
+</head>
+<body>
+<div class="ev-app">
+  <header id="hd"></header>
+  <main class="ev-main"><section class="ch" id="ch" aria-label="평가결과 확인"></section></main>
+</div>
+
+<details class="ev-demo" id="demo"><summary>시안 상태</summary><div class="ev-demo-in"><span class="ev-seg" role="group" aria-label="화면 상태"><button type="button" data-s="before" aria-pressed="false">전원 제출 전</button><button type="button" data-s="after" aria-pressed="false">전원 제출 후</button><button type="button" data-s="result" aria-pressed="false">결과 취합 뒤</button><button type="button" data-s="done" aria-pressed="false">최종 제출 뒤</button></span>
+</div></details>
+
+<script src="../../EV-06/design/sign-pad.js"></script>
+<script src="../../_eval.js"></script>
+<script>
+(function () {
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var NAME = { A: 'A사', B: 'B사', C: 'C사' }, V = ['A', 'B', 'C'];
+  /* 위원 1~7 이 낸 업체별 총점 (가상) */
+  var SC = { A: [88, 91, 85, 79, 90, 86, 93], B: [84, 80, 88, 92, 76, 85, 87], C: [78, 82, 75, 86, 83, 70, 81] };
+  var N = 7, root = $('#ch');
+  var q = new URLSearchParams(location.search), mode = ['before', 'after', 'result', 'done'].indexOf(q.get('s')) >= 0 ? q.get('s') : 'before';
+  var stale = false;
+  var mounted = false, checked = false, signed = false, pad = null, submittedAt = '', layer = null, lastFocus = null;
+
+  function calc(v) {
+    var a = SC[v], mx = Math.max.apply(null, a), mn = Math.min.apply(null, a), sum = a.reduce(function (s, x) { return s + x; }, 0);
+    var hi = a.indexOf(mx), lo = a.indexOf(mn);
+    return { hi: hi, lo: lo, mx: mx, mn: mn, sum: sum, avg: (sum - mx - mn) / (N - 2) };
+  }
+  var R = {}; V.forEach(function (v) { R[v] = calc(v); });
+  var order = V.slice().sort(function (a, b) { return R[b].avg - R[a].avg; });
+  var rankOf = {}; order.forEach(function (v, i) { rankOf[v] = i + 1; });
+  var f1 = function (n) { return n.toFixed(1); };
+  function now() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+
+  function shell() {
+    if (!mounted) { EvalShell.setChair(true); EvalShell.setUnlocked(mode !== 'before'); EvalShell.mount($('#hd'), { active: 'chair', user: '박위원' }); mounted = true; }
+    else EvalShell.setUnlocked(mode !== 'before');
+    var lk = $('#hd .ev-tab.is-locked'); if (lk) lk.setAttribute('aria-current', 'page');
+  }
+
+  function lockedHtml() {
+    var done = 5, h = '<div class="ch-top"><h1>제출 현황</h1></div><div class="ch-card ch-lock"><span class="ic" aria-hidden="true">🔒</span><h2>제출 ' + done + '/' + N + '</h2><p>모두 제출하면 열려요</p><div class="ch-prog" role="img" aria-label="위원 7명 중 5명 제출">';
+    for (var i = 0; i < N; i++) h += '<i class="' + (i < done ? 'on' : '') + '"></i>';
+    return h + '</div><small>아직 제출하지 않은 위원이 ' + (N - done) + '명 있어요</small><button type="button" class="ev-btn" disabled>결과 취합</button><small>전원 제출 뒤에 눌러져요 · 다른 위원 점수는 위원장도 진행 중에 볼 수 없어요</small></div>';
+  }
+  function tableHtml() {
+    var h = '<table class="ch-tbl"><caption class="ev-sr">위원별 총점과 최고·최저를 뺀 평균</caption><thead><tr><th scope="col">위원별 총점</th>' + V.map(function (v) { return '<th scope="col">' + NAME[v] + '</th>'; }).join('') + '</tr></thead><tbody>';
+    for (var i = 0; i < N; i++) {
+      h += '<tr><th scope="row">위원 ' + (i + 1) + '</th>' + V.map(function (v) {
+        var r = R[v], s = SC[v][i];
+        if (i === r.hi) return '<td><span class="ch-tag">최고</span><span class="x">' + s + '</span><span class="ev-sr"> (최고점, 평균에서 제외)</span></td>';
+        if (i === r.lo) return '<td><span class="ch-tag">최저</span><span class="x">' + s + '</span><span class="ev-sr"> (최저점, 평균에서 제외)</span></td>';
+        return '<td>' + s + '</td>';
+      }).join('') + '</tr>';
+    }
+    h += '<tr class="avg"><th scope="row">평균<br><small style="font-weight:400;color:var(--text-3)">최고·최저 제외 5명</small></th>' + V.map(function (v) { var r = R[v]; return '<td><b>' + f1(r.avg) + '</b><small>(' + r.sum + ' − ' + r.mx + ' − ' + r.mn + ') ÷ 5</small></td>'; }).join('') + '</tr>';
+    h += '<tr class="rank"><th scope="row">순위</th>' + V.map(function (v) { return '<td class="' + (rankOf[v] === 1 ? 'first' : '') + '">' + rankOf[v] + '위</td>'; }).join('') + '</tr></tbody></table>' +
+      '<p class="ch-formula"><b>평균 = (합계 − 최고 − 최저) ÷ 5</b></p>' +
+      '<div class="ch-rec" aria-label="집계 기록"><span><b>제외 대상</b> 업체마다 최고 1명 · 최저 1명 (표에 줄을 그어 표시)</span><span><b>분모</b> 5명 = 위원 7명 − 최고 1 − 최저 1</span><span><b>동점 처리 규칙</b> 평균이 같으면 승인된 집계 정책 순서대로 가려요 (이번 결과는 동점 없음)</span></div>';
+    return h;
+  }
+  function actHtml() {
+    if (mode === 'done') return '<div class="ch-card ch-act"><div class="ch-ok"><span class="mk" aria-hidden="true">✓</span><h2>최종 결과가 제출됐어요</h2><p><span class="ch-st fin">FINALIZED</span> ' + submittedAt + ' · 이제 바꿀 수 없어요</p></div><button type="button" class="ev-btn" id="dl">결과 보고서 다운로드</button><p class="ch-hint">다운로드 기록이 남아요</p></div>';
+    if (mode === 'after') return '<div class="ch-card ch-act"><h2>제출 현황</h2><p style="font-size:18px">위원 7명이 모두 제출했어요 (7/7)</p><button type="button" class="ev-btn" id="agg">결과 취합</button><p class="ch-hint">취합하면 최고·최저를 뺀 평균과 순위가 계산돼요</p></div>';
+    var staleNote = stale ? '<div class="ev-note error ch-stale" role="alert">결과가 다시 취합되었거나 위원장이 바뀌어 이전 서명은 쓸 수 없어요. 다시 서명해 주세요.</div>' : '';
+    var sig = signed ? '<div class="ch-signed">서명을 저장했어요 · 이 결과(R-001)에만 유효해요</div>' :
+      '<div class="ch-sign-l"><span>위원장 서명</span><button type="button" class="ev-btn text sm" id="clr">지우기</button></div>' +
+      '<div class="ch-cw' + (checked ? '' : ' off') + '" id="cw"><canvas id="pad" aria-label="위원장 서명 칸"></canvas><div class="ph" id="ph">' + (checked ? '여기에 서명해 주세요' : '확인에 체크하면 서명할 수 있어요') + '</div></div>' +
+      '<button type="button" class="ev-btn ghost" id="sg" disabled>위원장 서명</button>';
+    return '<div class="ch-card ch-act"><h2>위원장 확인</h2>' + staleNote + '<label class="ch-chk"><input type="checkbox" id="ck"' + (checked ? ' checked' : '') + '> 결과를 확인했습니다</label><div class="ch-step">' + sig + '</div>' +
+      '<button type="button" class="ev-btn" id="go"' + (signed ? '' : ' disabled') + '>최종 결과 제출</button><p class="ch-hint">서명은 이 결과에만 묶여요 · 제출하면 바꿀 수 없어요</p></div>';
+  }
+  function render() {
+    shell();
+    ['before', 'after', 'result', 'done'].forEach(function (s) { $('[data-s="' + s + '"]').setAttribute('aria-pressed', String(s === mode)); });
+    if (mode === 'before') { root.innerHTML = lockedHtml(); pad = null; return; }
+    root.innerHTML = '<div class="ch-top"><h1>평가결과 확인</h1><span>위원 ' + N + '명 모두 제출했어요</span>' + (mode === 'after' ? '' : '<span class="ch-st' + (mode === 'done' ? ' fin' : '') + '">' + (mode === 'done' ? 'FINALIZED' : '미확정') + '</span>') + '</div><div class="ch-grid">' + (mode === 'after' ? '<div class="ch-card" style="padding:40px;font-size:18px;color:var(--text-2)">아직 결과가 취합되지 않았어요. [결과 취합]을 눌러 주세요.</div>' : '<div class="ch-card' + (mode === 'done' ? '' : ' ch-wm') + '" style="overflow:hidden">' + tableHtml() + '</div>') + actHtml() + '</div>';
+    pad = null;
+    if (mode === 'after') $('#agg').addEventListener('click', function () { mode = 'result'; render(); EvalShell.toast('결과를 취합했어요 (R-001)'); });
+    else if (mode === 'done') $('#dl').addEventListener('click', function () { EvalShell.toast('시안이에요. 실제로는 결과 보고서가 내려받아져요'); });
+    else bindAct();
+  }
+  function upd() { var g = $('#sg'); if (g) g.disabled = !(checked && pad && pad.hasInk()); }
+  function bindAct() {
+    var ck = $('#ck'), cw = $('#cw');
+    ck.addEventListener('change', function () {
+      checked = ck.checked;
+      if (!checked) signed = false;
+      render(); $('#ck').focus();
+    });
+    if (!signed) {
+      pad = SignPad.mount($('#pad'), { onChange: function (ink) { $('#ph').hidden = ink; upd(); } });
+      $('#clr').addEventListener('click', function () { pad.clear(); });
+      $('#sg').addEventListener('click', function () { signed = true; stale = false; render(); EvalShell.toast('위원장 서명을 저장했어요. 아직 제출되지 않았어요'); });
+      cw.addEventListener('pointerdown', function () { if (!checked) EvalShell.toast('먼저 "결과를 확인했습니다"에 체크해 주세요'); });
+    }
+    $('#go').addEventListener('click', openConfirm);
+  }
+
+  function openConfirm() {
+    lastFocus = document.activeElement;
+    layer = document.createElement('div'); layer.className = 'ev-scrim';
+    layer.innerHTML = '<div class="ev-modal" role="dialog" aria-modal="true" aria-labelledby="dlg-t"><h2 id="dlg-t">최종 결과를 제출할까요?</h2><table class="ch-sum"><tbody>' +
+      order.map(function (v) { return '<tr><td>' + rankOf[v] + '위 · ' + NAME[v] + '</td><td>' + f1(R[v].avg) + '점</td></tr>'; }).join('') + '</tbody></table><p class="ch-warn">제출하면 사업담당자에게 전달되고 바꿀 수 없어요.</p>' +
+      '<div class="ev-modal-actions"><button type="button" class="ev-btn" data-g="go">최종 결과 제출</button><button type="button" class="ev-btn text" data-g="back" autofocus>돌아가기</button></div></div>';
+    document.body.appendChild(layer);
+    layer.querySelector('[autofocus]').focus();
+    layer.addEventListener('mousedown', function (e) { if (e.target === layer) closeConfirm(); });
+    layer.addEventListener('click', function (e) {
+      var g = e.target.dataset.g;
+      if (g === 'back') closeConfirm();
+      if (g === 'go') { submittedAt = now(); closeConfirm(true); mode = 'done'; render(); EvalShell.toast('최종 결과를 제출했어요'); }
+    });
+  }
+  function closeConfirm(quiet) { if (!layer) return; layer.remove(); layer = null; if (!quiet && lastFocus && document.contains(lastFocus)) lastFocus.focus(); }
+  document.addEventListener('keydown', function (e) {
+    if (!layer) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); }
+    if (e.key === 'Tab') { var f = layer.querySelectorAll('button'); var a = f[0], z = f[f.length - 1]; if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); } else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); } }
+  });
+
+  $('#demo').addEventListener('click', function (e) {
+    var s = e.target.dataset.s; if (!s) return;
+    if (s === 'done') submittedAt = submittedAt || now(); else { checked = false; signed = false; }
+    mode = s; closeConfirm(true); render();
+  });
+  window.__ch = { pad: function () { return pad; } };
+  if (mode === 'done') submittedAt = now();
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,771 @@
+{
+  "schema_version": 2,
+  "actions": {
+    "COM-01": {
+      "additionalProperties": false,
+      "properties": {
+        "department_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Department Id",
+          "type": "string"
+        },
+        "scope": {
+          "default": "DEPARTMENT_POOL",
+          "enum": [
+            "DEPARTMENT_POOL",
+            "PROJECT"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "search": {
+          "default": "",
+          "maxLength": 200,
+          "title": "Search",
+          "type": "string"
+        },
+        "specialty_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Specialty Id"
+        },
+        "active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active"
+        },
+        "page": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "default": 50,
+          "maximum": 200,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "department_id"
+      ],
+      "title": "CandidateQuery",
+      "type": "object"
+    },
+    "COM-03": {
+      "additionalProperties": false,
+      "properties": {
+        "department_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Department Id",
+          "type": "string"
+        },
+        "scope": {
+          "default": "DEPARTMENT_POOL",
+          "enum": [
+            "DEPARTMENT_POOL",
+            "PROJECT"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "filename": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Filename",
+          "type": "string"
+        }
+      },
+      "required": [
+        "department_id",
+        "filename"
+      ],
+      "title": "Preview",
+      "type": "object"
+    },
+    "COM-04": {
+      "additionalProperties": false,
+      "properties": {
+        "preview_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Preview Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "preview_id",
+        "version"
+      ],
+      "title": "CommitImport",
+      "type": "object"
+    },
+    "COM-05": {
+      "additionalProperties": false,
+      "properties": {
+        "department_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Department Id",
+          "type": "string"
+        },
+        "scope": {
+          "default": "DEPARTMENT_POOL",
+          "enum": [
+            "DEPARTMENT_POOL",
+            "PROJECT"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "organization_name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Organization Name",
+          "type": "string"
+        },
+        "department_name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Department Name"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position"
+        },
+        "phone": {
+          "maxLength": 30,
+          "minLength": 1,
+          "title": "Phone",
+          "type": "string"
+        },
+        "email": {
+          "anyOf": [
+            {
+              "maxLength": 254,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Email"
+        },
+        "specialty_ids": {
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 30,
+          "minItems": 1,
+          "title": "Specialty Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "department_id",
+        "name",
+        "organization_name",
+        "phone",
+        "specialty_ids"
+      ],
+      "title": "CandidateCreate",
+      "type": "object"
+    },
+    "COM-06": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "organization_name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Organization Name",
+          "type": "string"
+        },
+        "department_name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Department Name"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position"
+        },
+        "phone": {
+          "maxLength": 30,
+          "minLength": 1,
+          "title": "Phone",
+          "type": "string"
+        },
+        "email": {
+          "anyOf": [
+            {
+              "maxLength": 254,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Email"
+        },
+        "specialty_ids": {
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 30,
+          "minItems": 1,
+          "title": "Specialty Ids",
+          "type": "array"
+        },
+        "candidate_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "organization_name",
+        "phone",
+        "specialty_ids",
+        "candidate_id",
+        "version"
+      ],
+      "title": "CandidateUpdate",
+      "type": "object"
+    },
+    "COM-07": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "version"
+      ],
+      "title": "CandidateDelete",
+      "type": "object"
+    },
+    "DRAW-01": {
+      "$defs": {
+        "Quota": {
+          "additionalProperties": false,
+          "properties": {
+            "specialty_id": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Specialty Id",
+              "type": "string"
+            },
+            "final_count": {
+              "maximum": 9,
+              "minimum": 1,
+              "title": "Final Count",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "specialty_id",
+            "final_count"
+          ],
+          "title": "Quota",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "selection_mode": {
+          "enum": [
+            "POOL_RANDOM",
+            "DIRECT"
+          ],
+          "title": "Selection Mode",
+          "type": "string"
+        },
+        "target_count": {
+          "maximum": 9,
+          "minimum": 7,
+          "title": "Target Count",
+          "type": "integer"
+        },
+        "reserve_count": {
+          "maximum": 27,
+          "minimum": 0,
+          "title": "Reserve Count",
+          "type": "integer"
+        },
+        "quotas": {
+          "items": {
+            "$ref": "#/$defs/Quota"
+          },
+          "maxItems": 9,
+          "title": "Quotas",
+          "type": "array"
+        },
+        "version": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "project_id",
+        "selection_mode",
+        "target_count",
+        "reserve_count"
+      ],
+      "title": "Rules",
+      "type": "object"
+    },
+    "DRAW-02": {
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "rule_version": {
+          "minimum": 1,
+          "title": "Rule Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "project_id",
+        "rule_version"
+      ],
+      "title": "Draw",
+      "type": "object"
+    },
+    "DRAW-03": {
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "draw_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Draw Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "draw_id"
+      ],
+      "title": "ExportDraw",
+      "type": "object"
+    },
+    "ROS-01": {
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "contact_status": {
+          "anyOf": [
+            {
+              "enum": [
+                "NOT_CONTACTED",
+                "AVAILABLE",
+                "UNAVAILABLE",
+                "CALLBACK"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contact Status"
+        },
+        "specialty_id": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Specialty Id"
+        }
+      },
+      "required": [
+        "project_id"
+      ],
+      "title": "NomineeQuery",
+      "type": "object"
+    },
+    "ROS-02": {
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "candidate_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Candidate Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "candidate_id"
+      ],
+      "title": "AddNominee",
+      "type": "object"
+    },
+    "ROS-03": {
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "nominee_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Nominee Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "contact_status": {
+          "enum": [
+            "NOT_CONTACTED",
+            "AVAILABLE",
+            "UNAVAILABLE",
+            "CALLBACK"
+          ],
+          "title": "Contact Status",
+          "type": "string"
+        },
+        "contact_note": {
+          "default": "",
+          "maxLength": 1000,
+          "title": "Contact Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "nominee_id",
+        "version",
+        "contact_status"
+      ],
+      "title": "Contact",
+      "type": "object"
+    },
+    "ROS-04": {
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "nominee_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Nominee Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "reason": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "nominee_id",
+        "version",
+        "reason"
+      ],
+      "title": "Exclude",
+      "type": "object"
+    },
+    "ROS-05": {
+      "$defs": {
+        "Member": {
+          "additionalProperties": false,
+          "properties": {
+            "nominee_id": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Nominee Id",
+              "type": "string"
+            },
+            "version": {
+              "minimum": 1,
+              "title": "Version",
+              "type": "integer"
+            },
+            "member_kind": {
+              "enum": [
+                "PRIMARY",
+                "RESERVE"
+              ],
+              "title": "Member Kind",
+              "type": "string"
+            },
+            "reserve_order": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reserve Order"
+            }
+          },
+          "required": [
+            "nominee_id",
+            "version",
+            "member_kind"
+          ],
+          "title": "Member",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "rule_version": {
+          "minimum": 1,
+          "title": "Rule Version",
+          "type": "integer"
+        },
+        "members": {
+          "items": {
+            "$ref": "#/$defs/Member"
+          },
+          "maxItems": 36,
+          "minItems": 7,
+          "title": "Members",
+          "type": "array"
+        }
+      },
+      "required": [
+        "project_id",
+        "rule_version",
+        "members"
+      ],
+      "title": "ConfirmRoster",
+      "type": "object"
+    },
+    "ROS-06": {
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "roster_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Roster Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "roster_id"
+      ],
+      "title": "ExportRoster",
+      "type": "object"
+    },
+    "COM-02": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "COM-CATALOG": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  }
+}

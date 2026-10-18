@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>평가위원 관리 v2 · 심사임당</title><link rel="stylesheet" href="/committee-v2/static/style.css"></head>
+<body>
+<header><div><span class="eyebrow">심사임당 · 위원 관리 v2</span><h1>평가위원 등록과 선정</h1></div>
+<button id="logout" hidden>연결 종료</button></header>
+<p class="notice" id="mode">SQLite에 실제 저장되는 위원 기능입니다. 공통 로그인과 평가 명단 수신은 별도 연결이 필요합니다.</p>
+<div id="message" role="status" aria-live="polite"></div>
+<section id="login-panel" class="card narrow">
+<h2>위원 기능 연결</h2><p>서버 실행 때 생성된 <code>data/web-v2/access-code.txt</code>의 연결 코드를 입력하세요. 기존 웹의 시연 로그인과 별도로 확인합니다.</p>
+<form id="login-form"><label>연결 코드<input name="access_code" type="password" autocomplete="off" required maxlength="256"></label><button class="primary">연결하기</button></form>
+</section>
+<main id="workspace" hidden>
+<div class="controls"><label>소속 부서<select id="department"></select></label><label>사업<select id="project"></select></label><button id="refresh">최신 상태 조회</button></div>
+<nav class="tabs" aria-label="위원 업무"><button id="tab-pool" class="active">위원 후보 관리</button><button id="tab-selection">사업별 선정·명단 확정</button></nav>
+<section id="pool-panel">
+<div class="section-title"><div><h2>위원 후보 관리</h2><p>부서 풀과 사업 직접 등록 명단을 구분합니다.</p></div><button id="new-candidate" class="primary">개별 등록</button></div>
+<div class="card"><form id="search-form" class="controls"><label>등록 범위<select id="scope"><option value="DEPARTMENT_POOL">부서 풀</option><option value="PROJECT">사업 직접 등록</option></select></label><label>이름·소속 검색<input id="search" maxlength="200"></label><label>분야<select id="filter-specialty"><option value="">전체 분야</option></select></label><label>상태<select id="filter-active"><option value="true">활성</option><option value="false">비활성</option><option value="">전체</option></select></label><button>검색</button></form>
+<p id="pool-count"></p><div class="table-wrap"><table><thead><tr><th>성명</th><th>소속</th><th>전문분야</th><th>휴대전화</th><th>상태</th><th>관리</th></tr></thead><tbody id="candidate-rows"></tbody></table></div>
+<div class="pager"><button id="previous">이전</button><span id="page"></span><button id="next">다음</button></div></div>
+<details class="card" id="candidate-editor"><summary>개별 등록·수정</summary><form id="candidate-form">
+<input type="hidden" name="candidate_id"><input type="hidden" name="version">
+<div class="form-grid"><label>성명<input name="name" required maxlength="100"></label><label>소속<input name="organization_name" required maxlength="200"></label><label>부서<input name="department_name" maxlength="200"></label><label>직책·직급<input name="position" maxlength="100"></label><label>휴대전화<input name="phone" type="tel" required maxlength="30"></label><label>이메일<input name="email" type="email" maxlength="254"></label></div>
+<fieldset><legend>전문분야 (복수 선택 가능)</legend><div id="candidate-specialties" class="checks"></div></fieldset><div class="actions"><button class="primary" id="save-candidate">위원 등록</button><button type="button" id="cancel-edit">입력 취소</button></div></form></details>
+<details class="card"><summary>엑셀 일괄 등록</summary><p>양식에 맞춘 XLSX 파일을 확인한 뒤 등록합니다. 오류가 있으면 수정 후 다시 올려 주세요. 최대 8MB·5,000행입니다.</p>
+<div class="actions"><button id="template">엑셀 양식 다운로드</button></div>
+<form id="import-form" class="controls"><label>엑셀 파일<input id="excel-file" type="file" accept=".xlsx" required></label><label>파일 열기 암호 (선택)<input id="excel-password" type="password" autocomplete="off"></label><button>미리보기</button></form><div id="import-preview"></div><button id="commit-import" class="primary" hidden>검증 목록 등록</button></details>
+</section>
+<section id="selection-panel" hidden>
+<div class="section-title"><div><h2>사업별 평가위원 선정</h2><p>확정 초청 명단을 만든 뒤 평가 담당자에게 전달합니다.</p></div></div>
+<ol class="steps"><li>① 규칙 저장</li><li>② 3배수 선정 / 직접 등록</li><li>③ 연락 결과 확인</li><li>④ 초청 명단 확정</li></ol>
+<div id="project-unavailable" class="notice" hidden>이 사업은 위원 DB에 없습니다. 공통 사업 정보를 연결한 뒤 사용할 수 있습니다. 다른 사업으로 자동 대체하지 않습니다.</div>
+<div id="project-work">
+<section class="card"><h3>1. 선정 규칙</h3><form id="rules-form"><fieldset id="rules-fields"><div class="controls"><label>등록 방식<select id="selection-mode"><option value="POOL_RANDOM">부서 풀 · 분야별 무작위 선정</option><option value="DIRECT">사업별 직접 등록 · 추첨 생략</option></select></label><label>정위원<select id="target"><option>7</option><option>8</option><option>9</option></select></label><label>예비위원<input id="reserves" type="number" min="0" max="27" value="2" required></label></div><div id="quotas" class="controls"></div><p id="quota-hint" class="muted">분야별 정원 합계는 정위원 수와 같아야 합니다.</p><button class="primary">규칙 저장</button></fieldset></form><p id="rules-state"></p></section>
+<section class="card"><h3>2. 후보 선정</h3><p id="draw-state"></p><div class="actions"><button id="draw" class="primary">분야별 3배수 선정</button><button id="export-draw">선정 명단 다운로드</button><button id="direct-pool">후보 관리로 이동</button></div><p class="muted">사업별 직접 등록은 규칙 저장 후 후보 관리에서 등록하거나 부서 풀의 ‘사업에 추가’를 사용하세요.</p></section>
+<section class="card"><h3>3. 연락 결과와 초청 명단</h3><p>통화 후 ‘참여 가능’을 저장한 후보만 확정할 수 있습니다. 정위원과 예비 순위를 직접 선택하세요.</p><p id="nominee-count"></p><div class="table-wrap"><table><thead><tr><th>성명·소속</th><th>분야</th><th>연락 결과</th><th>통화 메모</th><th>기록</th><th>명단 구분</th><th>예비 순위</th><th>제외</th></tr></thead><tbody id="nominee-rows"></tbody></table></div><p id="member-count" class="selection-count"></p></section>
+<section class="card"><h3>4. 최종 초청 명단 확정</h3><div id="confirmed"></div><div class="actions"><button id="review-roster" class="primary">선택 명단 검토</button><button id="export-roster">확정 명단 다운로드</button></div><p class="muted">명단 확정 후 후보·연락 결과·선정 규칙은 잠깁니다. 실제 참석 확인과 위원장 지정은 평가 모듈에서 진행합니다.</p></section>
+</div></section>
+</main>
+<dialog id="review-dialog"><h2>최종 명단을 확인하세요</h2><div id="review-content"></div><p>확정하면 명단을 변경할 수 없습니다. 평가 모듈 수신 전까지 ‘수신 대기’로 표시됩니다.</p><div class="actions"><button id="confirm-roster" class="primary">초청 명단 확정</button><button id="close-review">돌아가기</button></div></dialog>
+<script type="module" src="/committee-v2/static/app.js"></script>
+</body></html>

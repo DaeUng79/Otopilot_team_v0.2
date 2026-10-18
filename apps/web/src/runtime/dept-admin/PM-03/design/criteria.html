@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>평가항목 · 심사임당 사업담당자</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../../super-admin/_shell.css">
+<link rel="stylesheet" href="../../_steps.css">
+<style>
+.flow{display:flex;align-items:center;gap:8px;padding:10px 24px;border-bottom:1px solid var(--line);flex:none;flex-wrap:wrap;font-size:var(--t-base);color:var(--text-3)}
+.flow .fs{display:inline-flex;align-items:center;gap:8px;min-height:32px;padding:0 12px;border-radius:var(--radius-full);background:var(--gray-10);color:var(--text-2);font-weight:700}
+.flow .fs i{font-style:normal;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--gray-0);font-size:14px}
+.flow .fs.on{background:var(--primary-5);color:var(--primary-60);box-shadow:inset 0 0 0 1px var(--primary-50)}
+.flow .fs.on i{background:var(--primary-50);color:#fff}
+.flow .fs.done{background:var(--success-5);color:var(--success-60)}
+.flow .fs.done i{background:var(--success-60);color:#fff}
+.flow .sep{color:var(--gray-30)}
+.flow .rt{margin-left:auto;color:var(--text-2)}
+.strip{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 24px;border-bottom:1px solid var(--line);flex:none;min-height:56px}
+.strip .big{font-size:var(--t-xl);font-weight:700}
+.strip .src{color:var(--text-3);font-size:var(--t-base)}
+.strip .sum{margin-left:auto;display:flex;align-items:center;gap:12px}
+tbody td{height:46px;max-width:none}
+td.nm{min-width:280px}
+td input{min-height:40px;font-size:var(--t-base)}
+td input.pt{width:76px;text-align:right}
+td input.pg{width:64px;text-align:right}
+td input.tt{min-width:260px}
+td input.cd{width:76px}
+td.src{white-space:nowrap}
+td .why{color:var(--text-3);font-size:var(--t-base);margin-left:8px}
+td .blk{color:var(--text-3);font-size:var(--t-base);margin-left:8px}
+tr.l2 td.nm{padding-left:36px}
+tr.l1.has td.nm{font-weight:700}
+tr.bad td{background:var(--danger-5)}
+.mv{display:inline-flex;gap:2px;align-items:center}
+.mv .g{color:var(--gray-30);font-size:18px;width:18px;text-align:center;cursor:grab}
+.ib{appearance:none;width:34px;height:34px;border:1px solid var(--gray-20);border-radius:var(--radius-sm);background:var(--gray-0);cursor:pointer;font-size:16px;line-height:1}
+.ib:hover:not(:disabled){background:var(--gray-5)}
+.ib:disabled{color:var(--gray-30);cursor:not-allowed;background:var(--gray-5)}
+td.ac{white-space:nowrap;text-align:right}
+td.ac .btn{min-height:36px;padding:0 12px;font-size:var(--t-base)}
+.addrow{padding:10px 24px;border-bottom:1px solid var(--line)}
+.addrow .btn{min-height:40px;font-size:var(--t-base)}
+.foot{flex:none;display:flex;align-items:center;gap:16px;padding:10px 24px;border-top:1px solid var(--line);min-height:68px;flex-wrap:wrap}
+.foot .why{flex:1;color:var(--text-2);font-size:var(--t-base);min-width:260px}
+.foot .why.bad{color:var(--danger-60);font-weight:700}
+.agree{display:flex;align-items:center;gap:10px;font-size:var(--t-base);font-weight:700;cursor:pointer}
+.agree input{width:24px;height:24px;min-height:0;padding:0;accent-color:var(--primary-50)}
+.lockbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 24px;background:var(--success-5);border-bottom:1px solid var(--success-10);font-weight:700;flex:none}
+.lockbar .btn{min-height:36px;padding:0 12px;font-size:var(--t-base)}
+.notebar{padding:10px 24px;border-bottom:1px solid var(--line);flex:none}
+.notebar .note{padding:8px 14px}
+th.num,td.num{text-align:right}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:32px;text-align:center}
+.empty .ico{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--primary-5);color:var(--primary-60);font-size:30px}
+.empty h2{font-size:var(--t-xl)}
+.empty p{color:var(--text-2);max-width:520px}
+.empty .row{display:flex;gap:8px;margin-top:4px}
+.empty.warn .ico{background:var(--warning-5);color:var(--warning-60)}
+.empty.bad .ico{background:var(--danger-5);color:var(--danger-60)}
+.btn.is-off{background:var(--gray-20);border-color:var(--gray-20);color:var(--gray-60);cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <button class="brand" type="button" data-href="../../PM-01/design/projects.html" aria-label="심사임당 사업 목록으로"><span class="brand-mark">심</span><span>심사임당</span></button>
+  <p class="role">(가상) 정보화담당관</p>
+  <nav aria-label="주 메뉴">
+    <a href="../../PM-01/design/projects.html" aria-current="page">사업 목록</a>
+    <a href="../../PM-07/design/pool.html">위원 풀</a>
+  </nav>
+  <div class="bottom">
+    <a href="#" data-account>내 계정</a>
+    <a href="../../PM-00/design/login.html">로그아웃</a>
+  </div>
+</aside>
+<div class="main">
+  <header class="pj-head">
+    <a class="pj-back" href="../../PM-02/design/documents.html">← 문서</a>
+    <div class="pj-row">
+      <div class="pj-title"><h1>(가상) 통합 민원 시스템 구축 용역</h1><span class="badge">○ 준비</span></div>
+      <div class="pj-act" id="act"></div>
+    </div>
+  </header>
+  <nav class="steps" id="steps" aria-label="진행 단계"></nav>
+  <div class="body">
+    <section class="card" aria-label="평가표" id="card"></section>
+  </div>
+  <details class="demo" id="demo"><summary>시안 상태</summary><div class="demo-in"><button type="button" data-st="none" aria-pressed="false">없음</button>
+    <button type="button" data-st="gen" aria-pressed="false">생성 중</button>
+    <button type="button" data-st="genfail" aria-pressed="false">실패</button>
+    <button type="button" data-st="reqwait" aria-pressed="false">요구사항 미완료</button>
+    <button type="button" data-st="ready" aria-pressed="true">AI 초안</button>
+    <button type="button" data-st="edit" aria-pressed="false">편집</button>
+    <button type="button" data-st="edit2" aria-pressed="false">오류 다수</button>
+    <button type="button" data-st="ack" aria-pressed="false">확정·ACK 대기</button>
+    <button type="button" data-st="acked" aria-pressed="false">확정·ACK 완료</button>
+  </div></details>
+</div>
+</div>
+
+<div class="scrim" id="scrim"></div><div class="scrim top" id="scrim2"></div>
+<div class="dlg" id="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t" aria-describedby="dlg-b">
+  <h2 id="dlg-t"></h2><p id="dlg-b"></p>
+  <div class="acts"><button class="btn" type="button" id="dlg-cancel" data-close>취소</button><button class="btn primary" type="button" id="dlg-ok"></button></div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="../../_ui.js"></script>
+<script>
+const LIMIT=80;
+let uid=0;
+const N=(code,t,pt,pg,blk,kids)=>({id:++uid,code,t,pt,pg,blk:blk||'',kids:kids||[]});
+const base=()=>[
+ N('1','사업 이해도 및 추진 전략',0,null,'',[N('1.1','사업 배경·목표 이해',5,14,'문단 2'),N('1.2','추진 전략·일정',5,14,'표 2')]),
+ N('2','시스템 구성 및 아키텍처',0,null,'',[N('2.1','아키텍처 구성',12,14,'표 3'),N('2.2','연계·확장성',8,14,'표 3')]),
+ N('3','기능 요구사항 충족도',20,14,'표 4'),
+ N('4','데이터 이전·연계 방안',10,15,'문단 1'),
+ N('5','정보 보안 대책',10,15,'표 5'),
+ N('6','유지보수 및 교육 지원',8,null,''),
+];
+let T=base(),phase='ready',ack='wait',agreed=false,ackT=null,genT=null;
+const flat=(list=T,d=0,par=null,out=[])=>{list.forEach((n,i)=>{out.push({n,d,par,sib:list,i});flat(n.kids,d+1,n,out)});return out};
+const val=n=>n.kids.length?n.kids.reduce((a,k)=>a+val(k),0):(+n.pt||0);
+const leaves=()=>flat().filter(r=>!r.n.kids.length);
+const total=()=>T.reduce((a,n)=>a+val(n),0);
+function issues(){const L=[],F=flat(),cnt={};
+  F.forEach(r=>cnt[r.n.code]=(cnt[r.n.code]||0)+1);
+  F.forEach(r=>{const n=r.n,k=[];
+    if(!String(n.t).trim())k.push('평가 항목 이름이 비었어요');
+    if(!String(n.code).trim())k.push('코드가 비었어요');
+    else if(cnt[n.code]>1)k.push(`코드 ${n.code}가 겹쳐요`);
+    if(r.par&&!String(n.code).startsWith(r.par.code+'.'))k.push(`코드 ${n.code}는 상위 ${r.par.code} 아래에 맞지 않아요 (예: ${r.par.code}.1)`);
+    if(!r.par&&String(n.code).includes('.'))k.push(`맨 위 항목 코드 ${n.code}에는 점(.)을 쓸 수 없어요`);
+    if(!n.kids.length){if(+n.pt<0)k.push(`${n.code}번 배점이 음수예요`);
+      if(n.pg==null)k.push(`${n.code}번 원문 근거가 없어요`)}
+    if(k.length)L.push({id:n.id,msgs:k})});
+  const d=total()-LIMIT;const sumMsg=d===0?'':`말단 배점 합이 ${total()}점이에요 (기술 배점 ${LIMIT}점과 ${Math.abs(d)}점 ${d<0?'모자라요':'넘쳐요'})`;
+  return{rows:L,sumMsg,count:L.reduce((a,x)=>a+x.msgs.length,0)+(sumMsg?1:0),map:Object.fromEntries(L.map(x=>[x.id,x.msgs]))}}
+const STAGE=['초안 생성','검토 (복사본 고치기)','확정'];
+function stage(){return phase==='locked'?3:phase==='edit'?1:phase==='ready'?1:0}
+function flowbar(){
+  const cur={none:0,gen:0,genfail:0,reqwait:0,ready:0,edit:1,locked:2}[phase];
+  const fs=STAGE.map((s,i)=>`<span class="fs ${i<cur||(phase==='locked'&&i===2&&ack==='done')?'done':i===cur?'on':''}"><i aria-hidden="true">${i<cur?'✓':i+1}</i>${s}</span>`).join('<span class="sep" aria-hidden="true">›</span>');
+  const rt={ready:'',edit:'AI 초안은 그대로 두고 복사본을 고쳐요',locked:'확정된 평가표예요',gen:'AI가 만드는 중이에요'}[phase]||'';
+  return `<div class="flow">${fs}${rt?`<span class="rt">${rt}</span>`:''}</div>`}
+function emptyBox(){
+  const E={
+   none:['✦','','평가 초안이 아직 없어요','제안요청서에서 읽어 온 요구사항으로 AI가 평가 항목·배점·근거 초안을 만들어요. 만들어도 사람이 확인하기 전에는 쓰이지 않아요.','<button class="btn primary lg" type="button" data-act="gen">초안 생성</button>'],
+   gen:['⟳','','초안을 만드는 중이에요','몇 초마다 자동으로 확인해요. 끝나면 이 화면에 나와요.','<button class="btn" type="button" data-act="refresh">새로고침</button>'],
+   genfail:['!','bad','초안 생성에 실패했어요','요구사항과 제안요청서는 그대로예요. 잠시 뒤 다시 만들어 보세요.','<button class="btn primary" type="button" data-act="gen">다시 생성</button><button class="btn" type="button" data-act="refresh">새로고침</button>'],
+   reqwait:['…','warn','요구사항 추출이 아직 끝나지 않았어요','초안은 추출이 끝난 요구사항으로 만들어요. 문서 단계에서 추출 상태를 확인해 주세요.','<a class="btn" href="../../PM-02/design/documents.html">문서 단계 보기</a><button class="btn" type="button" disabled>초안 생성</button>']}[phase];
+  return `<div class="empty ${E[1]}"><div class="ico" aria-hidden="true">${E[0]}</div><h2>${E[2]}</h2><p>${E[3]}</p><div class="row">${E[4]}</div></div>`}
+function rowHtml(r,edit){const n=r.n,iss=issues().map[n.id],par=n.kids.length>0,L=r.d?'l2':'l1';
+  const nm=edit?`<input class="tt" data-id="${n.id}" data-f="t" value="${h(n.t)}" aria-label="${h(n.code)}번 평가 항목">`:h(n.t);
+  const pt=par?`<span class="tnum muted">합 ${val(n)}점</span>`:edit?`<input class="pt tnum" data-id="${n.id}" data-f="pt" inputmode="numeric" value="${n.pt}" aria-label="${h(n.code)}번 배점"> 점`:`<b class="tnum">${n.pt}점</b>`;
+  const ev=par?'<span class="muted">—</span>':edit?(n.pg!=null?`<input class="pg tnum" data-id="${n.id}" data-f="pg" inputmode="numeric" value="${n.pg}" aria-label="${h(n.code)}번 근거 쪽"> 쪽${n.blk?`<span class="blk">${h(n.blk)}</span>`:''}`:`<input class="pg tnum" data-id="${n.id}" data-f="pg" inputmode="numeric" placeholder="쪽" aria-label="${h(n.code)}번 근거 쪽"> <span class="badge danger">! 원문 확인 필요</span>`):n.pg!=null?`<span class="tnum">${n.pg}쪽</span>${n.blk?`<span class="blk">${h(n.blk)}</span>`:''}`:`<span class="badge danger">! 원문 확인 필요</span>`;
+  const cd=edit?`<input class="cd tnum" data-id="${n.id}" data-f="code" value="${h(n.code)}" aria-label="항목 코드">`:`<span class="tnum">${h(n.code)}</span>`;
+  const mv=edit?`<span class="mv"><span class="g" aria-hidden="true">⠿</span><button class="ib" type="button" data-mv="up" data-id="${n.id}" ${r.i===0?'disabled':''} aria-label="${h(n.code)}번 위로">↑</button><button class="ib" type="button" data-mv="down" data-id="${n.id}" ${r.i===r.sib.length-1?'disabled':''} aria-label="${h(n.code)}번 아래로">↓</button></span>`:'';
+  const ac=edit?`${r.d===0?`<button class="btn" type="button" data-sub="${n.id}">+ 하위</button> `:''}<button class="btn text-danger" type="button" data-del="${n.id}" aria-label="${h(n.code)}번 삭제">삭제</button>`:'';
+  const err=iss?`<div class="err" style="margin-top:2px;font-weight:700">${iss.map(h).join(' · ')}</div>`:'';
+  return `<tr class="${L}${par?' has':''}${iss&&edit?' bad':''}">${edit?`<td>${mv}</td>`:''}<td>${cd}</td><td class="nm strong">${nm}${edit?err:''}</td><td class="num">${pt}</td><td class="src">${ev}</td>${edit?`<td class="ac">${ac}</td>`:''}</tr>`}
+function paint(){
+  const f=document.activeElement,keep=f&&f.dataset&&f.dataset.id?{id:f.dataset.id,f:f.dataset.f,m:f.dataset.mv,s:f.selectionStart}:null;
+  const card=$('#card');const showTable=['ready','edit','locked'].includes(phase);
+  if(!showTable){card.innerHTML=flowbar()+emptyBox();bindActs();head();return}
+  const edit=phase==='edit',lock=phase==='locked',I=issues(),s=total(),d=s-LIMIT;
+  const lockbar=lock?`<div class="lockbar"><span role="img" aria-label="잠김">🔒</span><span>확정했어요. 평가표는 이제 고칠 수 없어요.</span>${ack==='done'?'<span class="badge success">✓ 평가 쪽 수신 확인(ACK) 완료</span>':'<span class="badge info">⟳ 평가 쪽 수신 확인(ACK) 대기</span><button class="btn" type="button" data-act="refresh">새로고침</button>'}<span class="muted" style="font-weight:400;margin-left:auto">승인 번호 7c1e…a94f</span></div>`:'';
+  const note=phase==='ready'?`<div class="notebar"><div class="note warn"><span>AI가 만든 초안이에요. 아직 사람이 확인하지 않았어요. 보완점: <b>6번 유지보수 및 교육 지원</b>은 제안요청서에서 근거 쪽을 찾지 못했어요.</span></div></div>`:'';
+  const F=flat();
+  const thead=`<thead><tr>${edit?'<th style="width:128px">순서</th>':''}<th style="width:${edit?'96':'72'}px">코드</th><th>평가 항목</th><th class="num" style="width:${edit?'130':'110'}px">배점</th><th>근거 (제안요청서)</th>${edit?'<th style="width:150px"></th>':''}</tr></thead>`;
+  const tb=F.map(r=>rowHtml(r,edit)).join('');
+  const strip=`<div class="strip"><span class="big">기술 배점 ${LIMIT}점</span><span class="src">${edit?'가격 20점은 별도예요':'제안요청서 14쪽에서 읽었어요 · 가격 20점은 별도예요'}</span><div class="sum">${edit?'<button class="btn" type="button" data-act="add" style="min-height:40px;font-size:16px">+ 항목 추가</button>':''}<span id="sumv" style="display:flex;gap:12px;align-items:center"><span>말단 배점 합계 <b class="tnum">${s}</b>점</span><span class="badge ${d===0?'success':'danger'}">${d===0?'✓ 기술 배점과 같아요':`! 기술 배점(${LIMIT}점)과 ${Math.abs(d)}점 ${d<0?'모자라요':'넘쳐요'}`}</span></span></div></div>`;
+  card.innerHTML=flowbar()+lockbar+note+strip+''+`<div class="tbl-wrap"><table>${thead}<tbody>${tb}</tbody></table></div>`
+   +(phase==='ready'?`<div class="foot"><span class="why">AI 초안은 고칠 수 없어요. [검토 시작]을 누르면 복사본이 만들어지고, 복사본을 고쳐요.</span><button class="btn primary" type="button" data-act="review">검토 시작</button></div>`:'')
+   +(edit?`<div class="foot" id="foot"><span class="why" id="why"></span><label class="agree"><input type="checkbox" id="agree" ${agreed?'checked':''}>원문·배점·빠진 항목을 확인했어요</label><button class="btn primary" type="button" id="b-ok">평가표 확정</button></div>`:'');
+  bindActs();
+  if(edit){$$('#card [data-f]').forEach(i=>{
+      i.oninput=()=>{const x=find(+i.dataset.id),f=i.dataset.f;if(!x)return;
+        if(f==='t')x.t=i.value;
+        else if(f==='pt'){const v=i.value.replace(/[^\d-]/g,'');i.value=v;x.pt=v===''||v==='-'?0:+v}
+        else if(f==='pg'){const v=i.value.replace(/\D/g,'');i.value=v;x.pg=v?+v:null;x.blk=x.blk||'직접 입력'}
+        else if(f==='code')x.code=i.value.trim();
+        if(f==='t')head();else paint()};
+    });
+    $$('#card [data-mv]').forEach(b=>b.onclick=()=>move(+b.dataset.id,b.dataset.mv));
+    $$('#card [data-del]').forEach(b=>b.onclick=()=>del(+b.dataset.del));
+    $$('#card [data-sub]').forEach(b=>b.onclick=()=>addSub(+b.dataset.sub));
+    const ag=$('#agree');ag.onchange=()=>{agreed=ag.checked;head()};
+    $('#b-ok').onclick=()=>confirmDlg({title:'평가표를 확정할까요?',body:'확정하면 항목과 배점을 고칠 수 없어요. 확정한 평가표가 평가 쪽에 전달돼요.',ok:'확정',danger:false,onOk:()=>{phase='locked';ack='wait';paint();toast('평가표를 확정했어요. 평가 쪽 수신을 기다려요');clearTimeout(ackT);ackT=setTimeout(()=>{if(phase==='locked'&&ack==='wait'){ack='done';paint()}},3500)}})}
+  if(keep){const sel=keep.m?`[data-mv="${keep.m}"][data-id="${keep.id}"]`:`[data-id="${keep.id}"][data-f="${keep.f}"]`;const e=$(sel,card);if(e&&!e.disabled){e.focus();try{if(keep.s!=null)e.setSelectionRange(keep.s,keep.s)}catch(_){}}}
+  head();
+}
+const find=id=>{const r=flat().find(r=>r.n.id===id);return r&&r.n};
+function move(id,dir){const r=flat().find(r=>r.n.id===id),j=r.i+(dir==='up'?-1:1);if(j<0||j>=r.sib.length)return;[r.sib[r.i],r.sib[j]]=[r.sib[j],r.sib[r.i]];paint();toast('순서를 바꿨어요')}
+function del(id){const r=flat().find(r=>r.n.id===id),run=()=>{r.sib.splice(r.i,1);paint();toast('항목을 지웠어요. 복사본에서만 지워져요')};
+  r.n.kids.length?confirmDlg({title:`${r.n.code}번과 하위 항목을 지울까요?`,body:'AI 초안은 그대로 남아 있어요. 이 복사본에서만 지워져요.',ok:'지우기',danger:true,onOk:run}):run()}
+function addSub(id){const n=find(id),c=n.kids.length+1;
+  if(!n.kids.length)n.kids.push(N(`${n.code}.1`,'새 하위 항목',n.pt,n.pg,n.blk));else n.kids.push(N(`${n.code}.${c}`,'새 하위 항목',0,null));
+  if(n.kids.length===1){n.pt=0}paint()}
+function bindActs(){
+  $$('#card [data-act]').forEach(b=>b.onclick=()=>{const a=b.dataset.act;
+    if(a==='gen'){phase='gen';paint();clearTimeout(genT);genT=setTimeout(()=>{if(phase==='gen'){phase='ready';T=base();paint();toast('AI 초안이 도착했어요')}},2500)}
+    if(a==='refresh'){if(phase==='gen')toast('아직 만드는 중이에요. 자동으로 다시 확인해요');else if(phase==='locked'&&ack==='wait')toast('아직 평가 쪽 수신 확인을 기다리고 있어요');else toast('최신 상태예요')}
+    if(a==='review'){T=base();phase='edit';agreed=false;paint();toast('복사본을 만들었어요. AI 초안은 그대로 두었어요')}
+    if(a==='add'){const c=T.length+1;T.push(N(String(c),'새 평가 항목',0,null));paint()}});
+}
+function head(){
+  const I=issues(),ok=I.count===0&&agreed;
+  if(phase==='edit'){const why=$('#why'),b=$('#b-ok');if(why){
+    const m=[];if(I.sumMsg)m.push(I.sumMsg);I.rows.forEach(x=>x.msgs.forEach(t=>m.push(t)));
+    why.textContent=I.count?`확정하려면 고칠 곳 ${I.count}개: `+m.slice(0,2).join(' · ')+(m.length>2?` 외 ${m.length-2}개`:''):(agreed?'모두 맞아요. 확정하면 이 평가표는 잠겨요.':'모두 맞아요. 아래 확인란에 체크해 주세요.');
+    why.className='why'+(I.count?' bad':'');b.disabled=!ok;
+    const t=$('#sumv');if(t){const s=total(),d=s-LIMIT;t.innerHTML=`<span>말단 배점 합계 <b class="tnum">${s}</b>점</span><span class="badge ${d===0?'success':'danger'}">${d===0?'✓ 기술 배점과 같아요':`! 기술 배점(${LIMIT}점)과 ${Math.abs(d)}점 ${d<0?'모자라요':'넘쳐요'}`}</span>`}}}
+  const a=$('#act');
+  a.innerHTML=phase==='locked'?(ack==='done'?'<a class="btn primary" href="../../PM-04/design/committee.html">다음: 평가위원</a>':'<span class="hint">평가 쪽 수신 확인을 기다려요</span><span class="btn primary is-off" aria-disabled="true">다음: 평가위원</span>')
+    :phase==='edit'?'<span class="hint">원문 근거가 없는 항목은 확정할 수 없어요</span>':'';
+  renderSteps($('#steps'),['done','done',phase==='locked'&&ack==='done'?'done':'current',phase==='locked'&&ack==='done'?'open':'locked','locked','locked']);
+}
+function setSt(s){clearTimeout(ackT);clearTimeout(genT);agreed=false;T=base();
+  if(s==='ack'||s==='acked'){T[5].pt=10;T[5].pg=24;T[5].blk='문단 3';phase='locked';ack=s==='ack'?'wait':'done'}
+  else if(s==='edit2'){phase='edit';T[3].code='3';T[1].kids[0].code='3.1';T[0].kids[1].pt=-5;T[5].pg=24;T[5].blk='문단 3'}
+  else phase=s;
+  $$('#demo [data-st]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.st===s));paint()}
+$$('#demo [data-st]').forEach(b=>b.onclick=()=>setSt(b.dataset.st));
+paint();
+if(location.hash==='#edit')setSt('edit');
+</script>
+</body>
+</html>

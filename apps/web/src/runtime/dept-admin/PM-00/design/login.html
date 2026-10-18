@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사업담당자 로그인 · 심사임당</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../../super-admin/_shell.css">
+<style>
+:root{--demo-h:49px}
+body{display:flex;flex-direction:column;background:var(--gray-0)}
+.stage{flex:1;min-height:0;position:relative}
+.mark{position:absolute;top:16px;left:24px;font-weight:700;font-size:var(--t-xl);letter-spacing:-.02em;color:var(--primary-60);margin:0}
+.center{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px 24px 24px;overflow:auto}
+.who{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:20px}
+.who .ico svg{width:88px;height:88px;display:block}
+.who .nm{font-size:24px;font-weight:700}
+.box{width:100%;max-width:400px;display:flex;flex-direction:column;gap:20px}
+.box .field{font-size:var(--t-lg)}
+.box input{min-height:56px;font-size:var(--t-lg)}
+.go{min-height:56px;font-size:var(--t-lg)}
+.msg{display:flex;gap:10px;padding:12px 16px;border-radius:var(--radius-sm);font-size:var(--t-body);background:var(--danger-5);border:1px solid var(--danger-10)}
+.msg b{display:block;color:var(--danger-60)}
+.msg.lock,.msg.off{background:var(--warning-5);border-color:var(--warning-10)}
+.msg.lock b,.msg.off b{color:var(--warning-60)}
+.msg .mk{flex:none;font-weight:700}
+.seed{text-align:center;color:var(--text-3);font-size:var(--t-base)}
+.back{appearance:none;background:none;border:0;color:var(--text-3);font-size:var(--t-body);min-height:44px;padding:0 12px;cursor:pointer;border-radius:var(--radius-sm);display:inline-flex;align-items:center;margin-top:8px;text-decoration:none}
+.back:hover{background:var(--gray-10);color:var(--text-1)}
+</style>
+</head>
+<body>
+<div class="stage">
+<section class="center">
+  <p class="mark">심사임당</p>
+  <div class="who">
+    <div class="ico" aria-hidden="true"><svg viewBox="0 0 96 96" fill="none" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><rect x="20" y="30" width="56" height="42" rx="6" fill="#ecf2fe" stroke="#256ef4"/><path d="M36 30v-6a4 4 0 0 1 4-4h16a4 4 0 0 1 4 4v6M20 50h56" stroke="#256ef4"/><path d="M44 50v6h8v-6" stroke="#256ef4"/></svg></div>
+    <h1 class="nm">사업담당자</h1>
+  </div>
+  <form class="box" id="f-login" novalidate>
+    <div id="msg" role="alert" hidden></div>
+    <label class="field">아이디<input id="uid" autocomplete="username" spellcheck="false" value="info01"></label>
+    <label class="field">비밀번호<input id="upw" type="password" autocomplete="current-password" value="demo1234"></label>
+    <button class="btn primary go" id="go" type="submit">로그인</button>
+    <p class="seed">부서 계정은 총괄관리자가 만들어 줘요</p>
+  </form>
+  <a class="back" href="../../../entry/design/entry.html">← 처음 화면으로</a>
+</section>
+</div>
+
+<details class="demo" id="demo"><summary>시안 상태</summary><div class="demo-in"><button type="button" data-st="base" aria-pressed="true">기본</button>
+  <button type="button" data-st="wrong" aria-pressed="false">틀림</button>
+  <button type="button" data-st="lock" aria-pressed="false">5회 잠금</button>
+  <button type="button" data-st="off" aria-pressed="false">비활성 부서 계정 (같은 문구)</button>
+  <span class="muted" style="margin-left:auto">직접 해 보기: 아이디 info01 · 비밀번호 demo1234 (info02는 비활성 계정이지만 같은 문구가 나와요)</span>
+</div></details>
+<div class="scrim" id="scrim"></div><div class="scrim top" id="scrim2"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="../../_ui.js"></script>
+<script>
+let tries=0,locked=false;
+function msg(kind,title,body){const m=$('#msg');if(!kind){m.hidden=true;m.className='';m.innerHTML='';return}
+  m.className='msg '+(kind==='wrong'?'':kind);m.hidden=false;m.innerHTML=`<span class="mk" aria-hidden="true">${kind==='lock'?'⏳':kind==='off'?'ⓘ':'!'}</span><div><b>${title}</b>${body}</div>`}
+const fail=()=>{tries++;if(tries>=5)setLock();else msg('wrong','아이디 또는 비밀번호가 맞지 않아요','다시 확인해 주세요. 여러 번 틀리면 잠시 로그인할 수 없어요.')};
+function setLock(){locked=true;msg('lock','5번 틀려서 잠시 잠겼어요','10분 뒤에 다시 시도해 주세요. 계속 안 되면 총괄관리자에게 알려 주세요.');$('#go').disabled=true;$('#uid').disabled=$('#upw').disabled=true}
+function reset(){locked=false;tries=0;$('#go').disabled=false;$('#uid').disabled=$('#upw').disabled=false;msg();$('#uid').value='info01';$('#upw').value='demo1234'}
+const offMsg=()=>fail(); /* 비활성 계정도 틀린 입력과 같은 문구 (계정 존재 여부를 알려 주지 않음) */
+$('#f-login').addEventListener('submit',e=>{e.preventDefault();if(locked)return;const u=$('#uid').value.trim(),p=$('#upw').value;
+  if(!u||!p){msg('wrong','아이디와 비밀번호를 모두 입력해 주세요','');return}
+  if(u==='info02'){offMsg();return}
+  if(u==='info01'&&p==='demo1234'){msg();location.href='../../PM-01/design/projects.html'}else fail()});
+function sync(s){$$('#demo [data-st]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.st===s))}
+$$('#demo [data-st]').forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.st;reset();sync(s);
+  if(s==='wrong'){$('#upw').value='abcd0000';tries=1;msg('wrong','아이디 또는 비밀번호가 맞지 않아요','다시 확인해 주세요. 여러 번 틀리면 잠시 로그인할 수 없어요.')}
+  if(s==='lock'){setLock()}
+  if(s==='off'){$('#uid').value='info02';tries=1;msg('wrong','아이디 또는 비밀번호가 맞지 않아요','다시 확인해 주세요. 여러 번 틀리면 잠시 로그인할 수 없어요.')}}));
+if(location.hash==='#logout'){$('#uid').value=$('#upw').value='';toast('로그아웃했어요')}
+setTimeout(()=>$('#go').focus(),30);
+</script>
+</body>
+</html>

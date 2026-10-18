@@ -1,0 +1,82 @@
+{
+  "baseline_commit": "5529862fff9d83a789c4823eb9a989503c39aef4",
+  "purpose": "User excludes Oh Daeung implementation and database changes. Read contracts only.",
+  "files": {
+    "apps/chatbot/README_chatbot.md": {
+      "sha256": "c46d4753b75fa63e17cc057591a1137561057d872ddde7d9f5d32786e8dcfa4b",
+      "normalize_crlf": true
+    },
+    "apps/chatbot/chatbot.py": {
+      "sha256": "470b6a224ea82fba78e61e933daa775129899d0e36c5d30bd66c7ccc917237f4",
+      "normalize_crlf": true
+    },
+    "apps/chatbot/streamlit_chat.py": {
+      "sha256": "cb04da434d78f6154eb0cf312ee3a18eca3df1ab2de9cf6fbc2d8af0ccf6aaa2",
+      "normalize_crlf": true
+    },
+    "apps/chatbot/tests/test_chatbot.py": {
+      "sha256": "9e23c09658f1fde6a53f7ca07140adda1fb519b207ede3f2c4ecf607e9aa643d",
+      "normalize_crlf": true
+    },
+    "apps/documents/README_documents.MD": {
+      "sha256": "ed7156368d8c63cf9d34f7b272d12ee8e8b0a2c57223f7a4626d014419ea9db9",
+      "normalize_crlf": true
+    },
+    "apps/documents/doc/2. (제안요청서) 기록관리시스템 유지보수 용역.hwpx": {
+      "sha256": "b1b65d82d94d16cd0cf6043e00e21f40972d9a0d8ed02f6d7d330bfb35080883",
+      "normalize_crlf": false
+    },
+    "apps/documents/doc/공고서_2027년 ITS센터 및 현장장비 유지보수 용역.hwpx": {
+      "sha256": "4e39ba8c0f8cf3746b01a90209ab7fe5450f92ca8a7d64167413b07ec1ec850e",
+      "normalize_crlf": false
+    },
+    "apps/documents/doc/붙임2_제안요청서(2026년 특허 빅데이터 포털 기능개선 및 유지보수 용역).hwpx": {
+      "sha256": "2d702a67e2c5af5f294522a1c909ccbd7552f623d96663c4ef8072ce92358f59",
+      "normalize_crlf": false
+    },
+    "apps/documents/doc/제안요청서(2026년 주택소유확인시스템 유지관리 및 데이터베이스갱신 용역).hwpx": {
+      "sha256": "3b0a3b7d5ff0e990a5780128723d26d6364b801fa7fe5cf280064f8749aec837",
+      "normalize_crlf": false
+    },
+    "apps/documents/doc/제안요청서(서울특별시 재무공고 제2026-2085호).hwpx": {
+      "sha256": "a97c4dc31fcfa318e17e373588eac864756a6687ba641601a149bdbe3f1c8fed",
+      "normalize_crlf": false
+    },
+    "apps/documents/documents_parse.sqlite3": {
+      "sha256": "b0aa9e1d8822bc7d6dc70f1f8ecde6ad35eb8618efd1949422c332ec6747f22a",
+      "normalize_crlf": false
+    },
+    "apps/documents/documents_parse_DB_TABLES.md": {
+      "sha256": "08dc1efda907342728812b661bf33638f4fcc47fab08308aff9b66ee022e5843",
+      "normalize_crlf": true
+    },
+    "apps/documents/requirements.txt": {
+      "sha256": "53be4527dffb29a9b82e66e7fe4cdbd0f730c07c7c789b9fddbefa16e7270fda",
+      "normalize_crlf": true
+    },
+    "apps/documents/step0_documents_api.py": {
+      "sha256": "2f3401dee3b891036e04d074fa4afaf071f8a7e2c22f1550bfd40f85bf976c0d",
+      "normalize_crlf": true
+    },
+    "apps/documents/step1_hwpx_parse_to_JSON.py": {
+      "sha256": "3cc3df874e7288c28f7e5efad252e633354e9cbcb95d484185ac08b1056b0796",
+      "normalize_crlf": true
+    },
+    "apps/documents/step2_hwpx_save_to_SQLite.py": {
+      "sha256": "e916c2e1c8e937178cf5f78a1d00c793ca813d2a87f5ce7d5009ce139c3b81de",
+      "normalize_crlf": true
+    },
+    "apps/documents/step3_ai_requirements_extract_to_SQLite.py": {
+      "sha256": "3b061d5f6375971afbc273cc03d617a1002bd806661e6125e72afc646e88a913",
+      "normalize_crlf": true
+    },
+    "apps/documents/step4_ai_criteria.py": {
+      "sha256": "83db93ea68a5276cbf6db7e34703a58ca1985623d361f03757e6695359fd9f88",
+      "normalize_crlf": true
+    },
+    "apps/documents/streamlit_parser_test_page.py": {
+      "sha256": "514fa712811ff798822798027604667c4b50efc093a89dd3468e431f031db17e",
+      "normalize_crlf": true
+    }
+  }
+}

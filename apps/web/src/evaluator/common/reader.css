@@ -1,0 +1,23 @@
+/* 공통 · 읽기 화면의 원본 쪽 SVG 와 파싱 결과 대체 표시 (src/screens/evaluator/EV-03-rfp/rfp.css 에서 옮김). EV-03·EV-04·EV-05 가 같이 쓴다 */
+.evr-tx { overflow: auto; overscroll-behavior: contain; padding-right: 4px; }
+.evr-tx.is-rendered { display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0; }
+.evr-page-svg { display: block; width: 100%; height: 100%; object-fit: contain; }
+.evr-render-fallback { margin: 0 0 10px; color: var(--text-3); font-size: 13px; }
+.evr-tx h2 { font-size: 18px; color: var(--text-3); font-weight: 400; margin-bottom: 10px; }
+.evr-tx p { margin: 0 0 6px; line-height: 1.65; font-size: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.evr.is-single .evr-tx p { font-size: 18px; line-height: 1.75; }
+.evr-tx p.h1 { font-size: 20px; font-weight: 700; margin: 14px 0 8px; color: var(--primary-70); }
+.evr-tx p.h2 { font-weight: 700; margin-top: 10px; }
+.evr-tx p.b1 { font-weight: 700; margin-top: 10px; }
+.evr-tx p.b2 { padding-left: 1.4em; text-indent: -1.1em; }
+.evr-tx p.b3 { padding-left: 2.4em; text-indent: -1em; color: var(--text-2); }
+.evr-tx p.note { color: var(--text-3); font-size: 15px; padding-left: 1.4em; }
+.evr-tx p.cover { text-align: center; font-size: 28px; font-weight: 700; margin: 24px 0; }
+.evr-tbl-w { overflow-x: auto; margin: 8px 0 12px; }
+.evr-tbl { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.45; }
+.evr-tbl td { border: 1px solid var(--gray-30); padding: 5px 8px; vertical-align: top; white-space: pre-wrap; overflow-wrap: anywhere; }
+.evr.is-single .evr-tbl { font-size: 16px; }
+.evr-img { display: block; max-width: 100%; max-height: 360px; margin: 8px auto; object-fit: contain; }
+.evr-more { font-size: 14px; color: var(--text-3); text-align: right; margin: 6px 0 0; }
+.evr-wait, .evr-blank { color: var(--text-3); font-size: 16px; padding: 24px 0; text-align: center; }
+.evr-pn small { color: var(--text-3); margin-left: 8px; }
