@@ -1,9 +1,0 @@
-streamlit==1.65.0
-pyhwpxlib==0.18.3
-# HWP/HWPX 실제 페이지 렌더링에 필요
-wasmtime==49.0.0
-python-dotenv==1.2.4
-openai==3.23.0
-
-# 문서 챗봇의 입력 토큰 계산
-tiktoken==0.14.0
