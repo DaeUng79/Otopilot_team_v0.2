@@ -15,9 +15,9 @@ Live.capture('#ae-save','click',async()=>{const a=liveAdmins.get(curA.id);await 
 Live.capture('#ae-psave','click',async()=>{const a=liveAdmins.get(curA.id);const selected=new Set($$('#ae-perms input:checked').map(el=>permissionMap[el.value]));if(a.permissions.includes('VIEW_DASHBOARD'))selected.add('VIEW_DASHBOARD');await Live.api('ADM-05',{admin_id:a.id,version:a.version,permission_codes:[...selected]});await loadAdministration();openAEdit(a.username);toast('권한을 저장했어요');});
 Live.capture('#z-on,#z-off,#z-del,#y-on,#y-off,#ae-reset','click',(_e,el)=>{pendingAdminAction=el.id;confirmDlg({title:el.textContent.trim()+' 작업을 진행할까요?',body:'변경 내용을 저장하고 해당 계정의 로그인 세션을 갱신합니다.',ok:'확인',danger:el.id!=='ae-reset'});});
 Live.capture('#dlg-ok','click',async()=>{
- if(!pendingAdminAction)return;let notice='저장했어요';
+ if(!pendingAdminAction)return;let notice='저장했어요',temporaryPassword=null;
  if(pendingAdminAction.startsWith('z-')){const d=liveDepartments.get(curD.code);await Live.api('ADM-DEPT-STATE',{department_id:d.id,version:d.version,state:pendingAdminAction==='z-on'?'ACTIVE':pendingAdminAction==='z-del'?'DELETED':'INACTIVE'});}
- else {const a=liveAdmins.get(curA.id);const response=await Live.api(pendingAdminAction==='y-on'?'ADM-RESTORE':pendingAdminAction==='y-off'?'ADM-04':'ADM-RESET',{admin_id:a.id,version:a.version});if(response.temporary_password)notice='임시 비밀번호: '+response.temporary_password+' · 다음 로그인에서 변경하세요.';}
- pendingAdminAction=null;closePanels();await loadAdministration();toast(notice);
+ else {const a=liveAdmins.get(curA.id);const response=await Live.api(pendingAdminAction==='y-on'?'ADM-RESTORE':pendingAdminAction==='y-off'?'ADM-04':'ADM-RESET',{admin_id:a.id,version:a.version});temporaryPassword=response.temporary_password||null;}
+ pendingAdminAction=null;closePanels();if(temporaryPassword)showPasswordResult(temporaryPassword);else toast(notice);await loadAdministration();
 });
 Live.capture('#d-conf','click',()=>{throw Error('실제 저장 충돌은 서버의 버전 검사로 확인합니다.');});

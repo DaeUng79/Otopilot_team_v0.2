@@ -14,17 +14,15 @@
 select{appearance:auto}
 .toolbar select{width:auto;min-width:150px;min-height:44px}
 .toolbar .btn{min-height:44px}
-.pager{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;border-top:1px solid var(--line);flex:none}
-.pager button{appearance:none;min-width:40px;min-height:40px;border-radius:var(--radius-sm);border:1px solid var(--gray-20);background:var(--gray-0);font-size:var(--t-base);cursor:pointer;padding:0 10px}
-.pager button:hover:not(:disabled){background:var(--gray-5)}
-.pager button[aria-current="page"]{background:var(--primary-5);border-color:var(--primary-50);color:var(--primary-60);font-weight:700}
-.pager button:disabled{color:var(--gray-30);cursor:not-allowed}
 .spec-note{display:inline-flex;gap:6px;align-items:center;font-size:var(--t-sm);color:var(--text-3)}
 .perms{display:flex;flex-direction:column;gap:4px}
 .perm{display:flex;align-items:center;gap:12px;min-height:44px;font-weight:400;font-size:var(--t-base);cursor:pointer}
 .perm input{width:20px;min-height:20px;height:20px;flex:none;accent-color:var(--primary-50)}
 .perm code{font-size:14px;color:var(--text-3);margin-left:auto}
 .perm.lock{opacity:.7;cursor:not-allowed}
+#pn-acc .tbl-wrap{overflow-y:auto;overscroll-behavior:contain}
+.password-value{display:block;padding:16px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--gray-5);font-size:var(--t-xl);font-weight:700;line-height:1.5;overflow-wrap:anywhere;user-select:all}
+.password-countdown{font-size:var(--t-sm);color:var(--text-3)}
 </style>
 </head>
 <body>
@@ -72,7 +70,6 @@ select{appearance:auto}
           <thead><tr><th>아이디</th><th>이름</th><th>부서</th><th>권한</th><th>마지막 로그인</th><th>상태</th></tr></thead>
           <tbody id="a-rows"></tbody></table>
           <div class="state" id="a-none" hidden><strong>찾는 계정이 없어요</strong><p>다른 검색어나 부서·상태로 찾아 보세요.</p></div></div>
-        <nav class="pager" id="a-pager" aria-label="쪽 이동"></nav>
       </div>
     </section>
   </div>
@@ -163,17 +160,37 @@ select{appearance:auto}
   <h2 id="dlg-t"></h2><p id="dlg-b"></p>
   <div class="acts"><button class="btn" type="button" id="dlg-cancel" data-close>취소</button><button class="btn danger" type="button" id="dlg-ok"></button></div>
 </div>
+<div class="dlg" id="password-result" role="dialog" aria-modal="true" aria-labelledby="password-result-title" aria-describedby="password-countdown">
+  <h2 id="password-result-title">초기화된 비밀번호</h2>
+  <p>다음 로그인에서 비밀번호를 변경해야 합니다.</p>
+  <output class="password-value" id="password-value"></output>
+  <p class="password-countdown" id="password-countdown">10초 후 자동으로 닫힙니다.</p>
+  <div class="acts"><button class="btn" type="button" data-close>닫기</button><button class="btn primary" type="button" id="password-copy">비밀번호 복사</button></div>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const h=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),3600)}
+let passwordTimer=null;
 const stack=[];
 function openLayer(el,focusSel){const sc=el.classList.contains('dlg')?$('#scrim2'):$('#scrim');stack.push({el,sc,from:document.activeElement});sc.classList.add('on');el.classList.add('on');
   setTimeout(()=>{const f=(focusSel&&$(focusSel,el))||el.querySelector('input:not([disabled]),select:not([disabled]),button:not([disabled])');f&&f.focus()},60)}
 function closeLayer(el){const i=stack.findIndex(l=>l.el===el);if(i<0)return;const l=stack.splice(i,1)[0];l.el.classList.remove('on');l.sc.classList.remove('on');
+  if(el.id==='password-result'){clearInterval(passwordTimer);passwordTimer=null;$('#password-value').textContent=''}
   if(l.from&&document.contains(l.from)&&l.from.focus)l.from.focus()}
+function showPasswordResult(password){
+  const dialog=$('#password-result');$('#password-value').textContent=password;
+  let remaining=10;$('#password-countdown').textContent='10초 후 자동으로 닫힙니다.';
+  openLayer(dialog,'#password-copy');clearInterval(passwordTimer);
+  passwordTimer=setInterval(()=>{remaining--;if(remaining<=0){closeLayer(dialog);return}$('#password-countdown').textContent=remaining+'초 후 자동으로 닫힙니다.'},1000);
+}
+$('#password-copy').addEventListener('click',async()=>{
+  const password=$('#password-value').textContent;if(!password)return;
+  try{await navigator.clipboard.writeText(password);toast('비밀번호를 복사했어요')}
+  catch{toast('복사하지 못했습니다. 비밀번호를 선택해 직접 복사해 주세요')}
+});
 document.addEventListener('keydown',e=>{
   if(!stack.length)return;const top=stack[stack.length-1].el;
   if(e.key==='Escape'){e.preventDefault();closeLayer(top)}
@@ -245,26 +262,17 @@ function renderD(){
   $('#d-rows').innerHTML=depts.map((d,i)=>`<tr tabindex="0" data-i="${i}" aria-label="${h(d.org+' '+d.name)} 수정"><td class="tnum">${h(d.code)}</td><td>${h(d.org)}</td><td class="strong">${h(d.name)}</td><td class="num tnum">${accCount(d.code)}</td><td class="num tnum">${d.n}</td><td>${stBadge(d.on)}</td></tr>`).join('');
   $$('#d-rows tr').forEach(tr=>rowKey(tr,()=>openDEdit(+tr.dataset.i)));
 }
-const PS=5;let pg=1;
 function fillDeptFilter(){const s=$('#a-dept'),v=s.value;s.innerHTML='<option value="">부서 전체</option>'+depts.map(d=>`<option value="${h(d.code)}">${h(d.name)}</option>`).join('');s.value=v}
-function renderA(keep){
-  if(keep!==true)pg=1;
+function renderA(){
   const q=$('#a-q').value.trim().toLowerCase(),fd=$('#a-dept').value,fs=$('#a-st').value;
   const list=accts.filter(a=>(!q||(a.id+' '+a.nm).toLowerCase().includes(q))&&(!fd||a.dept===fd)&&(!fs||(fs==='on')===a.on));
-  const pages=Math.max(1,Math.ceil(list.length/PS));if(pg>pages)pg=pages;
-  const view=list.slice((pg-1)*PS,pg*PS);
   const f=q||fd||fs;
-  $('#a-count').textContent=(f?list.length+'개 찾았어요':'전체 '+accts.length+'개 계정')+' · '+pg+'/'+pages+'쪽';
+  $('#a-count').textContent=f?list.length+'개 찾았어요':'전체 '+accts.length+'개 계정';
   $('#a-none').hidden=list.length>0;
-  $('#a-rows').innerHTML=view.map(a=>`<tr tabindex="0" data-id="${h(a.id)}" aria-label="${h(a.id)} 수정"><td class="strong">${h(a.id)}</td><td>${h(a.nm)}</td><td>${a.dept?h(dLabel(a.dept)):'<span class="muted">전체 (부서 없음)</span>'}</td><td>${roleBadge(a.role)}</td><td class="tnum">${h(a.last)}</td><td>${stBadge(a.on)}</td></tr>`).join('');
+  $('#a-rows').innerHTML=list.map(a=>`<tr tabindex="0" data-id="${h(a.id)}" aria-label="${h(a.id)} 수정"><td class="strong">${h(a.id)}</td><td>${h(a.nm)}</td><td>${a.dept?h(dLabel(a.dept)):'<span class="muted">전체 (부서 없음)</span>'}</td><td>${roleBadge(a.role)}</td><td class="tnum">${h(a.last)}</td><td>${stBadge(a.on)}</td></tr>`).join('');
   $$('#a-rows tr').forEach(tr=>rowKey(tr,()=>openAEdit(tr.dataset.id)));
-  let b=`<button type="button" data-p="${pg-1}" ${pg<2?'disabled':''} aria-label="이전 쪽">‹</button>`;
-  for(let i=1;i<=pages;i++)b+=`<button type="button" data-p="${i}" ${i===pg?'aria-current="page"':''}>${i}</button>`;
-  b+=`<button type="button" data-p="${pg+1}" ${pg>=pages?'disabled':''} aria-label="다음 쪽">›</button>`;
-  $('#a-pager').innerHTML=b;$('#a-pager').hidden=list.length===0;
-  $$('#a-pager button').forEach(x=>x.onclick=()=>{pg=+x.dataset.p;renderA(true)});
 }
-function renderAll(){renderD();fillDeptFilter();renderA(true)}
+function renderAll(){renderD();fillDeptFilter();renderA()}
 $('#a-q').addEventListener('input',()=>renderA());$('#a-dept').addEventListener('change',()=>renderA());$('#a-st').addEventListener('change',()=>renderA());
 $('#a-reset').onclick=()=>{$('#a-q').value='';$('#a-dept').value='';$('#a-st').value='';renderA()};
 
@@ -335,7 +343,7 @@ function openAEdit(id){curA=accts.find(a=>a.id===id);const a=curA,last=isLastAdm
   g('y-on')&&(g('y-on').onclick=()=>guard(()=>{a.on=true;a.v++;closeLayer(P);renderAll();toast('다시 사용할 수 있게 바꿨어요')},P));
   g('y-off')&&(g('y-off').onclick=()=>confirmDlg({title:'‘'+a.id+'’을 삭제 / 비활성할까요?',body:'계정은 지우지 않고 비활성으로 바꿔요. 로그인 중인 세션은 바로 끊기고, 다시 로그인할 수 없어요. 기록은 그대로 남아요.',ok:'비활성으로 바꾸기',onOk:()=>guard(()=>{a.on=false;a.v++;closeLayer(P);renderAll();toast('비활성으로 바꿨어요 · 이 계정의 로그인 세션을 끊었어요')},P)}));
   openLayer(P,'#ae-name')}
-$('#ae-reset').onclick=()=>confirmDlg({title:'비밀번호를 초기화할까요?',body:'새 임시 비밀번호가 만들어지고, 이 계정은 다음 로그인 때 비밀번호를 새로 정해요.',ok:'초기화',danger:false,onOk:()=>guard(()=>toast('임시 비밀번호를 만들었어요: '+gen()+' (이 화면을 닫으면 다시 볼 수 없어요)'),$('#p-aedit'))});
+$('#ae-reset').onclick=()=>confirmDlg({title:'비밀번호를 초기화할까요?',body:'새 임시 비밀번호가 만들어지고, 이 계정은 다음 로그인 때 비밀번호를 새로 정해요.',ok:'초기화',danger:false,onOk:()=>guard(()=>showPasswordResult(gen()),$('#p-aedit'))});
 $('#ae-save').onclick=()=>{if(!need($('#ae-name').value,'ae-name-e','표시명을 입력해 주세요'))return;
   guard(()=>{curA.nm=$('#ae-name').value.trim();if(curA.role!=='admin')curA.dept=$('#ae-dept').value;curA.v++;closeLayer($('#p-aedit'));renderAll();toast('표시명·부서를 저장했어요')},$('#p-aedit'))};
 $('#ae-psave').onclick=()=>{const pc=$$('#ae-perms input:checked').map(i=>i.value);
