@@ -65,7 +65,17 @@ async function loadCommittee(stage){
  DIRPOOL.splice(0,DIRPOOL.length,...liveCandidates.map(c=>[h(c.name),Math.max(0,specialties.findIndex(s=>s.id===c.specialty_ids[0])),c.phone.slice(-4)]));render();
 }
 await loadCommittee();
-Live.capture('#save','click',async()=>{await Live.api('DRAW-01',{project_id:Live.pid,selection_mode:S.mode==='POOL'?'POOL_RANDOM':'DIRECT',target_count:S.cap,reserve_count:liveCommittee.rule?.reserve_count||0,quotas:S.mode==='POOL'?specialties.map((s,i)=>({specialty_id:s.id,final_count:S.q[i]})).filter(q=>q.final_count>0):[],version:liveCommittee.rule?.version||0});await loadCommittee(0);toast('선정 규칙을 저장했어요');});
+// 선정 방식을 바꾸면 이전 방식으로 등록한 사업 후보(통화 결과·제외 기록 포함)는 지워진다(DRAW-01 clear_nominees).
+// 추첨 뒤·명단 확정 뒤에는 서버가 거부한다. 담당자가 확인창에서 동의했을 때만 보낸다. (2026-10-18)
+Live.capture('#save','click',async()=>{
+ const rule=liveCommittee.rule,mode=S.mode==='POOL'?'POOL_RANDOM':'DIRECT',switching=!!rule&&rule.selection_mode!==mode,count=liveCommittee.items.length;
+ if(switching&&count&&!confirm(`선정 방식을 '${S.mode==='POOL'?'풀에서 추첨':'직접 선정'}'으로 바꾸면 지금까지 등록한 사업 후보 ${count}명과 통화 결과·제외 기록이 지워져요.
+
+계속할까요?`))return;
+ const saved=await Live.api('DRAW-01',{project_id:Live.pid,selection_mode:mode,target_count:S.cap,reserve_count:rule?.reserve_count||0,quotas:S.mode==='POOL'?specialties.map((s,i)=>({specialty_id:s.id,final_count:S.q[i]})).filter(q=>q.final_count>0):[],version:rule?.version||0,clear_nominees:switching});
+ await loadCommittee(0);
+ toast(saved?.cleared_nominees?`선정 규칙을 저장했어요 · 이전 후보 ${saved.cleared_nominees}명을 정리했어요`:'선정 규칙을 저장했어요');
+});
 Live.capture('#draw','click',async()=>{await Live.api('DRAW-02',{project_id:Live.pid,rule_version:liveCommittee.rule.version});await loadCommittee(1);toast('3배수 명단을 저장했어요');});
 Live.capture('#dl','click',()=>Live.api('DRAW-03',{project_id:Live.pid,draw_id:liveCommittee.draw.id},'선정명단.xlsx'));
 Live.capture('[data-st],[data-memo]','change',async(_e,el)=>{const i=Number(el.dataset.st??el.dataset.memo),n=liveCommittee.items[i];await Live.api('ROS-03',{project_id:Live.pid,nominee_id:n.id,version:n.version,contact_status:el.dataset.st!==undefined?Object.keys(statusNames).find(k=>statusNames[k]===el.value):n.contact_status,contact_note:el.dataset.memo!==undefined?el.value:n.contact_note||''});await loadCommittee(2);toast('통화 결과를 저장했어요');});

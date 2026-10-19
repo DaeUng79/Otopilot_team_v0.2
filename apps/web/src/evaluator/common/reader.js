@@ -54,8 +54,12 @@ export function mountReader(el, data, io, opts = {}) {
   const title = data.document.title;
   const st = { p: 1, mode: opts.single ? 'single' : (store.get(READ_MODE_KEY) === 'single' ? 'single' : 'spread'), chipK: 0, token: 0 };
   const cache = new Map();
-  const ordered = toc.filter((t) => t.seen && t.page).sort((a, b) => a.page - b.page);
-  const secOf = (p) => ordered.reduce((s, t) => (t.page <= p ? t : s), null);
+  const ordered = toc.filter((t) => t.page).sort((a, b) => a.page - b.page);
+  // 현재 절: 펼침 보기에서는 펼쳐진 두 쪽(p, p+1) 안에서 시작하는 마지막 절.
+  const secOf = (p) => {
+    const last = st.mode === 'spread' ? Math.min(TOT, p + 1) : p;
+    return ordered.reduce((s, t) => (t.page <= last ? t : s), null);
+  };
   const STEP = () => (st.mode === 'spread' ? 2 : 1);
   const norm = (p) => {
     p = Math.max(1, Math.min(TOT, p));
@@ -68,12 +72,13 @@ export function mountReader(el, data, io, opts = {}) {
     '<nav class="evr-strip" aria-label="목차 띠"><button type="button" class="evr-strip-label" aria-haspopup="true">목차</button>' +
     '<div class="evr-track" aria-hidden="true"></div><div class="evr-pop" role="region" aria-label="전체 목차"><h3>목 차</h3>' +
     (toc.length ? toc.map((t, i) => {
-      const un = !t.seen;
-      const tip = un ? '쪽 연결이 맞지 않아 확인이 필요해요 (NEEDS_REVIEW)'
+      // 쪽이 있는 항목은 모두 연다. "확인 필요" 배지는 쓰지 않는다 (2026-10-18 사용자 요청).
+      const un = !t.page;
+      const tip = t.assumed ? `목차의 쪽 번호(${t.printed})로 찾은 쪽이에요`
         : t.adjusted ? `목차의 쪽 번호(${t.printed})와 본문이 달라 제목으로 찾은 쪽이에요` : '';
       return `<button type="button" class="evr-toc-item${t.lv === 2 ? ' lv2' : ''}${un ? ' is-unseen' : ''}" data-i="${i}"${un ? ' aria-disabled="true"' : ''}${tip ? ` title="${esc(tip)}"` : ''}>` +
         `<span class="t">${esc(t.t)}</span><span class="here" hidden>지금</span><span class="dots"></span>` +
-        (un ? '<span class="unseen-tag">확인 필요</span>' : `<span class="pn">${t.page}</span>`) + '</button>';
+        (t.page ? `<span class="pn">${t.page}</span>` : '') + '</button>';
     }).join('') : '<p class="evr-blank">이 문서에는 목차가 없어요</p>') +
     '</div></nav>' +
     '<div class="evr-main"><div class="evr-top"></div><div class="evr-stage"><div class="evr-bookw"><div class="evr-book"></div>' +
@@ -87,11 +92,10 @@ export function mountReader(el, data, io, opts = {}) {
   const strip = $('.evr-strip'), track = $('.evr-track'), top = $('.evr-top'), book = $('.evr-book'), bookw = $('.evr-bookw');
   const goIn = $('.evr-go input'), goErr = $('.evr-foot .err'), note = $('.evr-foot .note');
   const items = [...el.querySelectorAll('.evr-toc-item')];
-  const review = toc.filter((t) => !t.seen).length;
-  note.textContent = (opts.note || '평가 시작 때 고정된 버전이에요') + (review ? ` · "확인 필요" 목차 ${review}개는 쪽 연결을 확인하는 중이에요` : '');
+  note.textContent = opts.note || '평가 시작 때 고정된 버전이에요';
 
   track.innerHTML = '<i class="rail"></i><i class="fill"></i>' +
-    toc.filter((t) => t.page).map((t) => `<i class="tick${t.seen ? '' : ' unseen'}" style="top:${pct(t.page - 1)}"></i>`).join('') +
+    toc.filter((t) => t.page).map((t) => `<i class="tick" style="top:${pct(t.page - 1)}"></i>`).join('') +
     '<i class="cur"></i><span class="now"></span>';
   const fill = track.querySelector('.fill'), cur = track.querySelector('.cur'), now = track.querySelector('.now');
 
@@ -186,10 +190,11 @@ export function mountReader(el, data, io, opts = {}) {
     update(d !== 0 ? (o.jump ? 'jump' : d > 0 ? 'fwd' : 'back') : null);
     bookw.querySelector('.evr-chip')?.remove();
     if (o.jump && Math.abs(d) > STEP()) {
-      const s = secOf(st.p), k = ++st.chipK, chip = document.createElement('div');
+      // 목차에서 눌러 왔으면 누른 항목의 이름과 쪽을 그대로 알린다.
+      const s = o.entry || secOf(st.p), k = ++st.chipK, chip = document.createElement('div');
       chip.className = 'evr-chip';
       chip.setAttribute('role', 'status');
-      chip.textContent = `${s ? `${s.t} · ` : ''}${st.p}쪽으로 이동`;
+      chip.textContent = `${s ? `${s.t} · ` : ''}${o.entry ? o.entry.page : st.p}쪽으로 이동`;
       bookw.appendChild(chip);
       setTimeout(() => { if (st.chipK === k && chip.parentNode) chip.remove(); }, 2300);
     }
@@ -221,8 +226,8 @@ export function mountReader(el, data, io, opts = {}) {
     if (t.dataset.pg) go(st.p + (+t.dataset.pg) * STEP());
     else if (t.dataset.i != null) {
       const it = toc[+t.dataset.i];
-      if (!it.seen || !it.page) { toast('이 항목은 쪽 번호가 아직 확인되지 않았어요. 담당자가 확인하면 열려요'); return; }
-      go(it.page, { jump: true });
+      if (!it.page) { toast('이 항목은 연결된 쪽이 없어요'); return; }
+      go(it.page, { jump: true, entry: it });
       strip.classList.add('hush');
       if (strip.contains(document.activeElement)) document.activeElement.blur();
     } else if (t.dataset.mode) {

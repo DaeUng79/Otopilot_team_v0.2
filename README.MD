@@ -196,7 +196,7 @@ PM-01 사업 삭제 이력은 데이터 폴더의 `projects_delete.sqlite3`에 �
 .venv\Scripts\python.exe apps/server/seed_samples.py --samples "C:\coding\제안요청서, 제안서 샘플"
 ```
 
-제안서 PDF·PPTX와 AI 초안(요구사항 추출·평가기준 생성·챗봇)은 선택 패키지가 필요합니다(`apps/documents/requirements.txt`의 `pypdf`, `python-pptx`, `openai`, `tiktoken`, `python-dotenv`). 목차 수정과 근거 연결(PM-08)은 아직 연결되지 않았습니다.
+제안서 PDF·PPTX와 AI 초안(요구사항 추출·평가기준 생성·챗봇)은 선택 패키지가 필요합니다(`apps/documents/requirements.txt`의 `pypdf`, `python-pptx`, `openai`, `tiktoken`, `python-dotenv`). 목차 수동 수정은 아직 연결되지 않았습니다. PM-08은 실제 사업·평가표·업체·제안서 조회까지 연결되었고 근거 후보 제안·확정은 아직 사용할 수 없습니다.
 
 과거 실행 코드에 있던 `os.execv(...)`는 현재 사용하지 않습니다. `start_service.py`는 운영체제별 Python 경로를 고정하지 않고 `sys.executable`과 `subprocess.run`을 사용합니다.
 

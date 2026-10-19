@@ -6,7 +6,17 @@ const liveProjectRows=async()=>{
   P=items.map(r=>({id:r.id,name:r.name,owner:r.contact_name,date:r.evaluation_date||'',step:r.workflow_step||1,s:liveProjectStatus(r.status),doc:'none',ev:r.status==='COMPLETED'?'ok':'none'}));
   empty=false;render();
 };
-await liveProjectRows();
+const liveDept=Live.boot.departments.find(d=>d.id===Live.boot.actor.department_id);
+if(liveDept){$('#n-org').value=liveDept.organization_name;$('#n-dept').value=liveDept.name;$('#f-dept').options[0].textContent=liveDept.name;document.querySelector('.side .role').textContent=liveDept.name;}
+try{await liveProjectRows();}
+catch(error){
+  // A failed PRJ-01 request must not leave prototype projects visible as real data.
+  P=[];empty=false;render();
+  const guide=/권한/.test(error.message)?' 총괄관리자에게 부서·계정 화면의 계정 수정에서 권한 부여를 요청하세요.':'';
+  $('#none').innerHTML='<div class="ico" aria-hidden="true">!</div><strong>사업 목록을 불러오지 못했어요</strong><p>'+Live.escape(error.message)+guide+'</p>';
+  $('#none').hidden=false;$('table').hidden=true;$('#count').textContent='';
+  throw error;
+}
 const statusSelect=$('#f-st');
 statusSelect.options[0].textContent='전체선택';
 const evaluatingOption=Array.from(statusSelect.options).find(option=>option.textContent==='평가 중');
@@ -53,8 +63,6 @@ statusSelect.addEventListener('change',async()=>{if(statusSelect.value==='삭제
 const scheduleLabel=document.createElement('label');scheduleLabel.className='field';scheduleLabel.textContent='평가일정 (평가일)';
 const scheduleInput=document.createElement('input');scheduleInput.id='n-date';scheduleInput.type='date';scheduleLabel.append(scheduleInput);$('#n-name').closest('label').after(scheduleLabel);
 $('#b-new').addEventListener('click',()=>{scheduleInput.value='';});
-const liveDept=Live.boot.departments.find(d=>d.id===Live.boot.actor.department_id);
-if(liveDept){$('#n-org').value=liveDept.organization_name;$('#n-dept').value=liveDept.name;$('#f-dept').options[0].textContent=liveDept.name;document.querySelector('.side .role').textContent=liveDept.name;}
 Live.capture('#f-new','submit',async()=>{
   const row=await Live.api('PRJ-02',{department_id:Live.boot.actor.department_id,name:$('#n-name').value.trim(),evaluation_date:$('#n-date').value,contact_organization:$('#n-org').value.trim(),contact_department:$('#n-dept').value.trim(),contact_position:$('#n-pos').value.trim(),contact_name:$('#n-owner').value.trim(),contact_phone:$('#n-tel').value.trim(),contact_email:$('#n-mail').value.trim()});
   await Live.reload();Live.selectProject(row.id);closeLayer($('#p'));await liveProjectRows();toast('사업을 저장했어요.');

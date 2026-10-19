@@ -73,6 +73,8 @@ class Rules(ProjectQuery):
     reserve_count: int = Field(ge=0, le=27, strict=True)
     quotas: list[Quota] = Field(default_factory=list, max_length=9)
     version: int = Field(default=0, ge=0, strict=True)
+    # 선정 방식을 바꿀 때 이전 방식으로 등록한 사업 후보를 함께 정리할지(추첨·명단 확정 전에만).
+    clear_nominees: bool = Field(default=False, strict=True)
 
     @model_validator(mode="after")
     def check_quotas(self) -> "Rules":

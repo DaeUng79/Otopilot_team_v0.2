@@ -15,6 +15,9 @@ PERMISSIONS = {
     "VIEW_RESULTS",
     "VIEW_DASHBOARD",
 }
+# 부서관리자 기본 권한 (2026-10-18): 데모 계정(web-demo 등)과 같은 묶음. ADM-02로 만든 계정에 권한이 하나도 없어
+# 첫 화면(PRJ-01 → MANAGE_PROJECTS)부터 403이 나던 문제를 막는다. 총괄관리자는 ADM-05(권한 저장)로 조정할 수 있다.
+DEFAULT_DEPARTMENT_PERMISSIONS = PERMISSIONS - {"MANAGE_ADMINS"}
 
 
 def guard(s: Store, a: Actor) -> None:
@@ -100,6 +103,12 @@ def create_admin(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
             "password_changed_at": now(),
         },
     )
+    for permission in sorted(DEFAULT_DEPARTMENT_PERMISSIONS):
+        insert(
+            c,
+            "admin_permissions",
+            {"admin_id": identity, "permission_code": permission, "granted_by": a.id},
+        )
     return public(c, one(c, "SELECT * FROM admin_users WHERE id=?", (identity,)))
 
 

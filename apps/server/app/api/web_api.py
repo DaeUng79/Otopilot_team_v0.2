@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import sqlite3
 from collections import deque
 from dataclasses import asdict
@@ -82,7 +83,13 @@ def create_app(
     async def boundary(request: Request, call_next: Any) -> Response:
         host = request.headers.get("host", "")
         hostname = urlsplit("//" + host).hostname
-        if hostname not in {"localhost", "127.0.0.1", "testserver"}:
+        allowed_hosts = {"localhost", "127.0.0.1", "testserver"}
+        allowed_hosts.update(
+            name.strip().lower()
+            for name in os.getenv("SIMSA_ALLOWED_HOSTS", "").split(",")
+            if name.strip()
+        )
+        if hostname not in allowed_hosts:
             return JSONResponse(
                 {"error": {"message": "허용되지 않은 주소입니다."}}, status_code=403
             )

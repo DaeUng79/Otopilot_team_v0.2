@@ -34,6 +34,7 @@ def main() -> None:
         help="Prefill existing local test accounts without creating demo projects",
     )
     parser.add_argument("--port", type=int, default=5190)
+    parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument(
         "--original-ui",
         action="store_true",
@@ -52,7 +53,7 @@ def main() -> None:
         create_app(store, demo=args.demo, local_test_login=args.local_test_login,
                    port=args.port, original_ui=args.original_ui,
                    documents_db=args.documents_db),
-        host="127.0.0.1",
+        host=args.host,
         port=args.port,
     )
 

@@ -3,6 +3,10 @@ var liveAttendance=Live.boot.attendance[0];
 const attendanceProject=Live.boot.projects[0];
 document.getElementById('ttl').textContent=attendanceProject.name+' 평가위원으로 참석하시겠습니까?';
 document.querySelector('.when').textContent='평가일 '+(attendanceProject.evaluation_date||'담당자 확인 필요');
+// 동의 버전 표기(v1)는 화면에서 뺀다 (2026-10-18 사용자 요청). 저장되는 동의 버전은 아래 ATT-01의 consent_version(attendance-v2)이고 평가 DB attendance_records에 기록된다.
+document.querySelector('#ask .ver').innerHTML='<b>참석 확인</b> · 로그인과 별개예요';
+document.querySelector('#ask label.chk span')?.remove();
+document.querySelectorAll('#terms dt').forEach(dt=>{if(dt.textContent==='버전'){dt.textContent='기록';dt.nextElementSibling.textContent='동의 내용과 시각을 저장할 때 함께 기록';}});
 document.querySelector('#refuse b').textContent=attendanceProject.contact_name+' · '+attendanceProject.contact_phone;
 document.getElementById('reserveNote').hidden=Live.boot.member_kind!=='RESERVE';
 if(liveAttendance?.status==='CONFIRMED'){agree.checked=true;yes.disabled=false;yes.textContent='참석 확인 완료 · 입장하기';document.getElementById('hint').textContent='참석 확인을 저장했습니다.';}

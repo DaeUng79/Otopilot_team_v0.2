@@ -20,7 +20,7 @@ from starlette.datastructures import UploadFile
 
 from app.api.document_module_routes import install_document_module_routes
 from app.committee.committee_app.v2_core import digest, now
-from app.documents import document_gateway, rfp_api
+from app.documents import document_gateway, material_service, rfp_api
 from app.documents.hwpx_storage import SCHEMA, connect
 from app.documents.rfp_toc import save_toc
 from app.documents.step1_hwpx_parse_to_JSON import parse_document
@@ -31,6 +31,12 @@ from app.shared.db import require
 from app.shared.sync_service import ref
 
 MAX_FILE_SIZE = 50 * 1024 * 1024
+
+
+class ResultArchiveConflict(Exception):
+    """The result row changed while it was being registered as an RFP."""
+
+
 UPLOAD_SCHEMA = """
 CREATE TABLE IF NOT EXISTS project_rfp_uploads (
  project_id TEXT NOT NULL, revision INTEGER NOT NULL,
@@ -86,7 +92,7 @@ def _uploads(path: Path, project_id: str) -> list[dict]:
 
 
 def _latest_uploads(path: Path) -> list[dict]:
-    """Return the latest registered RFP for each project."""
+    """Return the latest visible RFP for each project."""
     if not path.is_file():
         return []
     with connect(path) as db:
@@ -96,7 +102,8 @@ def _latest_uploads(path: Path) -> list[dict]:
             return []
         db.executescript(document_gateway.VISIBILITY_SCHEMA)
         return [dict(row) for row in db.execute(
-            "SELECT u.project_id,u.revision,u.filename,u.byte_size,u.uploaded_at "
+            "SELECT u.project_id,u.revision,u.document_id,u.filename,u.byte_size,u.uploaded_at,"
+            "u.page_count "
             "FROM project_rfp_uploads u "
             "LEFT JOIN rfp_upload_visibility v ON v.project_id=u.project_id "
             "AND v.upload_revision=u.revision "
@@ -109,8 +116,25 @@ def _latest_uploads(path: Path) -> list[dict]:
         )]
 
 
+def _proposal_counts(path: Path) -> list[dict]:
+    """Count vendors with a ready proposal for each project."""
+    if not path.is_file():
+        return []
+    with connect(path) as db:
+        if not db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='project_proposal_uploads'"
+        ).fetchone():
+            return []
+        return [dict(row) for row in db.execute(
+            "SELECT project_id,COUNT(DISTINCT vendor_id) AS vendor_count "
+            "FROM project_proposal_uploads WHERE status='READY' "
+            "GROUP BY project_id ORDER BY project_id"
+        )]
+
+
 def _save(path: Path, project_id: str, project_name: str,
-          filename: str, data: bytes) -> dict:
+          filename: str, data: bytes,
+          retire_result: tuple[str, int] | None = None) -> dict:
     _initialize(path)
     with tempfile.TemporaryDirectory(prefix="simsa-rfp-") as directory:
         source = Path(directory) / filename
@@ -135,6 +159,13 @@ def _save(path: Path, project_id: str, project_name: str,
             (project_id, revision, saved["document_id"], saved["revision"],
              now(), "UPLOAD_RETURN"),
         )
+        if retire_result is not None:
+            try:
+                material_service.archive_result_file_in_transaction(
+                    db, project_id=project_id, file_id=retire_result[0],
+                    version=retire_result[1])
+            except (LookupError, ValueError) as exc:
+                raise ResultArchiveConflict(str(exc)) from exc
     return _uploads(path, project_id)[0]
 
 
@@ -174,7 +205,9 @@ def install_project_document_routes(app, store, actor, sync, *, documents_db=Non
         person = await actor(request)
         store.admin(person, "MANAGE_PROJECTS")
         require(person.role == "SUPER_ADMIN", "총괄관리자 권한이 필요합니다.", "FORBIDDEN", 403)
-        return {"data": {"uploads": await asyncio.to_thread(_latest_uploads, database)}}
+        uploads = await asyncio.to_thread(_latest_uploads, database)
+        proposals = await asyncio.to_thread(_proposal_counts, database)
+        return {"data": {"uploads": uploads, "proposals": proposals}}
 
     async def project(request: Request, project_id: str, edit: bool = False) -> dict:
         person = await actor(request)
@@ -265,25 +298,16 @@ def install_project_document_routes(app, store, actor, sync, *, documents_db=Non
             read_preview, project_id, lambda reader, _upload: reader.asset(sha256), revision)
         return Response(data, media_type=mime)
 
-    @app.post("/api/v2/projects/{project_id}/rfp")
-    async def upload_rfp(project_id: str, request: Request):
-        row = await project(request, project_id, edit=True)
-        await sync()
-        form = await request.form()
-        file = form.get("file")
-        require(isinstance(file, UploadFile), "HWPX 파일을 선택하세요.", "INPUT_INVALID", 422)
-        filename = Path((file.filename or "").replace("\\", "/")).name
-        require(bool(filename) and filename.lower().endswith(".hwpx")
-                and len(filename) <= 255, "HWPX 파일만 올릴 수 있습니다.", "INPUT_INVALID", 422)
-        data = await file.read(MAX_FILE_SIZE + 1)
-        await file.close()
-        require(0 < len(data) <= MAX_FILE_SIZE,
-                "50MB 이하의 HWPX 파일을 올려 주세요.", "FILE_TOO_LARGE", 413)
+    async def register_rfp(row: dict, project_id: str, filename: str, data: bytes,
+                           retire_result: tuple[str, int] | None = None) -> dict:
+        """Register an uploaded or reclassified HWPX through the same pipeline."""
         require(zipfile.is_zipfile(io.BytesIO(data)),
                 "올바른 HWPX 파일이 아닙니다.", "INPUT_INVALID", 422)
         try:
             upload = await asyncio.to_thread(
-                _save, database, project_id, row["name"], filename, data)
+                _save, database, project_id, row["name"], filename, data, retire_result)
+        except ResultArchiveConflict as exc:
+            require(False, str(exc), "CONFLICT", 409)
         except (ValueError, zipfile.BadZipFile, ET.ParseError):
             require(False, "HWPX 문서 구조를 확인하세요.", "INPUT_INVALID", 422)
         except Exception:
@@ -303,7 +327,49 @@ def install_project_document_routes(app, store, actor, sync, *, documents_db=Non
             logging.getLogger(__name__).exception("Automatic requirements queue failed")
             upload["requirements"] = {"status": "failed",
                                       "error": "자동 추출을 시작하지 못했습니다. 요구사항 영역에서 다시 시도해 주세요."}
+        return upload
+
+    @app.post("/api/v2/projects/{project_id}/rfp")
+    async def upload_rfp(project_id: str, request: Request):
+        row = await project(request, project_id, edit=True)
+        await sync()
+        form = await request.form()
+        file = form.get("file")
+        require(isinstance(file, UploadFile), "HWPX 파일을 선택하세요.", "INPUT_INVALID", 422)
+        filename = Path((file.filename or "").replace("\\", "/")).name
+        require(bool(filename) and filename.lower().endswith(".hwpx")
+                and len(filename) <= 255, "HWPX 파일만 올릴 수 있습니다.", "INPUT_INVALID", 422)
+        data = await file.read(MAX_FILE_SIZE + 1)
+        await file.close()
+        require(0 < len(data) <= MAX_FILE_SIZE,
+                "50MB 이하의 HWPX 파일을 올려 주세요.", "FILE_TOO_LARGE", 413)
+        upload = await register_rfp(row, project_id, filename, data)
         return JSONResponse({"data": upload}, status_code=201)
+
+    @app.post("/api/v2/projects/{project_id}/result-files/{file_id}/register-as-rfp")
+    async def result_file_to_rfp(project_id: str, file_id: str, request: Request):
+        """Register a misplaced result HWPX as an RFP and archive its result row."""
+        row = await project(request, project_id, edit=True)
+        await sync()
+        try:
+            item = await asyncio.to_thread(material_service.get_result_file, database, project_id, file_id)
+        except LookupError as exc:
+            require(False, str(exc), "NOT_FOUND", 404)
+        require(item["kind"] == "UPLOADED_RESULT",
+                "시스템 취합본은 제안요청서로 옮길 수 없습니다.", "INPUT_INVALID", 422)
+        require(not item["archived_at"],
+                "이미 목록에서 뺀 자료입니다. 최신 버전에서 옮기세요.", "CONFLICT", 409)
+        require(item["filename"].lower().endswith(".hwpx"),
+                "HWPX 파일만 제안요청서로 옮길 수 있습니다.", "INPUT_INVALID", 422)
+        source = await asyncio.to_thread(document_gateway.view_source, database, item["source_sha256"])
+        require(source is not None, "원본 파일을 찾을 수 없습니다.", "NOT_FOUND", 404)
+        require(0 < len(source[1]) <= MAX_FILE_SIZE,
+                "50MB 이하의 HWPX 파일만 옮길 수 있습니다.", "FILE_TOO_LARGE", 413)
+        upload = await register_rfp(
+            row, project_id, item["filename"], source[1], (file_id, item["version"]))
+        retired = await asyncio.to_thread(
+            material_service.get_result_file, database, project_id, file_id)
+        return JSONResponse({"data": {"rfp": upload, "result_file": retired}}, status_code=201)
 
     @app.get("/api/v2/projects/{project_id}/rfp/{revision}/source")
     async def rfp_source(project_id: str, revision: int, request: Request):

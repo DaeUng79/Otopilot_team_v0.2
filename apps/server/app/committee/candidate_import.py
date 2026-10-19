@@ -89,7 +89,7 @@ async def preview_import(
                     raise ModuleError("CATALOG_AMBIGUOUS", "전문분야 별칭이 중복되어 있습니다.")
                 aliases[label] = row["id"]
         seen: set[str] = set()
-        rows, errors = [], []
+        rows, locations, errors = [], [], []
         for source in parsed:
             location = {"sheet": source["source_sheet"], "row": source["source_row"]}
             try:
@@ -132,8 +132,25 @@ async def preview_import(
                     )
                 seen.add(key)
                 rows.append(value.model_dump() | {"phone": phone, "email": email})
+                locations.append(location)
             except ModuleError as exc:
-                errors.append(location | {"code": exc.code, "message": exc.message})
+                # 거른 줄도 미리보기 표에 그 줄 그대로 보이도록 입력값을 함께 준다 (2026-10-18).
+                # 휴대전화는 뒷자리 4개만, 이메일은 있고 없음만. 등록 여부에는 영향이 없다(can_commit = 오류 없음).
+                digits = re.sub(r"\D", "", str(source.get("phone", "") or ""))
+                errors.append(
+                    location
+                    | {
+                        "code": exc.code,
+                        "message": exc.message,
+                        "name": str(source.get("name", "") or ""),
+                        "organization": str(source.get("organization", "") or ""),
+                        "department": str(source.get("department") or ""),
+                        "position": str(source.get("position") or ""),
+                        "specialty": str(source.get("specialty", "") or ""),
+                        "phone": ("***-****-" + digits[-4:]) if len(digits) >= 4 else "",
+                        "email": "***" if source.get("email") else None,
+                    }
+                )
         pid = str(uuid4())
         expiry = (datetime.now(UTC) + timedelta(minutes=30)).isoformat()
         runtime.insert(
@@ -163,9 +180,12 @@ async def preview_import(
             "errors": errors,
             "can_commit": not errors,
             "expires_at": expiry,
+            # 정상 줄에도 엑셀 위치(sheet·row)를 붙여 화면이 거른 줄과 함께 행 순서대로 보여 줄 수 있게 한다.
             "items": [
-                r | {"phone": "***-****-" + r["phone"][-4:], "email": "***" if r["email"] else None}
-                for r in rows
+                r
+                | location
+                | {"phone": "***-****-" + r["phone"][-4:], "email": "***" if r["email"] else None}
+                for r, location in zip(rows, locations, strict=True)
             ],
         }
 

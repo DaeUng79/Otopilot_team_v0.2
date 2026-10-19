@@ -50,11 +50,22 @@ Live.capture('#pick input','change',async(e,el)=>{
   const file=el.files[0];if(!file)return;const data=new FormData();data.append('file',file);for(const [key,value] of Object.entries(liveScope(scope)))data.append(key,value);
   const response=await fetch('/committee-v2/api/imports/preview',{method:'POST',credentials:'same-origin',headers:{'X-Committee-Client':'v2-web','Idempotency-Key':crypto.randomUUID()},body:data});const result=await response.json();if(!response.ok)throw Error(result.error?.message||'파일을 확인하세요.');
   livePreview=result.data;
-  XLS.splice(0,XLS.length,...livePreview.items.map(c=>[c.name,c.phone,c.organization_name,c.department_name||'',c.position||'',c.specialty_ids.map(id=>liveSpecialties.find(s=>s.id===id)?.name).join(', '),c.email||'']));
-  // The original preview renderer remains authoritative; validation comes from API.
-  check=()=>({k:'ok',m:''});document.querySelector('#p #demo').onclick();
-  $('#prev .xl-sum b').textContent=file.name;$('#xl-go').disabled=!livePreview.can_commit;
-  if(livePreview.errors.length)$('#xl-res').textContent=livePreview.errors.map(r=>(r.row||r.row_number||'')+'행: '+r.message).join(' / ');
+  // 정상 줄(items)과 서버가 거른 줄(errors: 중복·오류)을 엑셀 행 순서대로 한 표에 보여 준다 (2026-10-18).
+  // 전에는 items만 표에 넣고 check()를 항상 '정상'으로 바꿔 "오류 0 · 중복 0"으로 보였고, 거른 줄은 아래 문구에만 남았다.
+  // 검증은 서버(COM-03) 결과만 쓴다. 원본 렌더러(show)는 그대로 두고 줄 번호만 실제 엑셀 행으로 바꾼다.
+  const specialtyName=id=>liveSpecialties.find(s=>s.id===id)?.name||'';
+  const valid=livePreview.items.map(c=>Object.assign([c.name,c.phone,c.organization_name,c.department_name||'',c.position||'',c.specialty_ids.map(specialtyName).join(', '),c.email||''],{live:{k:'ok',m:'',row:c.row}}));
+  const rejected=(livePreview.errors||[]).map(r=>Object.assign([r.name||'',r.phone||'',r.organization||'',r.department||'',r.position||'',r.specialty||'',r.email||''],{live:{k:r.code==='DUPLICATE_PHONE'?'dup':'err',m:r.message,row:r.row}}));
+  const lines=[...valid,...rejected].sort((a,b)=>(a.live.row||0)-(b.live.row||0));
+  XLS.splice(0,XLS.length,...lines);
+  check=r=>r.live||{k:'ok',m:''};document.querySelector('#p #demo').onclick();
+  $$('#prev .xl-tbl tbody tr').forEach((tr,i)=>{const row=lines[i]?.live?.row;if(row)tr.firstElementChild.textContent=row;});
+  $('#prev .xl-sum b').textContent=file.name;
+  // 서버는 오류·중복이 하나라도 있으면 등록을 거부한다(COM-04 IMPORT_ERRORS). 원본 문구 "정상 N명만 등록돼요"는 그 규칙과 달라 바꾼다.
+  const dup=rejected.filter(r=>r.live.k==='dup').length,err=rejected.length-dup,note=$('#prev .xl-act .muted');
+  if(note)note.innerHTML=livePreview.can_commit?`정상 ${valid.length}명을 등록해요.<br>같은 요청은 한 번만 등록돼요.`:`오류 ${err}줄 · 중복 ${dup}줄이 있어 아직 등록할 수 없어요. 엑셀에서 해당 줄을 고치거나 지운 뒤 다시 미리보기 하세요.<br>정상 ${valid.length}명도 그때 함께 등록돼요.`;
+  $('#xl-go').disabled=!livePreview.can_commit;$('#xl-go').title=livePreview.can_commit?'':'오류·중복 줄이 있으면 등록할 수 없어요.';
+  $('#xl-res').textContent='';
 });
 Live.capture('#p #demo','click',()=>{throw Error('실제 엑셀 파일을 선택하세요. 예시 파일 버튼은 DB에 연결하지 않습니다.');});
 Live.capture('#xl-go','click',async()=>{if(!livePreview?.can_commit)throw Error('파일 검증을 먼저 완료하세요.');const saved=await Live.api('COM-04',{preview_id:livePreview.id,version:livePreview.version});$('#xl-go').disabled=true;$('#xl-go').textContent='등록 완료';$('#xl-res').textContent=saved.count+'명을 저장했어요.';livePreview=null;await liveReloadPool();});

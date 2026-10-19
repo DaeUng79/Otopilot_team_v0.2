@@ -228,8 +228,10 @@ $('selection-mode').onchange = toggleQuotas;
 $('rules-form').onsubmit = (event) => { event.preventDefault(); void task(async () => {
   const quotas = $('selection-mode').value === 'DIRECT' ? [] : [...document.querySelectorAll('[data-quota]')].map((el) => ({specialty_id:el.dataset.quota,final_count:Number(el.value)})).filter((q) => q.final_count > 0);
   if ($('selection-mode').value !== 'DIRECT' && quotas.reduce((sum,q) => sum+q.final_count,0) !== Number($('target').value)) throw new Error('분야별 정원 합계와 정위원 수가 같아야 합니다.');
-  await action('DRAW-01', {project_id:projectId(),selection_mode:$('selection-mode').value,target_count:Number($('target').value),reserve_count:Number($('reserves').value),quotas,version:projectState.rule?.version || 0});
-  await reload(); message('선정 규칙을 저장했습니다.');
+  const mode = $('selection-mode').value, switching = !!projectState.rule && projectState.rule.selection_mode !== mode;
+  if (switching && projectState.items.length && !confirm(`선정 방식을 바꾸면 등록한 사업 후보 ${projectState.items.length}명과 통화 결과·제외 기록이 삭제됩니다. 계속할까요?`)) return;
+  const saved = await action('DRAW-01', {project_id:projectId(),selection_mode:mode,target_count:Number($('target').value),reserve_count:Number($('reserves').value),quotas,version:projectState.rule?.version || 0,clear_nominees:switching});
+  await reload(); message(saved.cleared_nominees ? `선정 규칙을 저장했습니다. 이전 후보 ${saved.cleared_nominees}명을 정리했습니다.` : '선정 규칙을 저장했습니다.');
 }); };
 $('draw').onclick = () => {
   if (!confirm('분야별 3배수를 선정할까요? 선정 후 규칙 변경과 재추첨은 제한됩니다.')) return;

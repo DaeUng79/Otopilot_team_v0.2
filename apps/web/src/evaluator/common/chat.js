@@ -6,7 +6,14 @@ import { messageFor } from './errors.js';
 import { screenHref } from './session.js';
 import { esc, toast } from './shell.js';
 
-const SUGG = ['A·B·C사 보안 대책 비교', '일정 관리 방법 알려줘'];
+// 질문 예시는 시안의 'A·B·C사'가 아니라 실제로 선택한 업체 이름으로 만든다
+// (2026-10-18 사용자 보고: 업체가 A·B사뿐인데 예시를 누르면 답변에 C사가 나옴).
+function suggestions() {
+  const picked = CH.all.filter((v) => CH.sel.includes(v.id));
+  const names = (picked.length ? picked : CH.all).map((v) => v.name);
+  const who = names.length ? names.join('·') : '업체';
+  return [names.length > 1 ? `${who} 보안 대책 비교` : `${who} 보안 대책 알려줘`, '일정 관리 방법 알려줘'];
+}
 const CH = { built: false, isOpen: false, all: [], sel: [], msgs: [], busy: false, me: null, offline: false, offlineReason: '', last: null };
 
 export let onOpenPage = null;
@@ -23,7 +30,7 @@ async function loadVendors() {
     CH.all = data.proposals.map((p) => ({ id: p.session_proposal_id, code: p.display_code, name: p.display_name }));
   } catch { CH.all = []; }
   CH.sel = CH.all.map((v) => v.id);
-  if (CH.built) renderVendors();
+  if (CH.built) { renderVendors(); if (!CH.msgs.length) renderList(); }
 }
 
 function openPage(vendorId, page, btn) {
@@ -51,7 +58,7 @@ function renderList() {
   if (CH.offline) {
     h = `<div class="evc-empty"><div class="evc-hi" aria-hidden="true">🔌</div><b>문서 도우미 준비 중</b><p>${esc(CH.offlineReason || '챗봇 서비스가 아직 연결되지 않았어요. 제안서는 [제안서] 탭에서 직접 읽을 수 있어요.')}</p></div>`;
   } else if (!CH.msgs.length) {
-    h = `<div class="evc-empty"><div class="evc-hi" aria-hidden="true">💬</div><b>무엇이 궁금하세요?</b><p>제안서 안에서 찾아 업체별로 나란히 알려드려요.</p><div class="evc-sug">${SUGG.map((q) => `<button type="button" class="evc-sq" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div></div>`;
+    h = `<div class="evc-empty"><div class="evc-hi" aria-hidden="true">💬</div><b>무엇이 궁금하세요?</b><p>제안서 안에서 찾아 업체별로 나란히 알려드려요.</p><div class="evc-sug">${suggestions().map((q) => `<button type="button" class="evc-sq" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div></div>`;
   } else h = CH.msgs.map(msgHtml).join('');
   if (CH.busy) h += '<div class="evc-m a"><div class="evc-b evc-typing" role="status" aria-label="답변을 찾는 중"><i></i><i></i><i></i></div></div>';
   box.innerHTML = h;
@@ -118,6 +125,7 @@ function build() {
       if (i >= 0) CH.sel.splice(i, 1); else CH.sel.push(v.dataset.v);
       CH.sel = CH.all.map((x) => x.id).filter((x) => CH.sel.includes(x));
       renderVendors();
+      if (!CH.msgs.length) renderList();
       const nb = cq(`.evc-vc[data-v="${v.dataset.v}"]`); if (nb) nb.focus();
     }
   });
@@ -158,5 +166,5 @@ export function close(refocus) {
 
 export function setVendors(ids) {
   CH.sel = CH.all.map((v) => v.id).filter((id) => ids.includes(id));
-  if (CH.built) renderVendors();
+  if (CH.built) { renderVendors(); if (!CH.msgs.length) renderList(); }
 }

@@ -1,7 +1,5 @@
 """RES-01..05: immutable, reproducible aggregation and chair confirmation."""
 
-import base64
-import html
 import json
 import sqlite3
 from decimal import ROUND_HALF_UP, Decimal
@@ -294,49 +292,11 @@ def export_report(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> ExportFi
     )
     if b.get("format") == "xlsx":
         return export_workbook(c, session, payload, confirmation)
-    esc = lambda v: html.escape(str(v))
-    table = "".join(
-        "<tr>"
-        + "".join(
-            "<td>" + esc(item[k]) + "</td>"
-            for k in (
-                "display_code",
-                "included_sum",
-                "included_count",
-                "average_decimal",
-                "rank",
-            )
-        )
-        + "</tr>"
-        for item in payload["items"]
-    )
-    proof = "".join(
-        "<tr>"
-        + "".join(
-            "<td>" + esc(item[k]) + "</td>"
-            for k in (
-                "session_proposal_id",
-                "participant_id",
-                "total_score",
-                "exclusion",
-            )
-        )
-        + "</tr>"
-        for item in payload["inputs"]
-    )
-    signatures = rows(
-        c,
-        "SELECT sig.*,a.name_snapshot FROM signatures sig JOIN session_participants p ON p.id=sig.signer_participant_id JOIN ref_committee_assignments a ON a.id=p.assignment_id WHERE sig.id IN (SELECT signature_id FROM evaluation_submissions WHERE session_id=? UNION SELECT signature_id FROM chair_confirmations WHERE session_id=?) ORDER BY sig.purpose,sig.signed_at",
-        (session["id"], session["id"]),
-    )
-    images = "".join(
-        f'<figure><figcaption>{esc(sig["name_snapshot"])} / {esc(sig["purpose"])} / {esc(sig["signed_at"])}</figcaption><img alt="확인 서명" width="240" src="data:image/png;base64,{base64.b64encode(sig["image_blob"]).decode()}"><p>{esc(sig["payload_sha256"])}</p></figure>'
-        for sig in signatures
-    )
-    project = one(
-        c, "SELECT name FROM ref_projects WHERE id=?", (session["project_id"],)
-    )
-    document = f'<!doctype html><html lang="ko"><meta charset="utf-8"><title>확정 평가결과</title><style>body{{font:16px sans-serif;margin:40px}}table{{border-collapse:collapse;width:100%}}td,th{{border:1px solid #bbb;padding:8px}}p,pre{{overflow-wrap:anywhere;white-space:pre-wrap}}figure{{break-inside:avoid}}</style><h1>{esc(project["name"])} 평가결과</h1><p>회차 {session["round_no"]} · 실제 참여 {payload["run"]["participant_count"]}명 · 최고·최저 각 1명 제외</p><p>최종 제출: {esc(confirmation["submitted_at"])}</p><table><tr><th>업체</th><th>합계(점수×10000)</th><th>분모</th><th>평균</th><th>순위</th></tr>{table}</table><h2>계산 근거</h2><pre>{esc(session["aggregation_policy_json"])}</pre><table><tr><th>제안서 ID</th><th>참여자 ID</th><th>총점×10000</th><th>제외 상태</th></tr>{proof}</table><h2>서명 증빙</h2>{images}<p>결과 해시 {esc(confirmation["payload_sha256"])}</p><p>브라우저 인쇄에서 PDF로 저장할 수 있습니다. 서명 이미지는 공인 전자서명이 아닙니다.</p></html>'
+    from app.evaluation.result_report import build_report
+
+    # 결재·보고용 보고서(result_report.py). 점수·순위는 위 payload(확정 집계) 값만 표시 변환한다. (2026-10-18)
     return ExportFile(
-        "evaluation-result.html", document.encode("utf8"), "text/html; charset=utf-8"
+        "evaluation-result.html",
+        build_report(c, s, session, payload, confirmation),
+        "text/html; charset=utf-8",
     )

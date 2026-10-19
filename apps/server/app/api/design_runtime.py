@@ -40,8 +40,7 @@ def connected_html(relative: str) -> HTMLResponse | None:
         if len(folders) == 1
         else WEB / "missing-binding"
     )
-    if screen in {"PM-08"}:
-        binding = WEB / "src/bindings/external-boundary.js"
+    # PM-08 fills its approved criteria, vendors, and proposals from live data.
     content = target.read_bytes().replace(b"\r\n", b"\n")
     html = content.decode("utf8")
     if relative in {"dept-admin/PM-02/design/rfp-preview.html",

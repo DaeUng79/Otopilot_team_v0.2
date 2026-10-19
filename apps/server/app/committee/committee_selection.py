@@ -33,17 +33,11 @@ async def save_rules(ctx: Context, command: DTO, *, runtime: Runtime) -> DTO:
         old = conn.execute(
             "SELECT * FROM committee_rules WHERE project_id=?", (body.project_id,)
         ).fetchone()
+        cleared = 0
         if old:
             version(old, body.version)
-            if (
-                old["selection_mode"] != body.selection_mode
-                and conn.execute(
-                    "SELECT 1 FROM project_nominees WHERE project_id=?", (body.project_id,)
-                ).fetchone()
-            ):
-                raise ModuleError(
-                    "MODE_LOCKED", "등록한 사업 후보가 있어 선정 방식을 변경할 수 없습니다."
-                )
+            if old["selection_mode"] != body.selection_mode:
+                cleared = _clear_nominees(conn, ctx, runtime, body)
             rid = old["id"]
             conn.execute(
                 "UPDATE committee_rules SET "
@@ -89,10 +83,44 @@ async def save_rules(ctx: Context, command: DTO, *, runtime: Runtime) -> DTO:
             )
         runtime.audit(conn, ctx, "DRAW-01", "committee_rules", rid, body.project_id)
         return dict(conn.execute("SELECT * FROM committee_rules WHERE id=?", (rid,)).fetchone()) | {
-            "quotas": [q.model_dump() for q in body.quotas]
+            "quotas": [q.model_dump() for q in body.quotas],
+            "cleared_nominees": cleared,
         }
 
     return await runtime.run(ctx, "DRAW-01", body.model_dump(), save)
+
+
+def _clear_nominees(conn: sqlite3.Connection, ctx: Context, runtime: Runtime, body: Rules) -> int:
+    """선정 방식을 바꿀 때 이전 방식으로 등록한 사업 후보를 정리한다.
+
+    추첨 뒤(DRAW_LOCKED)·명단 확정 뒤(ROSTER_LOCKED)는 여기 오기 전에 거부되므로, 남아 있는
+    후보는 직접 등록(DIRECT) 후보뿐이고 확정 단계에서 SOURCE_MISMATCH로 거부될 것들이다.
+    방식을 바꾸면 되돌아갈 길이 없는 막다른 상태가 되지 않도록, 담당자가 확인(clear_nominees)
+    했을 때만 지우고 지운 후보마다 감사 기록을 남긴다. (2026-10-18)
+    """
+    nominees = [
+        r[0]
+        for r in conn.execute(
+            "SELECT id FROM project_nominees WHERE project_id=? ORDER BY created_at,id",
+            (body.project_id,),
+        )
+    ]
+    if not nominees:
+        return 0
+    if not body.clear_nominees:
+        raise ModuleError(
+            "MODE_LOCKED",
+            "등록한 사업 후보가 있습니다. 후보를 정리하고 선정 방식을 바꾸려면 "
+            "clear_nominees 확인이 필요합니다.",
+        )
+    if conn.execute(
+        "SELECT 1 FROM committee_assignments WHERE project_id=?", (body.project_id,)
+    ).fetchone():
+        raise ModuleError("ROSTER_LOCKED", "초청명단에 오른 후보는 정리할 수 없습니다.")
+    for nid in nominees:
+        conn.execute("DELETE FROM project_nominees WHERE id=?", (nid,))
+        runtime.audit(conn, ctx, "DRAW-01", "project_nominees", nid, body.project_id)
+    return len(nominees)
 
 
 def match_slots(eligible: list[DTO], quotas: list[DTO]) -> list[tuple[str, str]]:

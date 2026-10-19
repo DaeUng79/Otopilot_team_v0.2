@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import hashlib
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -110,6 +111,36 @@ def revise_result_file(db_path: Path, *, project_id: str, file_id: str, version:
         db.execute("UPDATE managed_result_files SET archived_at=?,updated_at=?,version=version+1 WHERE id=?",
                    (_now(), _now(), old["id"]))
     return get_result_file(db_path, project_id, identity)
+
+
+def archive_result_file(db_path: Path, *, project_id: str, file_id: str, version: int) -> dict[str, Any]:
+    """목록에서만 뺀다(archived_at). 행과 원본 BLOB은 남는다.
+
+    결과 자료로 잘못 올라간 제안요청서를 제안요청서 차수로 옮긴 뒤 호출한다(2026-10-18).
+    """
+    initialize(db_path)
+    with connect(db_path) as db:
+        db.execute("BEGIN IMMEDIATE")
+        archive_result_file_in_transaction(
+            db, project_id=project_id, file_id=file_id, version=version)
+    return get_result_file(db_path, project_id, file_id)
+
+
+def archive_result_file_in_transaction(
+    db: sqlite3.Connection, *, project_id: str, file_id: str, version: int
+) -> None:
+    """Archive a result row inside the caller's document DB transaction."""
+    old = db.execute("SELECT * FROM managed_result_files WHERE id=? AND project_id=?",
+                     (file_id, project_id)).fetchone()
+    if old is None:
+        raise LookupError("자료를 찾을 수 없습니다.")
+    if old["version"] != version:
+        raise ValueError("다른 작업에서 변경했습니다. 다시 조회하세요.")
+    if old["archived_at"]:
+        raise ValueError("이미 목록에서 뺀 자료입니다.")
+    stamp = _now()
+    db.execute("UPDATE managed_result_files SET archived_at=?,updated_at=?,version=version+1 WHERE id=?",
+               (stamp, stamp, file_id))
 
 
 def _select(where: str) -> str:
