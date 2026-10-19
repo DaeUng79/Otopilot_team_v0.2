@@ -44,6 +44,7 @@ def connected_html(relative: str) -> HTMLResponse | None:
     content = target.read_bytes().replace(b"\r\n", b"\n")
     html = content.decode("utf8")
     if relative in {"dept-admin/PM-02/design/rfp-preview.html",
+                    "dept-admin/PM-02/design/proposal-preview.html",
                     "dept-admin/PM-02/design/requirements-preview.html"}:
         return html_response(html)
     if screen in {"EV-03", "EV-04", "EV-05"}:

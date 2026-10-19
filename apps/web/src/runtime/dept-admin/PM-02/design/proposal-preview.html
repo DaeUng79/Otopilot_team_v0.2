@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>제안서 확인 · 심사임당</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/fonts/pretendard-gov/pretendard-gov.css">
+<link rel="stylesheet" href="/src/evaluator/common/eval.css">
+<link rel="stylesheet" href="/src/evaluator/common/reader.css">
+<style>
+.preview-hd{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.preview-hd h1{font-size:18px;color:var(--text-1)}
+.preview-hd a{color:var(--primary-60);text-decoration:none;font-weight:700}
+.preview-hd a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="ev-app">
+  <header class="ev-hd preview-hd"><a id="back" href="/app/dept-admin/PM-02/design/documents.html">← 문서 등록으로</a><h1>제안서 확인</h1><span></span></header>
+  <main class="ev-main"><div id="reader" class="evr" aria-live="polite"></div></main>
+</div>
+<script type="module" src="/src/screens/dept-admin/PM-02-documents/proposal-preview.js"></script>
+</body>
+</html>

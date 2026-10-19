@@ -5,12 +5,12 @@ PDF 제안서를 hwpx_parser와 같은 문서 JSON 모양으로 바꾼다. 결�
 step3 요구사항 추출(compact_blocks)이 그대로 읽는다.
 
 - 물리 페이지 1장 = PDF 페이지 1장. 인쇄 쪽번호는 읽지 않으므로 page_number도 물리 번호다.
-- 글자만 뽑는다(pypdf). 표·그림은 추출하지 않고 warnings에 한 번 남긴다.
+- 글자만 뽑는다(pypdf, 없으면 PyMuPDF). 표·그림은 추출하지 않고 warnings에 한 번 남긴다.
 - 빈 줄, 또는 번호·글머리표로 시작하는 줄을 새 문단의 시작으로 본다.
   짧은 제목 줄(40자 이하)은 다음 줄과 합치지 않고 혼자 문단이 된다. 평가 화면 목차는
   `숫자. 제목` 꼴의 짧은 문단에서 뽑기 때문이다(rfp_adapter.DocumentReader.overview).
 
-이 모듈은 import 시점에 서드파티를 불러오지 않는다. pypdf는 parse_pdf 안에서만 쓴다.
+이 모듈은 import 시점에 서드파티를 불러오지 않는다. PDF 라이브러리는 parse_pdf 안에서만 쓴다.
 pptx_parser는 여기의 문서 뼈대·블록 생성 함수를 같이 쓴다.
 
 예: python apps/documents/pdf_parser.py 제안서.pdf
@@ -189,23 +189,36 @@ def split_paragraphs(lines: list[str]) -> list[str]:
 def parse_pdf(path: str | Path) -> dict[str, Any]:
     """PDF에서 페이지별 글자를 뽑아 문서 JSON을 만든다.
 
-    RuntimeError: pypdf가 없을 때. ValueError: 암호 PDF, 스캔·이미지 PDF, 페이지 수 초과, 손상 파일.
+    RuntimeError: PDF 파서가 없을 때. ValueError: 암호 PDF, 스캔·이미지 PDF, 페이지 수 초과, 손상 파일.
     """
-    try:
-        import pypdf
-        from pypdf.errors import PyPdfError
-    except ImportError as error:
-        raise RuntimeError(
-            "PDF 제안서를 읽으려면 pypdf 패키지가 필요합니다. apps/documents/requirements.txt를 확인하세요."
-        ) from error
-
     import io
 
     path = Path(path)
     data = path.read_bytes()
-    document = document_skeleton(path, data, PDF_PARSER_VERSION, "pdf")
-    warnings = document["warnings"]
+    try:
+        import pypdf
+        from pypdf.errors import PyPdfError
+    except ImportError:
+        try:
+            import pymupdf
+        except ImportError as error:
+            raise RuntimeError(
+                "PDF 제안서를 읽으려면 pypdf 또는 PyMuPDF 패키지가 필요합니다. "
+                "apps/server/requirements.txt를 확인하세요."
+            ) from error
+        document = document_skeleton(path, data, "pdf-text-pymupdf-1.0", "pdf")
+        try:
+            with pymupdf.open(stream=data, filetype="pdf") as reader:
+                if reader.needs_pass:
+                    raise ValueError("암호가 걸린 PDF는 올릴 수 없어요.")
+                return _extract_pdf_pages(document, len(reader),
+                                          lambda index: reader.load_page(index).get_text("text", sort=True))
+        except ValueError:
+            raise
+        except Exception as error:
+            raise ValueError(f"PDF 파일을 읽을 수 없어요 ({type(error).__name__}).") from error
 
+    document = document_skeleton(path, data, PDF_PARSER_VERSION, "pdf")
     try:
         reader = pypdf.PdfReader(io.BytesIO(data))
         if reader.is_encrypted:
@@ -216,7 +229,7 @@ def parse_pdf(path: str | Path) -> dict[str, Any]:
                 raise ValueError("암호가 걸린 PDF는 올릴 수 없어요.") from error
             if not opened:
                 raise ValueError("암호가 걸린 PDF는 올릴 수 없어요.")
-        page_count = len(reader.pages)
+        return _extract_pdf_pages(document, len(reader), lambda index: reader.pages[index].extract_text())
     except ValueError:
         raise
     except PyPdfError as error:
@@ -224,6 +237,9 @@ def parse_pdf(path: str | Path) -> dict[str, Any]:
             raise ValueError("암호가 걸린 PDF는 올릴 수 없어요.") from error
         raise ValueError(f"PDF 파일을 읽을 수 없어요 ({type(error).__name__}).") from error
 
+
+def _extract_pdf_pages(document: dict[str, Any], page_count: int, read_page) -> dict[str, Any]:
+    warnings = document["warnings"]
     if page_count == 0:
         raise ValueError("페이지가 없는 PDF예요.")
     if page_count > MAX_PDF_PAGES:
@@ -236,7 +252,7 @@ def parse_pdf(path: str | Path) -> dict[str, Any]:
         number = page_index + 1
         document["pages"].append(page_entry(number, "pdf_page"))
         try:
-            raw = reader.pages[page_index].extract_text() or ""
+            raw = read_page(page_index) or ""
         except Exception as error:
             message = str(error).lower()
             if "password" in message or "decrypt" in message:

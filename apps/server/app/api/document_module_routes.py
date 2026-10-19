@@ -13,6 +13,7 @@ import asyncio
 import importlib.util
 import logging
 import os
+import re
 import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -28,8 +29,12 @@ from app.documents import (criteria_approval, document_gateway, material_service
                            proposal_document_adapter, rfp_api)
 from app.documents import step3_ai_requirements_extract_to_SQLite as step3
 from app.documents import step4_ai_criteria as step4
+from app.documents import step5_ai_proposal_analysis as step5
 from app.shared.db import require, rows
 from app.shared.integration_contracts import apply_event
+from app.evaluation.documents.envelope import ApiError
+from app.evaluation.documents.rfp_adapter import DocumentReader
+from app.documents.hwpx_storage import connect
 
 MAX_FILE_SIZE = 50 * 1024 * 1024
 PROPOSAL_TYPES = (".hwpx", ".hwp", ".pdf", ".pptx")
@@ -132,6 +137,11 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
                     "warnings": result.get("warnings") or []}
 
         return {"data": await asyncio.to_thread(run, read_saved)}
+
+    @app.get("/api/v2/projects/{project_id}/requirements/proposal-comparison")
+    async def requirements_proposal_comparison(project_id: str, request: Request):
+        await project(request, project_id)
+        return {"data": await asyncio.to_thread(run, step5.comparison_overview, database, project_id)}
 
     @app.post("/api/v2/projects/{project_id}/requirements/jobs")
     async def requirements_job(project_id: str, request: Request):
@@ -285,6 +295,68 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
         parsed = await asyncio.to_thread(run, document_gateway.parsed_blocks, database,
                                          upload["document_id"], upload["parse_revision"])
         return {"data": parsed | {"filename": upload["filename"], "revision": upload["upload_revision"]}}
+
+    def proposal_reader(db, project_id: str, upload_id: str) -> tuple[DocumentReader, dict]:
+        upload = run(proposal_document_adapter.get_proposal, database, project_id, upload_id)
+        reader = DocumentReader(db, project_id, upload["document_id"], upload["parse_revision"],
+                                title=upload["filename"], label="제안서")
+        return reader, upload
+
+    def read_proposal(project_id: str, upload_id: str, action):
+        try:
+            with connect(database) as db:
+                reader, upload = proposal_reader(db, project_id, upload_id)
+                return action(reader, upload)
+        except ApiError as exc:
+            require(False, exc.message, exc.code, exc.status)
+
+    @app.get("/api/v2/projects/{project_id}/proposals/{upload_id}/preview")
+    async def proposal_preview(project_id: str, upload_id: str, request: Request):
+        await project(request, project_id)
+        def overview(reader, upload):
+            data = reader.overview()
+            # PDF text lines often resemble headings, but do not form a reliable TOC.
+            if upload["format"] == "PDF":
+                data["toc"] = []
+            data["upload_revision"] = upload["upload_revision"]
+            data["format"] = upload["format"]
+            return data
+        return {"data": await asyncio.to_thread(read_proposal, project_id, upload_id, overview)}
+
+    @app.get("/api/v2/projects/{project_id}/proposals/{upload_id}/preview/pages/{number}")
+    async def proposal_preview_page(project_id: str, upload_id: str, number: int, request: Request):
+        await project(request, project_id)
+        def page(reader, _upload):
+            data = reader.page(number)
+            for block in data["blocks"]:
+                if block["type"] == "image":
+                    sha = block["src"].rsplit("/", 1)[-1]
+                    block["src"] = (f"/api/v2/projects/{quote(project_id, safe='')}/proposals/"
+                                    f"{quote(upload_id, safe='')}/preview/assets/{sha}")
+            return data
+        return {"data": await asyncio.to_thread(read_proposal, project_id, upload_id, page)}
+
+    @app.get("/api/v2/projects/{project_id}/proposals/{upload_id}/preview/pages/{number}/svg")
+    async def proposal_preview_svg(project_id: str, upload_id: str, number: int, request: Request):
+        await project(request, project_id)
+        svg = await asyncio.to_thread(read_proposal, project_id, upload_id,
+                                      lambda reader, _upload: reader.page_svg(number))
+        return Response(svg, media_type="image/svg+xml")
+
+    @app.get("/api/v2/projects/{project_id}/proposals/{upload_id}/preview/pages/{number}/png")
+    async def proposal_preview_png(project_id: str, upload_id: str, number: int, request: Request):
+        await project(request, project_id)
+        png = await asyncio.to_thread(read_proposal, project_id, upload_id,
+                                      lambda reader, _upload: reader.page_png(number))
+        return Response(png, media_type="image/png", headers={"Cache-Control": "private, max-age=86400"})
+
+    @app.get("/api/v2/projects/{project_id}/proposals/{upload_id}/preview/assets/{sha256}")
+    async def proposal_preview_asset(project_id: str, upload_id: str, sha256: str, request: Request):
+        await project(request, project_id)
+        require(bool(re.fullmatch(r"[0-9a-f]{64}", sha256)), "그림을 찾을 수 없습니다.", "NOT_FOUND", 404)
+        data, mime = await asyncio.to_thread(read_proposal, project_id, upload_id,
+                                             lambda reader, _upload: reader.asset(sha256))
+        return Response(data, media_type=mime)
 
     @app.delete("/api/v2/projects/{project_id}/proposals/{upload_id}")
     async def proposal_archive(project_id: str, upload_id: str, request: Request):

@@ -140,6 +140,29 @@ class DocumentReader:
                 renderer.close()
         return svg.encode("utf-8")
 
+    def page_png(self, number: int) -> bytes:
+        """Render one PDF source page for the shared document reader."""
+        doc = self._document()
+        if Path(doc["filename"]).suffix.lower() != ".pdf":
+            raise ApiError("VALIDATION_FAILED", "PDF 문서가 아니에요.", 422)
+        if self.conn.execute("SELECT 1 FROM pages WHERE document_id=? AND revision=? AND physical_page_number=?",
+                             (self.document_id, self.parse_revision, number)).fetchone() is None:
+            raise not_found("없는 쪽이에요.")
+        source = self.conn.execute("SELECT data FROM source_files WHERE sha256=?",
+                                   (doc["source_sha256"],)).fetchone()
+        if source is None:
+            raise not_found("원본 파일을 찾을 수 없어요.")
+        try:
+            import pymupdf
+        except ImportError as exc:
+            raise upstream_unavailable("PDF 쪽 렌더러를 사용할 수 없어요.") from exc
+        with pymupdf.open(stream=bytes(source["data"]), filetype="pdf") as pdf:
+            if number > len(pdf):
+                raise ApiError("VALIDATION_FAILED", "파싱된 쪽번호와 원본 쪽 수가 달라요.", 422)
+            page = pdf.load_page(number - 1)
+            scale = min(2.0, 2000 / max(page.rect.width, page.rect.height))
+            return page.get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False).tobytes("png")
+
 
 class RfpReader(DocumentReader):
     def __init__(self, conn, project_id, binding):

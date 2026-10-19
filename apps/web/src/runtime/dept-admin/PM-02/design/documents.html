@@ -65,18 +65,45 @@
 .tl:hover{background:var(--gray-10);color:var(--text-1)}
 .tl.pri{color:var(--primary-60);font-weight:700}
 .tl.dng{color:var(--danger-60)}
-.more{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:0;overflow:visible;flex:none;flex-direction:row}
+.more{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;overflow:visible;flex:none;flex-direction:row}
 .more[hidden]{display:none}
 .more section{padding:8px 20px 8px;min-width:0}
 .more section+section{border-left:1px solid var(--line)}
 .more h3{font-size:var(--t-base);margin:0 0 2px;color:var(--text-2)}
+.more .comparison-panel{grid-column:1/-1;border-left:0;border-top:1px solid var(--line);padding:16px 20px 20px}
+.comparison-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.comparison-head h3{margin:0;flex:1}
+.comparison-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
+.comparison-tools input,.comparison-tools select{min-height:36px;padding:6px 10px;border:1px solid var(--gray-30);border-radius:var(--radius-sm);background:var(--gray-0);font:inherit}
+.comparison-tools input{flex:1;min-width:180px}
+.comparison-status{font-size:var(--t-sm);color:var(--text-2);margin:8px 0}
+.comparison-wrap{overflow:auto;max-height:650px;border:1px solid var(--line);border-radius:var(--radius-sm)}
+.comparison-table{border-collapse:collapse;width:100%;min-width:980px;table-layout:fixed;font-size:var(--t-sm)}
+.comparison-table th,.comparison-table td{border:1px solid var(--line);padding:10px 12px;vertical-align:top;text-align:left;line-height:1.55;overflow-wrap:anywhere}
+.comparison-table thead th{position:sticky;top:0;z-index:2;background:var(--gray-5)}
+.comparison-table th:first-child{width:90px}.comparison-table th:nth-child(2){width:34%}
+.comparison-table .group-row th{background:var(--primary-5);color:var(--primary-60);font-weight:700}
+.comparison-table .req-title{display:block;font-weight:700;margin-bottom:4px}
+.comparison-table .detail-preview{white-space:pre-wrap;color:var(--text-2)}
+.comparison-table details{margin-top:5px}.comparison-table summary{cursor:pointer;color:var(--primary-60)}
+.comparison-table .finding-status{display:block;font-weight:700;margin-bottom:4px}
+.comparison-table .finding-status.ok{color:var(--success-60)}
+.comparison-table .finding-status.wait{color:var(--text-3)}
+.comparison-table .citation{display:block;margin-top:6px;color:var(--text-3);font-size:12px}
+.comparison-table .citation a{color:var(--primary-60);font-weight:700;text-decoration:underline}
 .mrow{display:flex;align-items:center;gap:8px;min-height:32px;border-top:1px solid var(--line)}
 .mrow:first-of-type{border-top:0}
+.extraction-row{flex-wrap:wrap;padding:5px 0}
+.extraction-name{min-width:115px;font-size:var(--t-sm)}
+.extraction-name small{font-weight:400;color:var(--text-3)}
 .vchips{display:flex;flex-wrap:wrap;gap:6px;padding-top:4px}.tl.vc{border:1px solid var(--gray-20);background:var(--gray-0)}.tl.vc:hover{background:var(--gray-10)}
 .mrow .nm{flex:none;width:112px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mrow .nm small{font-weight:400;color:var(--text-3);margin-left:4px}
 .mrow .ls{flex:1;display:flex;justify-content:flex-end;flex-wrap:wrap}
 .mrow .tx{flex:1;min-width:0;color:var(--text-2);font-size:var(--t-sm)}
+#m-files .mrow{padding:5px 0;flex-wrap:wrap}
+#m-files .nm{width:115px;font-size:var(--t-sm)}
+#m-files .tl{font-size:var(--t-sm);padding:0 8px}
 .btn.is-off{background:var(--gray-20);border-color:var(--gray-20);color:var(--gray-60);cursor:not-allowed}.btn.is-off:hover{background:var(--gray-20);border-color:var(--gray-20)}
 /* 보조 칸 */
 .drawer.wide{width:min(580px,100vw)}
@@ -140,13 +167,22 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
     </section>
     <div class="morebar">
       <button class="tl" type="button" id="b-more" aria-expanded="false" aria-controls="more">더 보기 ▾</button>
-      <span class="muted" style="font-size:var(--t-sm)">등록 이력 · 요구사항 추출 · 원본 보기</span>
+      <span class="muted" style="font-size:var(--t-sm)">등록 이력 · 요구사항 추출 · 제안서 비교</span>
       <span class="sp"></span>
       <a class="tl pri" href="../../PM-08/design/evidence.html">근거 연결 →</a>
     </div>
     <section class="card more" id="more" hidden aria-label="더 보기">
       <section><h3>등록된 파일</h3><div id="m-files"></div></section>
       <section><h3>요구사항 추출</h3><div id="m-xr"></div></section>
+      <section class="comparison-panel" aria-labelledby="comparison-title">
+        <div class="comparison-head"><h3 id="comparison-title">제안요청서 · 업체별 제안사항</h3><button class="tl" type="button" id="comparison-refresh">표 새로고침</button></div>
+        <p class="comparison-status" id="comparison-status" role="status">더 보기를 열면 정리된 자료를 불러옵니다.</p>
+        <div class="comparison-tools" id="comparison-tools" hidden>
+          <label for="comparison-category">요구사항 구분</label><select id="comparison-category"></select>
+          <label class="sr-only" for="comparison-search">요구사항 검색</label><input id="comparison-search" type="search" placeholder="요구사항 코드·명칭·내용 검색">
+        </div>
+        <div class="comparison-wrap" id="comparison-wrap" hidden><table class="comparison-table" id="comparison-table"></table></div>
+      </section>
     </section>
   </div>
   <details class="demo" id="demo"><summary>시안 상태</summary><div class="demo-in">요구사항 추출
@@ -264,7 +300,7 @@ function paint(){
     return `<div class="vrow" data-drop="${i}"><div class="who"><span class="code">${h(v.code)}</span><small>${h(v.name.replace('(가상)',''))}</small></div><div class="vi"><b>${h(top.file)}${ver}</b>${sub}</div><div class="vs">${bd(v.s)}</div><div class="va">${act}</div>${vx(i)}</div>`}).join('')+addArea(pk);
   /* 더 보기 */
   const files=[['rfp','제안요청서','',r,'제안요청서'],...sorted().map(v=>[String(S.v.indexOf(v)),v.code,v.name,v,'제안서'])].filter(x=>x[3].revs.length);
-  $('#m-files').innerHTML=files.length?files.map(([k,lab,nm,o,kind])=>`<div class="mrow"><span class="nm" title="${h(nm)}">${h(lab)}<small>v${o.revs[0].n}</small></span><span class="ls"><button class="tl" type="button" data-view="${k}">원본 보기</button><button class="tl" type="button" data-dl="${k}">내려받기</button><button class="tl" type="button" data-hist="${k}">이력 ${o.revs.length}</button>${o.s==='done'?`<button class="tl" type="button" data-toc="${k}" title="보조 기능이에요">목차 확인</button>`:''}<button class="tl dng" type="button" data-del="${k}">삭제</button></span></div>`).join(''):'<p class="muted" style="margin:6px 0">아직 등록된 파일이 없어요</p>';
+  $('#m-files').innerHTML=files.length?files.map(([k,lab,nm,o,kind])=>`<div class="mrow"><span class="nm" title="${h(nm)}">${h(lab)}<small>v${o.revs[0].n}</small></span><span class="ls"><button class="tl" type="button" data-view="${k}">${kind==='제안서'?'제안서 보기':'원본 보기'}</button><button class="tl" type="button" data-dl="${k}">내려받기</button><button class="tl" type="button" data-hist="${k}">이력 ${o.revs.length}</button>${o.s==='done'?`<button class="tl" type="button" data-toc="${k}" title="보조 기능이에요">목차 확인</button>`:''}<button class="tl dng" type="button" data-del="${k}">삭제</button></span></div>`).join(''):'<p class="muted" style="margin:6px 0">아직 등록된 파일이 없어요</p>';
   const xr={wait:['','대기','기다리는 중이에요. 몇 초마다 자동으로 확인해요'],run:['info','처리 중','요구사항을 뽑는 중이에요'],fail:['danger','실패','못 뽑았어요. 원본은 그대로예요'],done:['success','완료','요구사항 추출이 끝났어요']}[r.s];
   $('#m-xr').innerHTML=!f?'<p class="muted" style="margin:6px 0">제안요청서를 올리면 보여요</p>':`<div class="mrow"><span class="badge ${xr[0]}">${xr[1]}</span><span class="tx">${xr[2]}</span>${r.s==='fail'?'<button class="tl pri" type="button" data-retry="rfp">다시 시도</button>':''}<button class="tl" type="button" data-refresh>새로고침</button></div>`;
   $('#more').hidden=!moreOpen;$('#b-more').textContent=moreOpen?'더 보기 ▴':'더 보기 ▾';$('#b-more').setAttribute('aria-expanded',moreOpen);
@@ -321,7 +357,7 @@ function drawHist(){const q=$('#hist-q').value.trim().toLowerCase(),o=histObj;
   const L=o.revs.filter(r=>!q||(r.file+' v'+r.n+' '+r.at).toLowerCase().includes(q));
   $('#hist-list').innerHTML=L.length?L.map(r=>{const latest=r===o.revs[0],pin=S.inUse&&r.pin;
     const tag=latest?'<span class="badge primary">최신 업로드</span>':pin?'<span class="badge">🔒 고정 버전</span>':'<span class="badge">과거 버전</span>';
-    return `<li class="rev${latest?' latest':''}"><div class="vn tnum">v${r.n}</div><div class="rt"><b>${h(r.file)}</b><span>${r.at} · ${r.size}${pin?' · '+h(r.pin):''}</span></div>${tag}<button class="btn" type="button" data-rv>원본 보기</button></li>`}).join('')
+    return `<li class="rev${latest?' latest':''}"><div class="vn tnum">v${r.n}</div><div class="rt"><b>${h(r.file)}</b><span>${r.at} · ${r.size}${pin?' · '+h(r.pin):''}</span></div>${tag}<button class="btn" type="button" data-rv>${histObj===S.rfp?'원본 보기':'제안서 보기'}</button></li>`}).join('')
    :'<li class="muted">찾는 이력이 없어요</li>';
   $$('[data-rv]').forEach(b=>b.onclick=()=>toast('이 버전의 원본을 열어요 (시안)'))}
 $('#hist-q').addEventListener('input',()=>histObj&&drawHist());

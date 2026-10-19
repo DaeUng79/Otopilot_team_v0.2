@@ -2,7 +2,9 @@ import { mountReader } from '../../../evaluator/common/reader.js';
 import { showState } from '../../../evaluator/common/shell.js';
 
 const reader = document.getElementById('reader');
-const projectId = new URLSearchParams(location.search).get('project_id');
+const query = new URLSearchParams(location.search);
+const projectId = query.get('project_id');
+const startPage = Number(query.get('page'));
 const back = document.getElementById('back');
 if (projectId) back.href += '?project_id=' + encodeURIComponent(projectId);
 
@@ -34,7 +36,8 @@ async function main() {
     loadPage: (n) => fetchPreview(base + '/preview/pages/' + n + '?revision=' + data.upload_revision),
     svgUrl: (n) => base + '/preview/pages/' + n + '/svg?revision=' + data.upload_revision,
     download: () => fetchPreview(base + '/' + data.upload_revision + '/download', true),
-  }, { note: '담당자가 등록한 제안요청서 · 원본 쪽 렌더링' });
+  }, { note: '담당자가 등록한 제안요청서 · 원본 쪽 렌더링',
+       startPage: Number.isInteger(startPage) && startPage > 0 ? startPage : 1 });
 }
 
 main().catch((error) => {

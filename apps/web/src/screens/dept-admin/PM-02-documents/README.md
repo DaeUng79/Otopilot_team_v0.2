@@ -19,4 +19,8 @@
 참석 확인을 요구한다.
 업체별 제안서 등록·이력·원본·보관 처리(PRO-01~03)는 `POST /api/v2/projects/{id}/vendors/{vendor_id}/proposals`, `GET .../proposals`, `.../proposals/{id}/download|source`, `DELETE .../proposals/{id}`로 연결했다(HWPX·HWP·PDF·PPTX, 2026-10-18). 요구사항 추출 상태·재시도(DOC-03·04)는 `.../requirements`, `.../requirements/jobs`. 목차 수정은 아직 연결되지 않았다.
 
+제안서의 `제안서 보기`는 `/app/dept-admin/PM-02/design/proposal-preview.html?project_id={id}&upload_id={id}`로 이동한다. 제안요청서와 같은 쪽 넘김 화면에서 PDF는 원본을 쪽별 PNG로 렌더링하고, HWPX·HWP는 원본 SVG를 표시한다. 원본 렌더링에 실패하면 저장된 파싱 내용을 표시한다. PPTX는 현재 파싱 내용만 표시한다. PDF 렌더링에는 `PyMuPDF`가 필요하다.
+
 제안요청서를 등록하거나 재등록하면 서버가 요구사항 요약 작업을 자동으로 시작한다. 화면은 작업 상태를 5초 간격으로 갱신하며, 저장과 추출이 모두 성공한 경우에만 `✓ 완료`를 표시한다. API 키·통신·추출 오류가 나면 원본 보존과 실패 이유, 다시 시도 동작을 표시한다. 완료 후 `요구사항 요약`과 `제안요청서 확인` 버튼이 활성화된다.
+
+`더 보기`의 비교 표는 `GET /api/v2/projects/{id}/requirements/proposal-comparison`을 읽는다. 3단계 제안요청서 요구사항 59개를 구분별 행으로 보여주고, 업체별 최신 READY 제안서의 2차 분석 결과를 열로 붙인다. 확인된 제안사항의 원문 근거를 펼치면 제안서 해당 물리 쪽으로 이동한다. 2차 분석이 시작되지 않았거나 일부만 처리된 업체는 처리 상태를 그대로 표시하며, 미처리 항목을 `확인되지 않음`으로 바꾸지 않는다. 검색과 요구사항 구분 필터를 제공한다.
