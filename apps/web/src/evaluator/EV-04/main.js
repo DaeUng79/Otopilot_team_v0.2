@@ -29,7 +29,7 @@ async function ensure(p) {
     holder.reader = mountReader(el, data, {
       label: `${p.display_name} 제안서`,
       loadPage: (n) => get(`${base()}/${encodeURIComponent(p.session_proposal_id)}/pages/${n}`).then((r) => r.data),
-      svgUrl: (n) => `/api/v2/evaluator${base()}/${encodeURIComponent(p.session_proposal_id)}/pages/${n}/svg?v=${version}`,
+      svgUrl: (n) => `/api/v2/evaluator${base()}/${encodeURIComponent(p.session_proposal_id)}/pages/${n}/${p.format === 'PDF' ? 'png' : 'svg'}?v=${version}`,
       download: () => request('GET', `${base()}/${encodeURIComponent(p.session_proposal_id)}/source`, { raw: true }),
     }, {
       note: '평가 시작 때 고정된 제안서예요 · A사 표시는 화면용이에요 · 파일 안의 회사명은 지워지지 않을 수 있어요',

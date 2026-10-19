@@ -20,6 +20,7 @@ from app.evaluation.documents.auth import require_attended, require_participant,
 from app.evaluation.documents.db import connect, connect_documents
 from app.evaluation.documents.envelope import not_found
 from app.evaluation.documents.rfp_adapter import DocumentReader
+from app.evaluation.documents.scoring import display_name
 
 
 def _context(req: Request, conn, *, touch: bool = False):
@@ -41,8 +42,9 @@ def _proposal(conn, session_id: str, proposal_id: str) -> dict:
 
 
 def _reader(req: Request, docs, principal, proposal: dict) -> DocumentReader:
+    name = display_name(proposal["display_code"])
     return DocumentReader(docs, principal.project_id, proposal["document_id"], proposal["parse_revision"],
-                          title=f"{proposal['display_code']}사 제안서", label=f"{proposal['display_code']}사 제안서")
+                          title=f"{name} 제안서", label=f"{name} 제안서")
 
 
 def register(app: App) -> None:
@@ -57,10 +59,10 @@ def register(app: App) -> None:
             with connect_documents(req.settings.documents_db_path) as docs:
                 for r in rows:
                     count = docs.execute("SELECT COUNT(*) FROM pages WHERE document_id = ? AND revision = ?", (r["document_id"], r["parse_revision"])).fetchone()[0]
-                    items.append({"session_proposal_id": r["id"], "display_code": r["display_code"], "display_name": f"{r['display_code']}사",
+                    items.append({"session_proposal_id": r["id"], "display_code": r["display_code"], "display_name": display_name(r["display_code"]),
                                   "format": r["format"], "page_count": count, "available": count > 0})
         except Exception:  # noqa: BLE001 - 문서 DB 가 없으면 목록만
-            items = [{"session_proposal_id": r["id"], "display_code": r["display_code"], "display_name": f"{r['display_code']}사",
+            items = [{"session_proposal_id": r["id"], "display_code": r["display_code"], "display_name": display_name(r["display_code"]),
                       "format": r["format"], "page_count": 0, "available": False} for r in rows]
         return Response(data={"proposals": items, "note": "평가 시작 때 고정된 제안서예요 · A사 표시는 화면용이에요 · 파일 안의 회사명은 지워지지 않을 수 있어요"})
 
@@ -70,7 +72,7 @@ def register(app: App) -> None:
             proposal = _proposal(conn, session["id"], req.params["proposal_id"])
         with connect_documents(req.settings.documents_db_path) as docs:
             data = _reader(req, docs, principal, proposal).overview()
-        data["proposal"] = {"session_proposal_id": proposal["id"], "display_code": proposal["display_code"], "display_name": f"{proposal['display_code']}사"}
+        data["proposal"] = {"session_proposal_id": proposal["id"], "display_code": proposal["display_code"], "display_name": display_name(proposal["display_code"])}
         return Response(data=data)
 
     def page(req: Request) -> Response:
@@ -87,6 +89,14 @@ def register(app: App) -> None:
         with connect_documents(req.settings.documents_db_path) as docs:
             svg = _reader(req, docs, principal, proposal).page_svg(int(req.params["n"]))
         return Response(raw=svg, content_type="image/svg+xml; charset=utf-8", cache_control="private, max-age=86400")
+
+    def page_png(req: Request) -> Response:
+        with connect(req.settings.db_path) as conn:
+            principal, session = _context(req, conn)
+            proposal = _proposal(conn, session["id"], req.params["proposal_id"])
+        with connect_documents(req.settings.documents_db_path) as docs:
+            png = _reader(req, docs, principal, proposal).page_png(int(req.params["n"]))
+        return Response(raw=png, content_type="image/png", cache_control="private, max-age=86400")
 
     def source(req: Request) -> Response:
         with connect(req.settings.db_path) as conn:
@@ -105,4 +115,5 @@ def register(app: App) -> None:
     app.route("GET", base + r"/(?P<proposal_id>[^/]+)", overview)
     app.route("GET", base + r"/(?P<proposal_id>[^/]+)/pages/(?P<n>\d+)", page)
     app.route("GET", base + r"/(?P<proposal_id>[^/]+)/pages/(?P<n>\d+)/svg", page_svg)
+    app.route("GET", base + r"/(?P<proposal_id>[^/]+)/pages/(?P<n>\d+)/png", page_png)
     app.route("GET", base + r"/(?P<proposal_id>[^/]+)/source", source)
