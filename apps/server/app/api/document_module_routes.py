@@ -25,7 +25,7 @@ from fastapi.responses import JSONResponse, Response
 from starlette.datastructures import UploadFile
 
 from app.committee.committee_app.v2_core import digest
-from app.documents import (criteria_approval, document_gateway, material_service,
+from app.documents import (criteria_approval, document_gateway, material_service, proposal_analysis_jobs,
                            proposal_document_adapter, rfp_api)
 from app.documents import step3_ai_requirements_extract_to_SQLite as step3
 from app.documents import step4_ai_criteria as step4
@@ -142,6 +142,22 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
     async def requirements_proposal_comparison(project_id: str, request: Request):
         await project(request, project_id)
         return {"data": await asyncio.to_thread(run, step5.comparison_overview, database, project_id)}
+
+    @app.get("/api/v2/projects/{project_id}/requirements/proposal-analysis/jobs")
+    async def proposal_analysis_status(project_id: str, request: Request):
+        await project(request, project_id)
+        return {"data": proposal_analysis_jobs.status(project_id)}
+
+    @app.post("/api/v2/projects/{project_id}/requirements/proposal-analysis/jobs")
+    async def proposal_analysis_start(project_id: str, request: Request):
+        await project(request, project_id, edit=True)
+        body = await json_body(request)
+        proposal_upload_id = body.get("proposal_upload_id")
+        require(isinstance(proposal_upload_id, str) and bool(proposal_upload_id),
+                "분석할 제안서를 선택해 주세요.", "INPUT_INVALID", 422)
+        require(ai_ready(), "OpenAI 설정을 확인해 주세요.", "UPSTREAM_UNAVAILABLE", 503)
+        return {"data": await asyncio.to_thread(run, proposal_analysis_jobs.queue,
+                                                database, project_id, proposal_upload_id)}
 
     @app.post("/api/v2/projects/{project_id}/requirements/jobs")
     async def requirements_job(project_id: str, request: Request):

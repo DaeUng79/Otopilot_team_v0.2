@@ -5,7 +5,7 @@
 | 1 | `step1_hwpx_parse_to_JSON.py` | HWPX를 문서 JSON과 이미지로 파싱 | 제안요청서 업로드 |
 | 2 | `step2_hwpx_save_to_SQLite.py` | JSON·원본을 문서 DB에 저장 | 제안요청서 업로드 |
 | 3 | `step3_ai_requirements_extract_to_SQLite.py` | 저장된 문서에서 사업 현황·요구사항을 추출해 DB에 저장 | 업로드 직후 자동 작업 |
-| 5 | `step5_ai_proposal_analysis.py` | 추출된 요구사항과 제안서별 원문 근거를 대조해 2차 분석 결과를 저장 | 별도 명령으로 실행 |
+| 5 | `step5_ai_proposal_analysis.py` | 추출된 요구사항과 제안서별 원문 근거를 대조해 2차 분석 결과를 저장 | 업체별 분석하기 버튼 또는 별도 명령 |
 
 서비스는 업로드 사업의 문서 버전을 연결하기 전에 인쇄 목차를 실제 쪽에 매핑해 `rfp_toc_snapshots`에 저장하고, 이어서 3단계 작업을 시작합니다. 목차는 요구사항 추출 중에도 제안요청서 확인 화면에서 사용할 수 있습니다. 작업 상태가 `done`이고 저장된 결과를 읽을 수 있을 때 화면에 `✓ 완료`를 표시합니다. 1·2단계 파일은 유지보수용 진입점이며, 실제 파싱·저장 구현은 아래 모듈에 둡니다.
 
@@ -17,7 +17,7 @@ python -m apps.documents.step2_hwpx_save_to_SQLite /tmp/rfp.json --source 원본
 python -m apps.documents.step3_ai_requirements_extract_to_SQLite --document-id 문서ID
 ```
 
-제안서 2차 분석은 3단계가 완료되고 업체별 제안서가 `READY`인 뒤 실행합니다. 프로젝트의 최신 제안요청서와 업체별 최신 제안서를 사용합니다. 먼저 API 호출 없이 대상과 검색 후보를 점검할 수 있습니다.
+제안서 2차 분석은 3단계가 완료되고 업체별 제안서가 `READY`인 뒤 실행합니다. 문서 화면의 `더 보기 → 요구사항 추출`에서 각 업체의 `분석하기` 버튼으로 해당 업체의 최신 제안서만 백그라운드 처리할 수 있습니다. 명령줄에서는 프로젝트의 최신 제안요청서와 업체별 최신 제안서를 한 번에 처리합니다. 먼저 API 호출 없이 대상과 검색 후보를 점검할 수 있습니다.
 
 ```bash
 python -m apps.documents.step5_ai_proposal_analysis --project-id 프로젝트ID --dry-run

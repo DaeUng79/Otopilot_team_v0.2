@@ -11,6 +11,7 @@ Live.capture('#dlg-ok','click',async()=>{if(!vendorDelete)return;await Live.api(
 const projectUrl='/api/v2/projects/'+encodeURIComponent(Live.pid);
 const rfpUrl=projectUrl+'/rfp';
 let rfpUploads=[],rfpArchived=[],proposalUploads=[],requirementState=null,requirementTimer=null,comparisonData=null;
+let analysisJobs={},analysisTimer=null;
 const fmtSize=b=>(b/1048576).toFixed(1)+'MB',fmtAt=t=>new Date(t).toLocaleString('ko-KR');
 async function getJson(url,options){const response=await fetch(url,{credentials:'same-origin',headers:{'X-Simsa-Client':'v2-web',...(options?.json!==undefined?{'Content-Type':'application/json'}:{})},method:options?.method||'GET',body:options?.json!==undefined?JSON.stringify(options.json):options?.body});const body=await response.json().catch(()=>({}));if(!response.ok)throw Error(body.error?.message||'요청을 처리하지 못했습니다.');return body.data;}
 async function downloadUrl(url,filename){const response=await fetch(url,{credentials:'same-origin'});if(!response.ok)throw Error('파일을 내려받지 못했습니다.');const object=URL.createObjectURL(await response.blob());const link=document.createElement('a');link.href=object;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(object),1000);}
@@ -18,8 +19,11 @@ const REQ={none:['','요약 전','제안요청서는 저장됐습니다. 요구�
 function extractionRows(){
   return sorted().map(view=>{
     const vendor=vendorRows[S.v.indexOf(view)];
-    const uploaded=proposalUploads.some(p=>p.vendor_id===vendor?.id&&p.status==='READY');
+    const upload=proposalUploads.filter(p=>p.vendor_id===vendor?.id&&p.status==='READY')
+      .sort((a,b)=>b.upload_revision-a.upload_revision)[0];
+    const uploaded=Boolean(upload);
     const column=comparisonData?.proposals?.find(p=>p.vendor_id===vendor?.id);
+    const job=analysisJobs[upload?.id]||{status:'idle'};
     let label='제안서 미등록',detail='제안서를 등록하면 분석 상태를 볼 수 있습니다.',tone='';
     if(uploaded){
       label='2차 분석 전';detail='제안서는 등록됐습니다. 2차 분석 결과가 없습니다.';
@@ -29,7 +33,13 @@ function extractionRows(){
         label='분석 중';detail=`${column.processed}/${column.total}건 처리`;tone='info';
       }
     }
-    return `<div class="mrow extraction-row"><strong class="extraction-name">${h(view.code)}${view.name?` <small>${h(view.name)}</small>`:''}</strong><span class="badge ${tone}">${label}</span><span class="tx">${detail}</span></div>`;
+    if(job.status==='failed'){
+      label='분석 실패';tone='danger';detail=job.error||'다시 시도해 주세요.';
+    }
+    const busy=['queued','running'].includes(job.status);
+    const action=uploaded&&requirementState?.status==='done'&&column?.status!=='complete'
+      ?`<button class="tl pri" type="button" data-analyze-upload="${h(upload.id)}" ${busy?'disabled':''}>${busy?'분석 중…':'분석하기'}</button>`:'';
+    return `<div class="mrow extraction-row"><strong class="extraction-name">${h(view.code)}${view.name?` <small>${h(view.name)}</small>`:''}</strong><span class="badge ${tone}">${label}</span><span class="tx">${h(detail)}</span>${action}</div>`;
   }).join('');
 }
 const originalPaint=paint;
@@ -46,7 +56,8 @@ paint=()=>{
     }
   }
   const status=$('#m-xr');
-  if(status&&S.rfp.revs.length){const st=REQ[requirementState?.status]||REQ.none;status.innerHTML=`<div class="mrow extraction-row"><strong class="extraction-name">제안요청서</strong><span class="badge ${st[0]}">${st[1]}</span><span class="tx">${st[2]}${requirementState?.error?' · '+h(requirementState.error):''}</span>${['none','failed'].includes(requirementState?.status||'none')?'<button class="tl pri" type="button" data-retry="rfp">'+(requirementState?.status==='failed'?'다시 시도':'요구사항 요약')+'</button>':''}<button class="tl" type="button" data-refresh>새로고침</button></div>`+extractionRows();}
+  if(status&&S.rfp.revs.length){const st=REQ[requirementState?.status]||REQ.none;
+    status.innerHTML=`<div class="mrow extraction-row"><strong class="extraction-name">제안요청서</strong><span class="badge ${st[0]}">${st[1]}</span><span class="tx">${st[2]}${requirementState?.error?' · '+h(requirementState.error):''}</span>${['none','failed'].includes(requirementState?.status||'none')?'<button class="tl pri" type="button" data-retry="rfp">'+(requirementState?.status==='failed'?'다시 시도':'요구사항 요약')+'</button>':''}<button class="tl" type="button" data-refresh>새로고침</button></div>`+extractionRows();}
   if(S.rfp.revs.length){
     const actions=$('#rfp .fa');
     if(actions){
@@ -198,6 +209,13 @@ Live.capture('[data-del]','click',(_e,el)=>archiveDialog(el.dataset.del));
 Live.capture('#hist-del','click',()=>archiveDialog(histObj===S.rfp?'rfp':String(S.v.indexOf(histObj))));
 // DOC-03·04: 요구사항 추출 상태·재시도. 추출은 AI(OpenAI) 설정이 있을 때 동작한다.
 Live.capture('[data-refresh]','click',async()=>{await loadRfp();toast(requirementState?.status==='done'?'최신 상태예요':'상태를 새로 읽었어요');});
+Live.capture('[data-analyze-upload]','click',async(_event,button)=>{
+  const uploadId=button.dataset.analyzeUpload;
+  const job=await getJson(projectUrl+'/requirements/proposal-analysis/jobs',
+    {method:'POST',json:{proposal_upload_id:uploadId}});
+  analysisJobs[uploadId]=job;
+  paint();await loadComparison();toast('선택한 제안서의 2차 분석을 시작했어요.');
+});
 Live.capture('[data-retry]','click',async()=>{await getJson(projectUrl+'/requirements/jobs',{method:'POST',json:{force:requirementState?.status==='failed'}});await loadRfp();toast('요구사항 요약을 시작했어요. 몇 분 걸릴 수 있어요');});
 Live.capture('#toc-ok','click',()=>{throw Error('목차 수정은 아직 연결되지 않았습니다. 저장된 파싱 원문을 확인하세요.');});
 
@@ -273,11 +291,17 @@ function providerId(view){return vendorRows[S.v.indexOf(view)]?.id||'';}
 async function loadComparison(){
   comparisonStatus.textContent='요구사항과 업체별 정리 결과를 불러오는 중입니다.';
   try{
-    comparisonData=await getJson(projectUrl+'/requirements/proposal-comparison');
+    const [data,jobState]=await Promise.all([
+      getJson(projectUrl+'/requirements/proposal-comparison'),
+      getJson(projectUrl+'/requirements/proposal-analysis/jobs')]);
+    comparisonData=data;analysisJobs=jobState.jobs||{};
     renderComparison();
     paint();
   }catch(error){comparisonStatus.textContent='비교 표를 불러오지 못했습니다. '+error.message;
     $('#comparison-tools').hidden=true;$('#comparison-wrap').hidden=true;}
+  clearTimeout(analysisTimer);
+  if(Object.values(analysisJobs).some(job=>['queued','running'].includes(job.status))&&moreOpen)
+    analysisTimer=setTimeout(loadComparison,5000);
 }
 $('#b-more').onclick=()=>{moreOpen=!moreOpen;paint();if(moreOpen)loadComparison();};
 $('#comparison-refresh').onclick=loadComparison;
