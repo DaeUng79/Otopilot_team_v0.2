@@ -229,7 +229,8 @@ def parse_pdf(path: str | Path) -> dict[str, Any]:
                 raise ValueError("암호가 걸린 PDF는 올릴 수 없어요.") from error
             if not opened:
                 raise ValueError("암호가 걸린 PDF는 올릴 수 없어요.")
-        return _extract_pdf_pages(document, len(reader), lambda index: reader.pages[index].extract_text())
+        return _extract_pdf_pages(document, len(reader.pages),
+                                  lambda index: reader.pages[index].extract_text())
     except ValueError:
         raise
     except PyPdfError as error:
