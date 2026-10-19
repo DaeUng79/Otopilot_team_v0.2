@@ -172,6 +172,65 @@ py -3.13 -m venv .venv
 
 비데모 폴더는 처음 만들면 관리자·사업·위원 데이터가 모두 비어 있습니다. 계정과 업무 데이터를 등록해야 로그인 및 평가를 진행할 수 있습니다. `--demo`를 빼는 것만으로 운영 데이터나 배포 환경이 마련되는 것은 아닙니다. 문서 DB 기본 위치는 선택한 `--data-dir` 안의 `documents_parse.sqlite3`이며, 기본 데모 경로는 `apps/server/data/database/documents_parse.sqlite3`입니다. 기존 시연 평가 회차의 문서 참조는 문서 DB의 파싱 버전과 일치하는지 별도로 확인해야 합니다. 2026-10-18 최초 통합 당시 확인한 참조 3건은 모두 불일치했으며, 이후 등록한 제안요청서의 신규 참조와는 구분해야 합니다.
 
+### 로컬 PC의 DB 갱신
+
+프로젝트 루트에서 실행한 기본 서비스(`start_service.py`)의 데이터 폴더는 `apps/server/data/database/`입니다. `--data-dir apps/server/data/production`으로 실행했다면 그 폴더가 대상입니다. 관리자·사업 정보는 `admin.sqlite3`, 평가 정보는 `evaluation.sqlite3`, 업로드한 원본·파싱 문서는 `documents_parse.sqlite3`, 사업 삭제 이력은 `projects_delete.sqlite3`에 저장됩니다. `keys.bin`은 암호화된 기존 자료를 읽는 데 필요하고 `access-code.txt`도 같은 데이터 폴더에 둡니다.
+
+1. 서비스를 실행하고 화면에서 사업·계정·문서를 등록하거나 수정합니다. 저장 즉시 **선택한 로컬 데이터 폴더**의 DB가 갱신됩니다. 코드에 포함된 관리자·평가 DB 마이그레이션은 다음 서비스 시작 시 자동 적용됩니다. 가상 운영 데이터를 넣을 때만 아래의 `seed_samples.py` 안내를 사용합니다.
+2. DB 파일을 직접 교체하거나 다른 PC로 옮길 때는 먼저 서비스를 `Ctrl+C`로 종료합니다. 같은 폴더의 네 DB와 `keys.bin`, `access-code.txt`를 **한 묶음**으로 백업·복사합니다. 실행 중인 SQLite 파일만 Finder로 복사하면 일관성이 깨질 수 있습니다.
+3. 다시 같은 `--data-dir`로 실행합니다. Mac에서 기본 데이터 폴더의 상태를 읽기 전용으로 확인하려면 다음 명령을 사용합니다.
+
+```bash
+ls -lh apps/server/data/database
+sqlite3 'file:apps/server/data/database/admin.sqlite3?mode=ro' 'PRAGMA integrity_check;'
+```
+
+### Railway `/data` DB 갱신과 서비스 구동
+
+현재 Railway 서비스 `Otopilot_team_v0.2`는 볼륨을 `/data`에 연결하고 아래 명령으로 실행합니다. Railway의 `/data`와 PC의 `apps/server/data/database/`는 **자동 동기화되지 않습니다**. Railway 화면에서 등록·수정한 내용은 `/data`에만, 로컬 화면에서 수정한 내용은 로컬 DB에만 반영됩니다. 단순 코드 재배포는 기존 볼륨 데이터를 갱신하지 않습니다.
+
+```sh
+python apps/server/run.py --host 0.0.0.0 --port $PORT --data-dir /data
+```
+
+Railway 웹사이트에서 `discerning-consideration` → `Otopilot_team_v0.2` → **Settings → Deploy → Custom Start Command**에 위 명령을 설정합니다. 볼륨의 마운트 경로는 `/data`로 유지하고, 공개 도메인을 사용하는 경우 `SIMSA_ALLOWED_HOSTS`에 해당 호스트 이름을 설정합니다. 변경 사항을 배포한 뒤 **Deployments** 상태와 **Deploy Logs**를 확인하고 서비스 URL을 엽니다. `/data`에 기존 DB와 키가 있다면 재배포 후에도 그대로 읽습니다.
+
+Railway **Console**에서 현재 DB 위치·무결성을 확인하는 명령은 다음과 같습니다. 이 명령은 DB를 수정하지 않습니다.
+
+```sh
+ls -lh /data
+python -c 'import sqlite3; c=sqlite3.connect("file:/data/admin.sqlite3?mode=ro", uri=True); print(c.execute("PRAGMA integrity_check").fetchone()[0]); c.close()'
+```
+
+AI 요구사항 추출·평가기준 생성·문서 질문은 `OPENAI_API_KEY` 외에 `openai`, `python-dotenv`, `tiktoken` 패키지가 필요합니다. 이들은 루트와 `apps/server/requirements.txt`에 포함되어 있습니다. Railway **Variables**에 키를 추가한 뒤에는 **staged changes를 Deploy**해야 실행 중인 서비스에 반영됩니다. 새 의존성을 반영하려면 변경된 코드를 Railway에 배포하여 빌드 로그에서 패키지 설치를 확인합니다. Console에서 아래처럼 **키 값을 출력하지 않고** 적용 상태를 확인할 수 있습니다.
+
+```sh
+python -c 'import os, importlib.util; print("key_present:", bool((os.getenv("OPENAI_API_KEY") or "").strip())); print("ai_packages:", {n: importlib.util.find_spec(n) is not None for n in ("openai", "dotenv", "tiktoken")})'
+```
+
+`key_present: True`이고 세 패키지가 모두 `True`인데도 AI 요청이 실패하면 해당 기능의 API 응답과 Railway **Deploy Logs**를 확인합니다. 인증 오류, 사용 한도 오류, 모델 접근 오류, 문서 DB 연결 오류는 서로 다른 원인입니다. 키를 채팅이나 로그에 붙여 넣지 않습니다. [OpenAI API 키 안내](https://developers.openai.com/api/docs/quickstart), [Railway 변수 적용 안내](https://docs.railway.com/variables)
+
+**PC의 DB 전체를 Railway에 반영해야 할 때**는 다음 순서로 진행합니다. 이 작업은 `/data`의 현재 데이터를 로컬 복사본으로 **덮어쓰므로**, Railway에서 나중에 입력한 자료가 있다면 먼저 비교·백업하고 어느 쪽을 기준으로 할지 결정해야 합니다. 운영 중 개별 사업·문서만 갱신하려면 Railway 서비스 화면에서 등록·수정합니다.
+
+1. 로컬 서비스를 종료하고 로컬 폴더의 `admin.sqlite3`, `evaluation.sqlite3`, `documents_parse.sqlite3`, `projects_delete.sqlite3`, `keys.bin`, `access-code.txt`가 같은 시점의 묶음인지 확인합니다. Railway 볼륨은 **Backups**에서 백업을 만들고 복원 가능 여부를 확인합니다. 두 서비스에서 동시에 DB를 쓰지 않도록 작업 시간을 잡습니다.
+2. Railway 서비스의 **Custom Start Command**를 임시로 `sleep infinity`로 바꿉니다. Healthcheck Path를 설정했다면 임시로 비우고 변경 사항을 배포해 **Active** 상태를 확인합니다. 이때 앱은 DB를 열지 않으며 사이트는 잠시 접속되지 않습니다. 활성 배포가 없는 상태에서는 볼륨 파일 명령이 실패할 수 있습니다.
+3. **Console** 탭의 아래쪽 파일 브라우저에서 `/data`를 열고 PC의 위 6개 파일을 업로드하여 기존 파일을 교체합니다. Console 명령창의 `cd /data`만으로 아래 파일 브라우저 경로가 바뀌지는 않으므로 파일 브라우저에 표시된 경로를 확인합니다. 업로드가 끝나면 `ls -lh /data`로 이름과 크기를 확인합니다.
+4. 위의 읽기 전용 `PRAGMA integrity_check`가 `ok`인지 확인합니다. 시작 명령을 원래 Python 명령으로, Healthcheck Path도 원래 값으로 되돌려 다시 배포합니다. **Deploy Logs**와 실제 로그인·사업 목록을 확인합니다.
+
+Console 파일 업로드 대신 Mac 터미널의 [Railway CLI 볼륨 파일 명령](https://docs.railway.com/cli/volume)을 쓸 수도 있습니다. 프로젝트에 연결된 상태에서 `railway status`로 대상 서비스·환경을 확인한 뒤, 앱이 멈춘 **Active** 배포에 대해 다음과 같이 실행합니다. CLI는 SFTP 연결이 필요하므로 `ssh.railway.com:22`가 시간 초과되면 웹 Console 파일 브라우저를 사용합니다.
+
+```sh
+railway volume files --volume otopilot_team_v0.2-volume upload apps/server/data/database/admin.sqlite3 /admin.sqlite3 --overwrite
+railway volume files --volume otopilot_team_v0.2-volume upload apps/server/data/database/evaluation.sqlite3 /evaluation.sqlite3 --overwrite
+railway volume files --volume otopilot_team_v0.2-volume upload apps/server/data/database/documents_parse.sqlite3 /documents_parse.sqlite3 --overwrite
+railway volume files --volume otopilot_team_v0.2-volume upload apps/server/data/database/projects_delete.sqlite3 /projects_delete.sqlite3 --overwrite
+railway volume files --volume otopilot_team_v0.2-volume upload apps/server/data/database/keys.bin /keys.bin --overwrite
+railway volume files --volume otopilot_team_v0.2-volume upload apps/server/data/database/access-code.txt /access-code.txt --overwrite
+railway volume files --volume otopilot_team_v0.2-volume list /
+```
+
+Railway Console 및 볼륨 백업 기능은 [Railway Console 안내](https://railway.com/changelog/2026-06-05-sandboxes)와 [Railway Volumes 안내](https://docs.railway.com/volumes)를 참고합니다. DB·키·접속 코드는 Git 저장소에 올리지 않습니다.
+
 ### 실행 옵션
 
 `start_service.py`는 현재 명령을 실행한 Python(`sys.executable`)으로 `apps/server/run.py`를 실행하며 `--local-test-login`을 전달합니다. 데모 사업은 생성하지 않고 현재 데이터 폴더에 저장된 로컬 테스트 계정의 로그인 입력만 돕습니다. 서버의 기본 포트는 `5190`, 데이터 폴더는 `apps/server/data/database`입니다. 프런트엔드는 같은 FastAPI 서버가 제공하므로 `npm run dev`는 필요하지 않습니다.
