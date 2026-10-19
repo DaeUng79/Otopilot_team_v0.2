@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 DEFAULT_DB = Path(__file__).resolve().parents[1] / "server/data/database/documents_parse.sqlite3"
 DEFAULT_MODEL = "gpt-4o"
@@ -63,7 +63,7 @@ class Finding(BaseModel):
     model_config = ConfigDict(extra="forbid")
     status: Literal["확인됨", "확인되지 않음"]
     proposal_summary: str = Field(description="제안서에서 확인한 내용. 근거가 없으면 '확인되지 않음'.")
-    evidence: list[Evidence]
+    evidence: list[Evidence] = Field(description="근거 블록 ID 최대 3개. 같은 ID를 반복하지 마세요.")
 
 
 class SupportCheck(BaseModel):
@@ -222,26 +222,40 @@ SYSTEM_PROMPT = """당신은 제안요청서 요구사항과 제출 제안서를
 직접 확인되는 제안사항만 간결하게 요약하고, 그 내용을 뒷받침하는 제안서 블록의
 block_id만 evidence에 넣으세요. 인용문을 다시 작성하지 마세요. 유사 주제, 목차, 일반론, 추측만 있으면
 status='확인되지 않음', proposal_summary='확인되지 않음', evidence=[]로 답하세요.
+요약은 300자 이내, 근거 block_id는 중복 없이 최대 3개만 답하세요.
 일부 사항만 확인되면 확인된 부분만 적고 전체 요구사항 충족 여부를 단정하지 마세요.
 평가점수나 적합 판정은 하지 마세요."""
 
 
 def analyze_one(client, model: str, requirement: dict, offered: list[dict], all_blocks: dict) -> dict:
+    from openai import LengthFinishReasonError
+
     if not offered:
         return {"status": "확인되지 않음", "proposal_summary": "확인되지 않음", "evidence": []}
     payload = {"requirement": {key: requirement[key] for key in ("code", "category", "title", "rfp_detail")},
                "proposal_excerpts": [{"page": w["page"], "text": w["text"]} for w in offered]}
     messages = [{"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": _json(payload)}]
-    for attempt in range(2):
-        response = client.responses.parse(model=model, temperature=0, input=messages,
-                                          text_format=Finding)
+    for attempt in range(3):
+        try:
+            response = client.responses.parse(model=model, temperature=0, input=messages,
+                                              text_format=Finding, max_output_tokens=1600)
+        except (ValidationError, LengthFinishReasonError) as error:
+            if attempt == 2:
+                raise RuntimeError("OpenAI 분석 응답이 불완전합니다. 다시 분석하면 저장된 항목 다음부터 이어집니다.") from error
+            messages.append({"role": "user", "content":
+                             "직전 응답이 너무 길어 JSON이 잘렸습니다. 요약은 200자 이내, "
+                             "evidence는 가장 직접적인 block_id 최대 2개만 포함하세요."})
+            continue
         if getattr(response, "status", "completed") != "completed" or response.output_parsed is None:
-            raise RuntimeError(f"OpenAI 분석이 완료되지 않았습니다: {getattr(response, 'status', None)}")
+            if attempt == 2:
+                raise RuntimeError("OpenAI 분석이 완료되지 않았습니다. 다시 분석하면 저장된 항목 다음부터 이어집니다.")
+            messages.append({"role": "user", "content": "완전한 JSON으로 짧게 다시 답하세요. 근거는 최대 2개입니다."})
+            continue
         try:
             return validate_finding(response.output_parsed, offered, all_blocks)
         except ValueError:
-            if attempt == 0:
+            if attempt < 2:
                 messages.append({"role": "user", "content": "이전 답변의 근거 블록이 제공된 제안서 발췌와 일치하지 않습니다. 발췌의 실제 block_id만 선택해 다시 답하세요. 확신할 수 없으면 확인되지 않음으로 답하세요."})
     return {"status": "확인되지 않음", "proposal_summary": "확인되지 않음",
             "evidence": [], "review_warning": "AI 근거 검증 실패"}

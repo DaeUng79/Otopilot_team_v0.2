@@ -1,9 +1,13 @@
 """제안서 2차 분석에서 근거 없는 내용을 게시하지 않는지 확인한다."""
 
 import unittest
+from types import SimpleNamespace
+from unittest.mock import Mock
+
+from pydantic import ValidationError
 
 from apps.documents.step5_ai_proposal_analysis import (
-    Evidence, Finding, _assemble, validate_finding, verify_summary,
+    Evidence, Finding, _assemble, analyze_one, validate_finding, verify_summary,
 )
 
 
@@ -59,6 +63,25 @@ class ProposalAnalysisSafetyTests(unittest.TestCase):
             "proposal_summary": "이 제안은 요구사항을 충족합니다.",
             "evidence": [{"block_id": "p_001", "page": 7, "quote": self.block["text"]}]})
         self.assertEqual(item["status"], "확인되지 않음")
+
+    def test_truncated_json_is_retried_with_bounded_output(self):
+        error = None
+        try:
+            Finding.model_validate_json('{"status":"확인됨","proposal_summary":"잘린')
+        except ValidationError as caught:
+            error = caught
+        response = SimpleNamespace(status="completed", output_parsed=Finding(
+            status="확인됨", proposal_summary="수행계획서를 작성합니다.",
+            evidence=[Evidence(block_id="p_001")]))
+        client = SimpleNamespace(responses=SimpleNamespace(parse=Mock(side_effect=[error, response])))
+        result = analyze_one(client, "gpt-4o",
+                             {"code": "SFR-001", "category": "기능", "title": "수행계획",
+                              "rfp_detail": "수행계획서 작성"},
+                             [{"page": 7, "text": "[p_001] 프로젝트 수행계획서를 작성합니다.",
+                               "blocks": [self.block]}], self.all_blocks)
+        self.assertEqual(result["evidence"][0]["block_id"], "p_001")
+        self.assertEqual(client.responses.parse.call_count, 2)
+        self.assertEqual(client.responses.parse.call_args.kwargs["max_output_tokens"], 1600)
 
 
 if __name__ == "__main__":
