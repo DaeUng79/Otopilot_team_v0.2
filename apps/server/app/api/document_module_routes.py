@@ -10,6 +10,7 @@ proposal_document_adapter·document_gateway·material_service가 맡고, 여기�
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import logging
 import os
 import zipfile
@@ -34,6 +35,17 @@ MAX_FILE_SIZE = 50 * 1024 * 1024
 PROPOSAL_TYPES = (".hwpx", ".hwp", ".pdf", ".pptx")
 MATERIAL_TYPES = (".pdf", ".hwpx", ".hwp", ".xlsx", ".docx", ".pptx", ".png", ".jpg", ".jpeg", ".zip", ".html")
 log = logging.getLogger(__name__)
+
+
+def ai_ready() -> bool:
+    """Report readiness only when the key and required AI packages are present."""
+    if not all(importlib.util.find_spec(name) for name in ("openai", "tiktoken", "dotenv")):
+        return False
+    if (os.environ.get("OPENAI_API_KEY") or "").strip():
+        return True
+    from dotenv import dotenv_values
+
+    return bool((dotenv_values(step3.ENV_PATH, interpolate=False).get("OPENAI_API_KEY") or "").strip())
 
 
 def event_envelope(contract: str, aggregate_id: str, payload: dict, *, version: int = 1) -> dict:
@@ -145,7 +157,7 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
                 "requirements": rfp_api.requirement_status(database, project_id),
                 "draft": rfp_api.criteria_status(database, project_id),
                 "versions": versions,
-                "ai_ready": bool(os.environ.get("OPENAI_API_KEY")) or step3.ENV_PATH.is_file()}
+                "ai_ready": ai_ready()}
 
     @app.get("/api/v2/projects/{project_id}/criteria")
     async def criteria_get(project_id: str, request: Request):

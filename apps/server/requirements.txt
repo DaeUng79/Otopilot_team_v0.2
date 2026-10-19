@@ -6,3 +6,6 @@ msoffcrypto-tool==5.4.2
 cryptography==50.0.2
 pyhwpxlib==0.18.3
 wasmtime==49.0.0
+python-dotenv==1.2.4
+openai==3.23.0
+tiktoken==0.14.0
