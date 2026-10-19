@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from .envelope import ApiError, not_found, upstream_unavailable
-from app.documents.rfp_toc import build_toc
+from app.documents.rfp_toc import load_toc
 from .settings import API_PREFIX
 
 
@@ -150,6 +150,6 @@ class RfpReader(DocumentReader):
 
     def overview(self):
         data = super().overview()
-        data['toc'] = build_toc(self.conn, self.document_id,
-                                self.parse_revision, data['pages'])
+        data['toc'] = load_toc(self.conn, self.document_id,
+                               self.parse_revision, data['pages'])
         return data

@@ -1351,7 +1351,7 @@
         ],
         [
           "target_count",
-          "INTEGER ! CHECK BETWEEN 7 AND 9",
+          "INTEGER ! CHECK BETWEEN 5 AND 9",
           "최종 목표 정원"
         ],
         [
@@ -1878,7 +1878,7 @@
         ],
         [
           "target_count",
-          "INTEGER ! CHECK BETWEEN 7 AND 9",
+          "INTEGER ! CHECK BETWEEN 5 AND 9",
           "설정 정원 스냅샷"
         ],
         [
@@ -7857,7 +7857,7 @@
       "module": "DRAW",
       "fn": "save_rules",
       "api": "PUT /api/projects/{project_id}/committee/rules",
-      "input": "POOL/DIRECT, 정원7~9, 분야별 수 → 규칙",
+      "input": "POOL/DIRECT, 정원5~9, 분야별 수 → 규칙",
       "db": "committee_rules, field_quotas",
       "rule": "분야합=정원, DIRECT에서는 추첨 버튼 숨김",
       "status": "제안 계약"

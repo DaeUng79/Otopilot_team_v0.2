@@ -1,10 +1,8 @@
 """Mount the selectively migrated EV-03/04/05 APIs on the existing service."""
 import asyncio
 import logging
-import os
 import sqlite3
 import uuid
-from pathlib import Path
 from urllib.parse import parse_qs
 
 from fastapi import Request as HttpRequest
@@ -15,15 +13,13 @@ from app.evaluation.documents.app import App, Request
 from app.evaluation.documents.auth import load_principal
 from app.evaluation.documents.db import connect
 from app.evaluation.documents.envelope import ApiError, failure, success
-from app.evaluation.documents.settings import API_PREFIX, REPO_ROOT, Settings
+from app.evaluation.documents.settings import API_PREFIX, Settings
+from app.api.project_documents import resolve_database
 from app.shared.db import require
 
 
 def install_document_routes(app, store, actor, *, documents_db=None):
-    configured = documents_db or os.environ.get("EVAL_DOCUMENTS_DB_PATH")
-    path = Path(configured) if configured else REPO_ROOT / "apps/documents/documents_parse.sqlite3"
-    if not path.is_absolute():
-        path = REPO_ROOT / path
+    path = resolve_database(documents_db, store.runtime.path.parent)
     settings = Settings(store.evaluation_path, path)
     dispatcher = App(settings)
     for module in (rfp_api, proposal_api, comparison_api):

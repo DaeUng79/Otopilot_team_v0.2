@@ -1,7 +1,11 @@
 """PRJ-01..07. The admin database owns projects and vendor identities."""
 
+import json
+import re
 import sqlite3
+from contextlib import closing
 from datetime import date
+from pathlib import Path
 
 from app.committee.committee_app.v2_core import now
 from app.shared.db import (
@@ -17,6 +21,155 @@ from app.shared.db import (
     text,
     update,
 )
+
+ARCHIVE_SCHEMA = """CREATE TABLE IF NOT EXISTS project_archive.deleted_projects (
+    project_id TEXT PRIMARY KEY,
+    department_id TEXT NOT NULL,
+    project_name TEXT NOT NULL,
+    status_before TEXT NOT NULL,
+    evaluation_date TEXT,
+    project_created_at TEXT NOT NULL,
+    deleted_at TEXT NOT NULL,
+    deleted_by TEXT NOT NULL,
+    deletion_reason TEXT NOT NULL,
+    snapshot_json TEXT NOT NULL,
+    contact_phone_cipher BLOB NOT NULL,
+    contact_email_cipher BLOB
+)"""
+
+
+def _attach_deleted_database(c: sqlite3.Connection, s: Store) -> None:
+    archive = s.runtime.path.with_name("projects_delete.sqlite3")
+    # ATTACH in rollback-journal mode commits this DB and admin.sqlite3 together.
+    require(
+        c.execute("PRAGMA main.journal_mode").fetchone()[0].lower() == "delete",
+        "사업 삭제 보관 DB의 트랜잭션 모드를 확인하세요.",
+        "ARCHIVE_DB_UNAVAILABLE", 503,
+    )
+    c.execute("ATTACH DATABASE ? AS project_archive", (str(archive),))
+    archive.chmod(0o600)
+    require(
+        c.execute("PRAGMA project_archive.journal_mode").fetchone()[0].lower() == "delete",
+        "사업 삭제 보관 DB의 트랜잭션 모드를 확인하세요.",
+        "ARCHIVE_DB_UNAVAILABLE", 503,
+    )
+    c.execute(ARCHIVE_SCHEMA)
+
+
+def _insert_deleted_snapshot(
+    c: sqlite3.Connection, s: Store, row: DTO, *, status_before: str,
+    deleted_at: str, deleted_by: str, reason: str,
+) -> None:
+    snapshot = dated(c, public(s, row))
+    snapshot["business_summary"] = _business_summary(s, row["id"])
+    c.execute(
+        """INSERT OR IGNORE INTO project_archive.deleted_projects (
+            project_id,department_id,project_name,status_before,evaluation_date,
+            project_created_at,deleted_at,deleted_by,deletion_reason,snapshot_json,
+            contact_phone_cipher,contact_email_cipher
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (row["id"], row["department_id"], row["name"], status_before,
+         snapshot["evaluation_date"], row["created_at"], deleted_at, deleted_by,
+         reason, json.dumps(snapshot, ensure_ascii=False, sort_keys=True),
+         row["contact_phone_cipher"], row["contact_email_cipher"]),
+    )
+
+
+def _project_tables(c: sqlite3.Connection, schema: str) -> list[str]:
+    """Return project-scoped tables in child-before-parent foreign-key order."""
+    tables = [row[0] for row in c.execute(
+        f"SELECT name FROM {schema}.sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+    )]
+    scoped = {table for table in tables if any(
+        column[1] == "project_id" for column in c.execute(f'PRAGMA {schema}.table_info("{table}")')
+    )}
+    dependencies = {table: {row[2] for row in c.execute(
+        f'PRAGMA {schema}.foreign_key_list("{table}")') if row[2] in scoped and row[2] != table}
+                    for table in scoped}
+    ordered = []
+    while scoped:
+        ready = sorted(table for table in scoped if not any(
+            table in dependencies[other] for other in scoped if other != table
+        ))
+        require(bool(ready), "사업 관계 테이블의 삭제 순서를 확인하세요.", "PURGE_SCHEMA_INVALID", 503)
+        ordered.extend(ready)
+        scoped.difference_update(ready)
+    return ordered
+
+
+def _purge_documents(c: sqlite3.Connection, s: Store, project_id: str) -> None:
+    path = s.documents_path or s.runtime.path.with_name("documents_parse.sqlite3")
+    if not path.is_file():
+        return
+    c.execute("ATTACH DATABASE ? AS document_purge", (str(path),))
+    require(c.execute("PRAGMA document_purge.journal_mode").fetchone()[0].lower() == "delete",
+            "문서 DB의 트랜잭션 모드를 확인하세요.", "PURGE_DB_UNAVAILABLE", 503)
+    tables = {row[0] for row in c.execute(
+        "SELECT name FROM document_purge.sqlite_master WHERE type='table'"
+    )}
+    for table in ("requirement_jobs", "criteria_jobs"):
+        if table in tables:
+            require(not c.execute(
+                f"SELECT 1 FROM document_purge.{table} WHERE project_id=? "
+                "AND status IN ('queued','running') LIMIT 1", (project_id,)
+            ).fetchone(), "문서 처리가 끝난 뒤 사업을 삭제하세요.", "PROJECT_LOCKED", 409)
+    scoped = _project_tables(c, "document_purge")
+    ids = set()
+    for table in scoped:
+        require(re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", table),
+                "문서 테이블 이름을 확인하세요.", "PURGE_SCHEMA_INVALID", 503)
+        columns = {row[1] for row in c.execute(f'PRAGMA document_purge.table_info("{table}")')}
+        if "document_id" in columns:
+            ids.update(row[0] for row in c.execute(
+                f'SELECT document_id FROM document_purge."{table}" WHERE project_id=? AND document_id IS NOT NULL',
+                (project_id,),
+            ))
+    for table in scoped:
+        c.execute(f'DELETE FROM document_purge."{table}" WHERE project_id=?', (project_id,))
+    if "documents" not in tables:
+        return
+    linked = [table for table in scoped if "document_id" in {
+        row[1] for row in c.execute(f'PRAGMA document_purge.table_info("{table}")')
+    }]
+    for document_id in ids:
+        if any(c.execute(
+            f'SELECT 1 FROM document_purge."{table}" WHERE document_id=? LIMIT 1',
+            (document_id,),
+        ).fetchone() for table in linked):
+            continue
+        for table in ("criteria_results", "requirement_results", "rfp_toc_snapshots",
+                      "table_cells",
+                      "snapshot_assets", "blocks", "pages", "parse_snapshots"):
+            if table in tables:
+                c.execute(f'DELETE FROM document_purge."{table}" WHERE document_id=?',
+                          (document_id,))
+        c.execute("DELETE FROM document_purge.documents WHERE document_id=?", (document_id,))
+        if "source_files" in tables:
+            if "managed_result_files" in tables:
+                c.execute("DELETE FROM document_purge.source_files WHERE sha256=? "
+                          "AND NOT EXISTS (SELECT 1 FROM document_purge.managed_result_files "
+                          "WHERE source_sha256=?)", (document_id, document_id))
+            else:
+                c.execute("DELETE FROM document_purge.source_files WHERE sha256=?",
+                          (document_id,))
+    if "assets" in tables and "snapshot_assets" in tables:
+        c.execute("DELETE FROM document_purge.assets WHERE NOT EXISTS "
+                  "(SELECT 1 FROM document_purge.snapshot_assets WHERE snapshot_assets.sha256=assets.sha256)")
+    require(not c.execute("PRAGMA document_purge.foreign_key_check").fetchall(),
+            "문서 관계 데이터 삭제를 확인하세요.", "PURGE_FK_INVALID", 503)
+
+
+def reclaim_document_space(s: Store) -> int:
+    """Shrink the document DB after a successful project-delete transaction."""
+    path = s.documents_path or s.runtime.path.with_name("documents_parse.sqlite3")
+    if not path.is_file():
+        return 0
+    with closing(sqlite3.connect(path, timeout=30)) as db:
+        if db.execute("PRAGMA freelist_count").fetchone()[0] == 0:
+            return 0
+        before = path.stat().st_size
+        db.execute("VACUUM")
+        return before - path.stat().st_size
 
 
 def allowed(s: Store, a: Actor, b: DTO, edit: bool = False) -> DTO:
@@ -283,17 +436,175 @@ def update_project(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
 
 def archive_project(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
     row = allowed(s, a, b, True)
-    text(b, "reason", 1000)
-    return public(
-        s,
-        update(
-            c,
-            "projects",
-            row,
-            b,
-            {"deleted_at": now(), "deleted_by": a.id, "status": "CANCELLED"},
-        ),
+    reason = text(b, "reason", 1000)
+    # The archive and active databases commit together in rollback-journal mode.
+    _attach_deleted_database(c, s)
+    deleted_at = now()
+    _insert_deleted_snapshot(
+        c, s, row, status_before=row["status"], deleted_at=deleted_at,
+        deleted_by=a.id, reason=reason,
     )
+    deleted = update(
+        c, "projects", row, b,
+        {"deleted_at": deleted_at, "deleted_by": a.id, "status": "CANCELLED"},
+    )
+    c.execute("UPDATE project_vendors SET active=0,deleted_at=?,deleted_by=?,"
+              "version=version+1 WHERE project_id=? AND deleted_at IS NULL",
+              (deleted_at, a.id, row["id"]))
+    # Publish a tombstone before removing the active project row.
+    from app.shared.integration_contracts import publish_admin_snapshots
+    publish_admin_snapshots(c)
+    _purge_documents(c, s, row["id"])
+    for table in _project_tables(c, "main"):
+        require(re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", table),
+                "사업 테이블 이름을 확인하세요.", "PURGE_SCHEMA_INVALID", 503)
+        c.execute(f'DELETE FROM main."{table}" WHERE project_id=?', (row["id"],))
+    c.execute("DELETE FROM main.projects WHERE id=?", (row["id"],))
+    require(not c.execute("PRAGMA main.foreign_key_check").fetchall(),
+            "사업 관계 데이터 삭제를 확인하세요.", "PURGE_FK_INVALID", 503)
+    return public(s, deleted)
+
+
+def backfill_deleted_projects(s: Store) -> int:
+    """Move legacy soft-deleted project metadata into the separate archive DB."""
+    with s.connect("admin", True) as c:
+        legacy = rows(
+            c, "SELECT * FROM projects WHERE deleted_at IS NOT NULL ORDER BY deleted_at,id"
+        )
+        if not legacy:
+            return 0
+        _attach_deleted_database(c, s)
+        before = c.execute(
+            "SELECT COUNT(*) FROM project_archive.deleted_projects"
+        ).fetchone()[0]
+        for row in legacy:
+            _insert_deleted_snapshot(
+                c, s, row, status_before="UNKNOWN",
+                deleted_at=row["deleted_at"], deleted_by=row["deleted_by"] or "",
+                reason="기존 삭제 기록: 삭제 사유 미보관",
+            )
+        after = c.execute(
+            "SELECT COUNT(*) FROM project_archive.deleted_projects"
+        ).fetchone()[0]
+        return after - before
+
+
+def _business_summary(s: Store, project_id: str) -> DTO:
+    """Freeze the latest RFP's three requirement summaries when available."""
+    result: DTO = {key: [] for key in (
+        "current_status", "background_and_need", "scope"
+    )}
+    path = s.documents_path or s.runtime.path.with_name("documents_parse.sqlite3")
+    if not path.is_file():
+        return result
+    with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=15)) as db:
+        db.row_factory = sqlite3.Row
+        tables = {row[0] for row in db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name IN "
+            "('project_rfp_uploads','rfp_snapshot_bindings','requirement_results','parse_snapshots')"
+        )}
+        if len(tables) < 4:
+            return result
+        upload = db.execute(
+            """SELECT u.document_id,b.parse_revision FROM project_rfp_uploads u
+               JOIN rfp_snapshot_bindings b ON b.project_id=u.project_id
+                 AND b.upload_revision=u.revision
+               WHERE u.project_id=? ORDER BY u.revision DESC LIMIT 1""",
+            (project_id,),
+        ).fetchone()
+        if upload is None:
+            return result
+        saved = db.execute(
+            """SELECT result_json FROM requirement_results
+               WHERE document_id=? AND source_revision=?
+               ORDER BY created_at DESC LIMIT 1""",
+            (upload["document_id"], upload["parse_revision"]),
+        ).fetchone()
+        if saved is None:
+            return result
+        parsed = db.execute(
+            "SELECT document_json FROM parse_snapshots WHERE document_id=? AND revision=?",
+            (upload["document_id"], upload["parse_revision"]),
+        ).fetchone()
+        require(parsed is not None, "요구사항 결과의 파싱 원문이 없습니다.", "DOCUMENT_MISSING")
+        page_map = {}
+        for block in json.loads(parsed[0]).get("blocks", []):
+            pages = block.get("physical_page_numbers") or [block.get("physical_page_number")]
+            page_map[block.get("block_id")] = [page for page in pages
+                                                if isinstance(page, int) and page > 0]
+        extracted = json.loads(saved[0]).get("business_status") or {}
+        for category in result:
+            for point in extracted.get(category, []):
+                pages = sorted({page for block_id in point.get("source_block_ids", [])
+                                for page in page_map.get(block_id, [])})
+                result[category].append({"text": point["text"], "pages": pages})
+    return result
+
+
+def _deleted_database(s: Store) -> Path:
+    return s.runtime.path.with_name("projects_delete.sqlite3")
+
+
+def _deleted_connection(s: Store) -> sqlite3.Connection | None:
+    path = _deleted_database(s)
+    if not path.is_file():
+        return None
+    connection = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=15)
+    connection.row_factory = sqlite3.Row
+    if not connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='deleted_projects'"
+    ).fetchone():
+        connection.close()
+        return None
+    return connection
+
+
+def list_deleted_projects(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
+    s.admin(a, "MANAGE_PROJECTS")
+    connection = _deleted_connection(s)
+    if connection is None:
+        return paginate([], b)
+    try:
+        query = str(b.get("search", "")).strip()
+        require(len(query) <= 200, "검색어가 너무 깁니다.", "INPUT_INVALID", 422)
+        items = rows(
+            connection,
+            """SELECT project_id AS id,project_name AS name,status_before AS status,
+               evaluation_date,deleted_at,deletion_reason,department_id,
+               json_extract(snapshot_json,'$.contact_name') AS contact_name
+               FROM deleted_projects WHERE (?='SUPER_ADMIN' OR department_id=?)
+               AND (project_name LIKE ? OR deletion_reason LIKE ?)
+               ORDER BY deleted_at DESC,project_id""",
+            (a.role, a.department_id, "%" + query + "%", "%" + query + "%"),
+        )
+        return paginate(items, b)
+    finally:
+        connection.close()
+
+
+def deleted_project_detail(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
+    s.admin(a, "MANAGE_PROJECTS")
+    pid = text(b, "deleted_project_id")
+    connection = _deleted_connection(s)
+    require(connection is not None, "삭제된 사업을 찾을 수 없습니다.", "NOT_FOUND", 404)
+    try:
+        row = one(
+            connection,
+            "SELECT * FROM deleted_projects WHERE project_id=? AND (?='SUPER_ADMIN' OR department_id=?)",
+            (pid, a.role, a.department_id),
+        )
+        detail = json.loads(row["snapshot_json"])
+        detail.update(
+            id=pid, status=row["status_before"], deleted_at=row["deleted_at"],
+            deleted_by=row["deleted_by"], deletion_reason=row["deletion_reason"],
+            evaluation_date=row["evaluation_date"],
+            contact_phone=s.runtime.decrypt(row["contact_phone_cipher"], pid + ":phone"),
+            contact_email=s.runtime.decrypt(row["contact_email_cipher"], pid + ":email")
+            if row["contact_email_cipher"] else "",
+        )
+        return detail
+    finally:
+        connection.close()
 
 
 def project_detail(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:

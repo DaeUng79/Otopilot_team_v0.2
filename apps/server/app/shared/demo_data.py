@@ -161,7 +161,7 @@ async def seed(s: Store, sample_root: Path | None = None) -> None:
                 "project_id": DEMO_PROJECT,
                 "selection_mode": "DIRECT",
                 "target_count": 7,
-                "reserve_count": 0,
+                "reserve_count": 1,
                 "quotas": [],
                 "version": 0,
             },
@@ -170,10 +170,10 @@ async def seed(s: Store, sample_root: Path | None = None) -> None:
         with s.connect("admin") as c:
             candidates = rows(
                 c,
-                "SELECT id FROM evaluator_candidates WHERE department_id='web-demo-dept' AND pool_member=1 AND active=1 ORDER BY name LIMIT 7",
+                "SELECT id FROM evaluator_candidates WHERE department_id='web-demo-dept' AND pool_member=1 AND active=1 ORDER BY name LIMIT 8",
             )
         members = []
-        for candidate in candidates:
+        for index, candidate in enumerate(candidates):
             nominee = await committee_roster.add_nominee(
                 ctx(),
                 {"project_id": DEMO_PROJECT, "candidate_id": candidate["id"]},
@@ -194,7 +194,8 @@ async def seed(s: Store, sample_root: Path | None = None) -> None:
                 {
                     "nominee_id": nominee["id"],
                     "version": contacted["version"],
-                    "member_kind": "PRIMARY",
+                    "member_kind": "PRIMARY" if index < 7 else "RESERVE",
+                    "reserve_order": 1 if index == 7 else None,
                 }
             )
         await committee_roster.confirm_roster(

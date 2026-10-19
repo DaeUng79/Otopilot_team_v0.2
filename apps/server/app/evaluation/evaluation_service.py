@@ -24,7 +24,7 @@ def prepare_session(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
         "POLICY_REQUIRED",
         422,
     )
-    target = integer(b, "target_count", 7, 9)
+    target = integer(b, "target_count", 5, 9)
     minimum = integer(b, "minimum_attendees", 3, target)
     roster = one(
         c,
@@ -348,7 +348,7 @@ def review_scores(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
 
 
 def submit_evaluation(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
-    from signature_service import verify_signature
+    from app.evaluation.signature_service import verify_signature
 
     session = s.session(c, a, b)
     participant = s.participant(c, a, session)

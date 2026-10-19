@@ -40,21 +40,36 @@ def _paragraphs(conn, document_id, revision):
 def _printed_toc(paragraphs):
     start = next(
         (index for index, (_, value, _, top) in enumerate(paragraphs)
-         if top and re.sub(r"\s", "", value) == "목차"), None
+         if top and _norm(value) == "목차"), None
     )
     if start is None:
         return [], set()
     entries, toc_pages = [], set(paragraphs[start][2])
     for _, value, pages, _ in paragraphs[start + 1:]:
+        if entries and pages and min(pages) > max(toc_pages) and not (
+            TOC_ROW.match(value) or ROMAN.match(value)
+        ):
+            break
         match = TOC_ROW.match(value)
-        if not match:
-            if entries:
-                break
+        if match:
+            title = match["title"].strip()
+            level = 1 if ROMAN.match(title) or not NUMBERED.match(title) else 2
+            entries.append({"t": title, "printed": int(match["page"]), "lv": level})
+            toc_pages.update(pages)
             continue
-        title = match["title"].strip()
-        level = 1 if NUMBERED.match(title) or ROMAN.match(title) else 2
-        entries.append({"t": title, "printed": int(match["page"]), "lv": level})
-        toc_pages.update(pages)
+        if ROMAN.match(value):
+            entries.append({"t": value, "printed": None, "lv": 1})
+            toc_pages.update(pages)
+        elif entries and pages and min(pages) > max(toc_pages):
+            break
+    # Section headings in a printed TOC often omit their page number. Their
+    # first numbered child supplies the printed page used for navigation.
+    for index, entry in enumerate(entries):
+        if entry["printed"] is None:
+            entry["printed"] = next(
+                (later["printed"] for later in entries[index + 1:]
+                 if later["printed"] is not None), None
+            )
     return entries, toc_pages
 
 
@@ -77,8 +92,10 @@ def _locate_printed(entries, page_table, paragraphs, toc_pages):
             physical for physical, printed in page_table.items()
             if printed == entry["printed"] and physical not in toc_pages
         }
-        expected = entry["printed"] + offset if offset is not None else None
-        if expected in page_table:
+        expected = entry["printed"] + offset if (
+            entry["printed"] is not None and offset is not None
+        ) else None
+        if expected in page_table and expected not in toc_pages:
             candidates.add(expected)
         hits = sorted(page for page in candidates if key and key in texts.get(page, ""))
         item = {"t": entry["t"], "lv": entry["lv"],
@@ -95,6 +112,17 @@ def _locate_printed(entries, page_table, paragraphs, toc_pages):
                 item.update(page=nearby[0], seen=True, adjusted=True)
         previous = item["page"] or previous
         output.append(item)
+    for index, item in enumerate(output):
+        if item["seen"] or item["lv"] != 1 or not ROMAN.match(item["t"]):
+            continue
+        child = next(
+            (later for later in output[index + 1:]
+             if later["lv"] == 2 and later["seen"]
+             and later["printed"] == item["printed"]),
+            None,
+        )
+        if child:
+            item.update(page=child["page"], seen=True, adjusted=True)
     return output
 
 
@@ -125,3 +153,51 @@ def build_toc(conn, document_id, revision, pages):
     printed, toc_pages = _printed_toc(paragraphs)
     return (_locate_printed(printed, page_table, paragraphs, toc_pages)
             if printed else _heading_toc(paragraphs, page_table))
+
+
+TOC_SCHEMA = """
+CREATE TABLE IF NOT EXISTS rfp_toc_snapshots (
+ document_id TEXT NOT NULL,
+ parse_revision TEXT NOT NULL,
+ toc_json TEXT NOT NULL,
+ extracted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ PRIMARY KEY (document_id, parse_revision),
+ FOREIGN KEY (document_id, parse_revision)
+ REFERENCES parse_snapshots(document_id, revision)
+);
+"""
+
+
+def save_toc(conn, document_id, revision):
+    """Persist navigation for an immutable parse snapshot before AI extraction."""
+    conn.executescript(TOC_SCHEMA)
+    pages = [
+        {"n": row["physical_page_number"], "label": row["page_number"]}
+        for row in conn.execute(
+            "SELECT physical_page_number,page_number FROM pages "
+            "WHERE document_id=? AND revision=? ORDER BY physical_page_number",
+            (document_id, revision),
+        )
+    ]
+    toc = build_toc(conn, document_id, revision, pages)
+    conn.execute(
+        "INSERT OR REPLACE INTO rfp_toc_snapshots(document_id,parse_revision,toc_json) "
+        "VALUES (?,?,?)",
+        (document_id, revision, json.dumps(toc, ensure_ascii=False)),
+    )
+    return toc
+
+
+def load_toc(conn, document_id, revision, pages):
+    table = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='rfp_toc_snapshots'"
+    ).fetchone()
+    if table:
+        row = conn.execute(
+            "SELECT toc_json FROM rfp_toc_snapshots "
+            "WHERE document_id=? AND parse_revision=?",
+            (document_id, revision),
+        ).fetchone()
+        if row:
+            return json.loads(row[0])
+    return build_toc(conn, document_id, revision, pages)

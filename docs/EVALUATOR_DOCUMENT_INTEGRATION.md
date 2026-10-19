@@ -40,8 +40,8 @@ flowchart TD
 
 - 관리자·평가 DB 기본 위치: `apps/server/data/database/admin.sqlite3`, `evaluation.sqlite3`.
 - 암호화 키: 같은 폴더의 `keys.bin`. 기존 키와 DB를 함께 유지한다.
-- 문서 DB 기본 위치: `apps/documents/documents_parse.sqlite3`. 이 통합 기능은 문서 DB를 생성·수정하지 않는다.
-- 문서 경로 우선순위: `--documents-db` → `EVAL_DOCUMENTS_DB_PATH` 환경변수 → 기본 위치. 상대 경로는 저장소 루트 기준이다.
+- 문서 DB 기본 위치: 선택한 `--data-dir`의 `documents_parse.sqlite3`(데모 기본값은 `apps/server/data/database/documents_parse.sqlite3`). 이 통합 기능은 문서 DB를 생성·수정하지 않는다.
+- 문서 경로 우선순위: `--documents-db` → `EVAL_DOCUMENTS_DB_PATH` 환경변수 → 선택한 데이터 폴더. 상대 경로는 저장소 루트 기준이다.
 
 기존 가상환경의 Python으로 저장소 루트에서 실행한다. macOS는 일반적으로 `python3`, Windows 가상환경에서는 `python`이다.
 

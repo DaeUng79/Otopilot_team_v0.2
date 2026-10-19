@@ -175,7 +175,7 @@ def aggregate_results(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
 
 
 def confirm_results(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
-    from signature_service import verify_signature
+    from app.evaluation.signature_service import verify_signature
     from app.shared.sync_service import publish
 
     session = s.session(c, a, b)
@@ -224,6 +224,53 @@ def confirm_results(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
     return {"id": identity, "status": "FINALIZED", "sync_status": "PENDING"}
 
 
+def export_workbook(c: sqlite3.Connection, session: DTO, payload: DTO, confirmation: DTO) -> ExportFile:
+    """RES-05 format=xlsx: 공식 '제안서평가 집계표(정성)' 서식(result_workbook.py). 점수는 확정 집계와 같은 값."""
+    from app.evaluation.result_workbook import build_aggregation_workbook
+
+    project = one(c, "SELECT name FROM ref_projects WHERE id=?", (session["project_id"],))
+    proposals = {p["id"]: p for p in rows(
+        c, "SELECT * FROM session_proposals WHERE session_id=? ORDER BY display_code", (session["id"],))}
+    vendors = [{"display_code": p["display_code"], "label": p["display_code"] + "사"}
+               for p in proposals.values()]
+    criteria = [{"code": i["code"], "title": i["title"], "max_score": i["max_score"] / 10000}
+                for i in rows(
+                    c, "SELECT code,title,max_score FROM ref_approved_criteria_items WHERE approved_criteria_version_id=? AND is_scorable=1 AND is_deleted=0 ORDER BY sort_order,id",
+                    (session["approved_criteria_version_id"],))]
+    participants = rows(
+        c, "SELECT p.id,a.name_snapshot FROM session_participants p JOIN ref_committee_assignments a ON a.id=p.assignment_id WHERE p.session_id=? ORDER BY a.name_snapshot,p.id",
+        (session["id"],))
+    inputs = {(i["participant_id"], i["session_proposal_id"]): i for i in payload["inputs"]}
+    evaluators = []
+    for p in participants:
+        scores, excluded = {}, {}
+        for sp in proposals.values():
+            sheet = c.execute("SELECT id,total_score FROM score_sheets WHERE session_id=? AND participant_id=? AND session_proposal_id=?",
+                              (session["id"], p["id"], sp["id"])).fetchone()
+            items = {r["code"]: (r["score"] or 0) / 10000 for r in c.execute(
+                "SELECT i.code,e.score FROM score_entries e JOIN ref_approved_criteria_items i ON i.id=e.criterion_id WHERE e.sheet_id=?",
+                (sheet["id"],))} if sheet else {}
+            entry = inputs.get((p["id"], sp["id"]))
+            scores[sp["display_code"]] = {"items": items, "total": (entry["total_score"] if entry else sheet["total_score"] or 0) / 10000}
+            excluded[sp["display_code"]] = None if not entry or entry["exclusion"] == "NONE" else entry["exclusion"]
+        evaluators.append({"name": p["name_snapshot"], "is_chair": p["id"] == session["chair_participant_id"],
+                           "scores": scores, "excluded": excluded})
+    summary = {}
+    for item in payload["items"]:
+        sp = proposals[item["session_proposal_id"]]
+        totals = [e["scores"][sp["display_code"]]["total"] for e in evaluators]
+        summary[sp["display_code"]] = {
+            "subtotal": sum(totals), "max": max(totals) if totals else 0, "min": min(totals) if totals else 0,
+            "included_sum": item["included_sum"] / 10000, "included_count": item["included_count"],
+            "average": item["average_decimal"], "rank": item["rank"]}
+    chair = next((e["name"] for e in evaluators if e["is_chair"]), "")
+    report = {"project_name": project["name"], "finalized_at": confirmation["submitted_at"][:10],
+              "vendors": vendors, "criteria": criteria, "evaluators": evaluators, "vendor_summary": summary,
+              "signers": {"chair": chair, "reviewer": "", "author": ""},
+              "policy_note": "최고·최저 각 1명 제외 평균, 소수 둘째 자리 반올림"}
+    return ExportFile("evaluation-aggregation.xlsx", build_aggregation_workbook(report))
+
+
 def export_report(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> ExportFile:
     admin = a.role in {"SUPER_ADMIN", "DEPARTMENT_ADMIN"}
     session = s.session(c, a, b, admin, permission="VIEW_RESULTS")
@@ -245,6 +292,8 @@ def export_report(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> ExportFi
         "확정 결과 해시가 다릅니다.",
         "PAYLOAD_CORRUPT",
     )
+    if b.get("format") == "xlsx":
+        return export_workbook(c, session, payload, confirmation)
     esc = lambda v: html.escape(str(v))
     table = "".join(
         "<tr>"

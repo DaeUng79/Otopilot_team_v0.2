@@ -14,11 +14,13 @@ class BodyLimitMiddleware:
         if scope["type"] != "http" or scope["method"] in {"GET", "HEAD", "OPTIONS"}:
             await self.app(scope, receive, send)
             return
-        # HWPX uploads have their own 50 MB file limit. Keep the smaller
-        # existing limit for every other mutation route.
-        limit = (50 * 1024 * 1024 + 1024 * 1024
-                 if scope.get("path", "").startswith("/api/v2/projects/")
-                 and scope.get("path", "").endswith("/rfp") else MAX_BYTES + 65536)
+        # Document uploads (RFP, vendor proposals, result files) have their own
+        # 50 MB file limit. Keep the smaller existing limit for every other route.
+        path = scope.get("path", "")
+        upload = path.startswith("/api/v2/projects/") and (
+            path.endswith(("/rfp", "/proposals", "/result-files", "/revisions"))
+        )
+        limit = 50 * 1024 * 1024 + 1024 * 1024 if upload else MAX_BYTES + 65536
         chunks = []
         total = 0
         while True:

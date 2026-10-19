@@ -130,7 +130,7 @@
       "module": "PROJECT",
       "function": "archive_project",
       "api": "DELETE /api/projects/{project_id}",
-      "rule": "진행 평가 취소는 별도 정책, 서명 자료 보존"
+      "rule": "삭제 전 사업 정보와 사유는 별도 DB에 보관, 진행 평가 삭제 차단"
     },
     {
       "id": "PRJ-05",
@@ -164,6 +164,28 @@
       "function": "archive_vendor",
       "api": "DELETE /api/projects/{project_id}/vendors/{vendor_id}",
       "rule": "평가에 고정된 업체는 삭제 차단"
+    },
+    {
+      "id": "PRJ-08",
+      "label": "삭제 사업 목록",
+      "screens": "PM-01(목록)",
+      "owner": "김유진(제안)",
+      "in_scope": true,
+      "module": "PROJECT",
+      "function": "list_deleted_projects",
+      "api": "POST /api/v2/actions/PRJ-08",
+      "rule": "부서별 삭제 이력 조회, 원본 평가 자료는 별도 보존"
+    },
+    {
+      "id": "PRJ-09",
+      "label": "삭제 사업 기록 보기",
+      "screens": "PM-01(목록)",
+      "owner": "김유진(제안)",
+      "in_scope": true,
+      "module": "PROJECT",
+      "function": "deleted_project_detail",
+      "api": "POST /api/v2/actions/PRJ-09",
+      "rule": "별도 DB의 삭제 전 사업 정보와 사유를 읽기 전용으로 표시"
     },
     {
       "id": "DOC-01",

@@ -28,6 +28,11 @@ def main() -> None:
         action="store_true",
         help="Create isolated synthetic accounts and fixtures",
     )
+    parser.add_argument(
+        "--local-test-login",
+        action="store_true",
+        help="Prefill existing local test accounts without creating demo projects",
+    )
     parser.add_argument("--port", type=int, default=5190)
     parser.add_argument(
         "--original-ui",
@@ -44,7 +49,8 @@ def main() -> None:
     from app.api.web_api import create_app
 
     uvicorn.run(
-        create_app(store, demo=args.demo, port=args.port, original_ui=args.original_ui,
+        create_app(store, demo=args.demo, local_test_login=args.local_test_login,
+                   port=args.port, original_ui=args.original_ui,
                    documents_db=args.documents_db),
         host="127.0.0.1",
         port=args.port,

@@ -18,9 +18,13 @@ from fastapi import Request
 from fastapi.responses import JSONResponse, Response
 from starlette.datastructures import UploadFile
 
+from app.api.document_module_routes import install_document_module_routes
 from app.committee.committee_app.v2_core import digest, now
-from app.documents.hwpx_parser import parse_hwpx
-from app.documents.hwpx_storage import SCHEMA, connect, save_to_sqlite
+from app.documents import document_gateway, rfp_api
+from app.documents.hwpx_storage import SCHEMA, connect
+from app.documents.rfp_toc import save_toc
+from app.documents.step1_hwpx_parse_to_JSON import parse_document
+from app.documents.step2_hwpx_save_to_SQLite import save_document
 from app.evaluation.documents.envelope import ApiError
 from app.evaluation.documents.rfp_adapter import RfpReader
 from app.shared.db import require
@@ -46,10 +50,10 @@ CREATE TABLE IF NOT EXISTS rfp_snapshot_bindings (
 """
 
 
-def resolve_database(configured: Path | None) -> Path:
+def resolve_database(configured: Path | None, data_dir: Path | None = None) -> Path:
     from app.evaluation.documents.settings import REPO_ROOT
     path = configured or os.environ.get("EVAL_DOCUMENTS_DB_PATH")
-    result = Path(path) if path else REPO_ROOT / "apps/documents/documents_parse.sqlite3"
+    result = Path(path) if path else (data_dir or REPO_ROOT / "apps/server/data/database") / "documents_parse.sqlite3"
     return result if result.is_absolute() else REPO_ROOT / result
 
 
@@ -90,11 +94,18 @@ def _latest_uploads(path: Path) -> list[dict]:
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='project_rfp_uploads'"
         ).fetchone():
             return []
+        db.executescript(document_gateway.VISIBILITY_SCHEMA)
         return [dict(row) for row in db.execute(
             "SELECT u.project_id,u.revision,u.filename,u.byte_size,u.uploaded_at "
-            "FROM project_rfp_uploads u WHERE u.revision=("
-            "SELECT MAX(revision) FROM project_rfp_uploads "
-            "WHERE project_id=u.project_id) ORDER BY u.project_id"
+            "FROM project_rfp_uploads u "
+            "LEFT JOIN rfp_upload_visibility v ON v.project_id=u.project_id "
+            "AND v.upload_revision=u.revision "
+            "WHERE v.archived_at IS NULL AND u.revision=("
+            "SELECT MAX(other.revision) FROM project_rfp_uploads other "
+            "LEFT JOIN rfp_upload_visibility hidden ON hidden.project_id=other.project_id "
+            "AND hidden.upload_revision=other.revision "
+            "WHERE other.project_id=u.project_id AND hidden.archived_at IS NULL) "
+            "ORDER BY u.project_id"
         )]
 
 
@@ -104,10 +115,11 @@ def _save(path: Path, project_id: str, project_name: str,
     with tempfile.TemporaryDirectory(prefix="simsa-rfp-") as directory:
         source = Path(directory) / filename
         source.write_bytes(data)
-        parsed = parse_hwpx(source, output_dir=Path(directory) / "assets",
-                            strict_pagination=False)
-        saved = save_to_sqlite(parsed, path, source_path=source,
-                               project_id=project_id, project_name=project_name)
+        parsed = parse_document(source, asset_dir=Path(directory) / "assets")
+        saved = save_document(parsed, path, source=source,
+                              project_id=project_id, project_name=project_name)
+    with connect(path) as db:
+        save_toc(db, saved["document_id"], saved["revision"])
     with connect(path) as db:
         db.execute("BEGIN IMMEDIATE")
         revision = db.execute(
@@ -155,6 +167,7 @@ def _parsed(path: Path, row: dict) -> dict:
 
 def install_project_document_routes(app, store, actor, sync, *, documents_db=None):
     database = resolve_database(documents_db)
+    _initialize(database)
 
     @app.get("/api/v2/admin/rfp-summary")
     async def admin_rfp_summary(request: Request):
@@ -186,11 +199,16 @@ def install_project_document_routes(app, store, actor, sync, *, documents_db=Non
     @app.get("/api/v2/projects/{project_id}/rfp")
     async def list_rfp(project_id: str, request: Request):
         await project(request, project_id)
-        return {"data": {"uploads": await asyncio.to_thread(_uploads, database, project_id)}}
+        uploads = await asyncio.to_thread(document_gateway.list_uploads, database, project_id)
+        return {"data": {"uploads": [u for u in uploads if not u["archived_at"]],
+                         "archived": [u for u in uploads if u["archived_at"]]}}
+
+    install_document_module_routes(app, store, actor, sync, project, database)
 
     def preview_reader(db, project_id: str, revision: int | None) -> tuple[RfpReader, dict]:
-        upload = next((item for item in _uploads(database, project_id)
-                       if revision is None or item["revision"] == revision), None)
+        upload = next((item for item in document_gateway.list_uploads(database, project_id)
+                       if (revision is None and not item["archived_at"])
+                       or item["revision"] == revision), None)
         require(upload is not None and upload.get("parse_revision"),
                 "등록된 제안요청서가 없습니다.", "NOT_FOUND", 404)
         return RfpReader(db, project_id, upload), upload
@@ -227,6 +245,16 @@ def install_project_document_routes(app, store, actor, sync, *, documents_db=Non
                                     f"?revision={upload['revision']}")
             return data
         return {"data": await asyncio.to_thread(read_preview, project_id, page, revision)}
+
+    @app.get("/api/v2/projects/{project_id}/rfp/preview/pages/{number}/svg")
+    async def rfp_preview_page_svg(project_id: str, number: int, request: Request,
+                                   revision: int | None = None):
+        await project(request, project_id)
+        svg = await asyncio.to_thread(
+            read_preview, project_id,
+            lambda reader, _upload: reader.page_svg(number), revision,
+        )
+        return Response(svg, media_type="image/svg+xml")
 
     @app.get("/api/v2/projects/{project_id}/rfp/preview/assets/{sha256}")
     async def rfp_preview_asset(project_id: str, sha256: str, request: Request,
@@ -268,6 +296,13 @@ def install_project_document_routes(app, store, actor, sync, *, documents_db=Non
         with store.connect(write=True) as db:
             ref(db, "ref_rfp_bindings", binding | {"id": digest(binding)},
                 upload["revision"])
+        try:
+            upload["requirements"] = await asyncio.to_thread(
+                rfp_api.queue_requirements, database, project_id)
+        except Exception:
+            logging.getLogger(__name__).exception("Automatic requirements queue failed")
+            upload["requirements"] = {"status": "failed",
+                                      "error": "자동 추출을 시작하지 못했습니다. 요구사항 영역에서 다시 시도해 주세요."}
         return JSONResponse({"data": upload}, status_code=201)
 
     @app.get("/api/v2/projects/{project_id}/rfp/{revision}/source")

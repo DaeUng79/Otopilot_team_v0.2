@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import sqlite3
 from collections import deque
 from dataclasses import asdict
@@ -12,7 +13,7 @@ from time import monotonic
 from typing import Any
 from urllib.parse import quote, urlsplit
 
-from app.admin import auth_service
+from app.admin import auth_service, project_service
 from app.committee import committee_roster
 from app.committee.committee_app.limits import BodyLimitMiddleware
 from app.committee.committee_app.v2_core import Context, ExportFile, ModuleError
@@ -33,7 +34,7 @@ COOKIE = "simsa_v2_session"
 
 def create_app(
     store: Store, *, demo: bool = False, port: int = 5190, original_ui: bool = False,
-    documents_db: Path | None = None,
+    documents_db: Path | None = None, local_test_login: bool = False,
 ) -> FastAPI:
     app = FastAPI(
         title="심사임당 v2 통합", docs_url=None, redoc_url=None, openapi_url=None
@@ -130,10 +131,13 @@ def create_app(
         return person
 
     from app.api.evaluator_documents import install_document_routes
-    install_document_routes(app, store, actor, documents_db=documents_db)
-    from app.api.project_documents import install_project_document_routes
+    from app.api.project_documents import install_project_document_routes, resolve_database
+    store.documents_path = resolve_database(documents_db, store.runtime.path.parent)
+    install_document_routes(app, store, actor, documents_db=store.documents_path)
+    from app.admin.project_service import backfill_deleted_projects
+    backfill_deleted_projects(store)
     install_project_document_routes(
-        app, store, actor, sync, documents_db=documents_db
+        app, store, actor, sync, documents_db=store.documents_path
     )
 
     def output(value: DTO | ExportFile, request_id: str = "") -> Response:
@@ -161,6 +165,14 @@ def create_app(
         return {
             "data": {
                 "demo": demo,
+                "local_login_accounts": {
+                    "super": "super-demo",
+                    "department": "web-demo",
+                    "other_department": "other-demo",
+                    "password": "DemoOnly!2026",
+                }
+                if local_test_login
+                else None,
                 "action_manifest": json.loads(
                     (ROOT / "contracts/actions_v2.json").read_text("utf8")
                 ),
@@ -336,6 +348,13 @@ def create_app(
             database=database,
             write=action_id not in READS,
         )
+        if action_id == "PRJ-04":
+            try:
+                await asyncio.to_thread(project_service.reclaim_document_space, store)
+            except (OSError, sqlite3.Error):
+                # The delete already committed; a maintenance failure must not
+                # turn its successful response into a misleading delete error.
+                logging.getLogger(__name__).exception("Document DB VACUUM failed after project deletion")
         await sync()
         return output(result, key)
 
@@ -561,7 +580,7 @@ def create_app(
                     ]
                     if demo and project_id == "demo-evaluation"
                     else [],
-                    "external_notice": "문서 업로드·파싱·평가표 승인·근거 매핑·챗봇은 오대웅 담당 모듈입니다. 여기의 가상 승인표는 평가 연동 테스트용입니다.",
+                    "external_notice": "문서 업로드·파싱·평가표 승인·제안서 등록은 apps/documents 연결 모듈(오대웅 담당 검토 대상)이 처리합니다. demo-evaluation의 가상 승인표는 평가 연동 테스트용입니다.",
                 }
             }
 

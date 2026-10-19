@@ -411,7 +411,7 @@ def group_detail_items(document, details):
     return items
 
 
-DATABASE = Path(__file__).resolve().parent / "documents.sqlite3"
+DATABASE = Path(__file__).resolve().parents[1] / "server/data/database/documents_parse.sqlite3"
 EXTRACTOR_VERSION = "requirements-sqlite-v5"
 BUSINESS_CATEGORIES = {
     "current_status": "사업 관련 현황",

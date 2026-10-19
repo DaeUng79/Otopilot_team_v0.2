@@ -40,11 +40,12 @@ def connected_html(relative: str) -> HTMLResponse | None:
         if len(folders) == 1
         else WEB / "missing-binding"
     )
-    if screen in {"PM-03", "PM-08"}:
+    if screen in {"PM-08"}:
         binding = WEB / "src/bindings/external-boundary.js"
     content = target.read_bytes().replace(b"\r\n", b"\n")
     html = content.decode("utf8")
-    if relative == "dept-admin/PM-02/design/rfp-preview.html":
+    if relative in {"dept-admin/PM-02/design/rfp-preview.html",
+                    "dept-admin/PM-02/design/requirements-preview.html"}:
         return html_response(html)
     if screen in {"EV-03", "EV-04", "EV-05"}:
         # Keep the approved layout; use the integrated document behavior instead
@@ -69,6 +70,19 @@ def connected_html(relative: str) -> HTMLResponse | None:
     source = main[2].strip()
     # These are prototype data constants, not markup or styling. The binding
     # replaces their values with the current session's authoritative data.
+    if screen == "PM-03":
+        # 기술 배점 합계는 평가표 초안(AI 또는 서식)의 값으로 바뀐다.
+        source = _patch(source, "const LIMIT=80;", "let LIMIT=80;")
+    if screen == "PM-04":
+        # 정원 5~9명(직접 선정은 체크한 인원), 예비위원 1~3명 (2026-10-18 사용자 결정).
+        source = _patch(source, "S.cap<=7||lk", "S.cap<=5||lk")
+        source = _patch(source, "(7~9명)", "(5~9명)")
+        source = _patch(source, "${[1,2,3,4].map(n=>", "${[1,2,3].map(n=>")
+        source = _patch(
+            source,
+            "{ok:!dupo,t:'예비 순서',s:res.length?(dupo?'순서를 1부터 겹치지 않게 정해 주세요':`예비 ${res.length}명 · 순서 확인`):'예비 없음'}",
+            "{ok:!dupo&&res.length>=1&&res.length<=3,t:'예비위원 1~3명 (권장 2명)',s:res.length<1||res.length>3?`예비 ${res.length}명 · 1~3명을 정해 주세요`:(dupo?'순서를 1부터 겹치지 않게 정해 주세요':`예비 ${res.length}명 · 순서 확인`)}",
+        )
     if screen == "PM-05":
         source = source.replace("const CAP=7,MIN=5;", "let CAP=7,MIN=5;")
     if screen == "PM-06":
@@ -93,6 +107,13 @@ def connected_html(relative: str) -> HTMLResponse | None:
     )
     rendered = html[: main.start()] + wrapped + html[main.end() :]
     return html_response(rendered)
+
+
+def _patch(source: str, old: str, new: str) -> str:
+    """Replace a prototype constant; fail loudly if the design file drifted."""
+    if old not in source:
+        raise HTTPException(409, f"원본 화면 스크립트에서 바꿀 구문을 찾지 못했습니다: {old[:40]}")
+    return source.replace(old, new)
 
 
 def html_response(rendered: str) -> HTMLResponse:

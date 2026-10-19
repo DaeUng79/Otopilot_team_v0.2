@@ -8,4 +8,5 @@ const originalResultsRender=render;
 render=function(){originalResultsRender();if(st==='final'){const badge=$('.facts .badge');if(badge)badge.textContent='✓ 위원장 최종 제출 '+(resultData.session.closed_at||'');$$('.rk tbody tr').forEach((tr,i)=>{tr.querySelector('.no').textContent=resultData.items[i].rank+'위';});}const progress=$('.prog i');if(!N&&progress)progress.style.width='0%';};
 render();
 Live.capture('[data-pre]','click',()=>{throw Error('실제 제출 상태로만 표시합니다.');});
-Live.capture('#dl','click',async()=>{await Live.api('RES-05',{session_id:resultSession.id},'평가결과.html');toast('확정 결과 보고서를 내려받았어요');});
+// RES-05: 담당자는 공식 집계표(xlsx), 서명 증빙은 HTML. 같은 액션에 format만 다르다.
+Live.capture('#dl','click',async()=>{await Live.api('RES-05',{session_id:resultSession.id,format:'xlsx'},'제안서평가_집계표.xlsx');await Live.api('RES-05',{session_id:resultSession.id},'평가결과_서명증빙.html');toast('집계표(xlsx)와 서명 증빙(html)을 내려받았어요');});

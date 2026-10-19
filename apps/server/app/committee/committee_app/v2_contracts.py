@@ -68,7 +68,8 @@ class Quota(Input):
 
 class Rules(ProjectQuery):
     selection_mode: Literal["POOL_RANDOM", "DIRECT"]
-    target_count: int = Field(ge=7, le=9, strict=True)
+    # 정원 5~9명 (2026-10-18 사용자 결정; 기존 7~9에서 하한 확대)
+    target_count: int = Field(ge=5, le=9, strict=True)
     reserve_count: int = Field(ge=0, le=27, strict=True)
     quotas: list[Quota] = Field(default_factory=list, max_length=9)
     version: int = Field(default=0, ge=0, strict=True)
@@ -128,7 +129,8 @@ class Member(Input):
 
 class ConfirmRoster(ProjectQuery):
     rule_version: Version
-    members: list[Member] = Field(min_length=7, max_length=36)
+    # 본위원 5~9명 + 예비위원 1~3명 → 6~12명
+    members: list[Member] = Field(min_length=6, max_length=12)
     # The original screen chooses reserve positions at final confirmation.
     reserve_count: int | None = Field(default=None, ge=0, le=27, strict=True)
 

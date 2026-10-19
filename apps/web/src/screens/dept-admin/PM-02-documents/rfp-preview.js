@@ -23,7 +23,7 @@ async function main() {
   showState(reader, 'loading', '제안요청서를 불러오고 있어요');
   const base = '/api/v2/projects/' + encodeURIComponent(projectId) + '/rfp';
   const data = await fetchPreview(base + '/preview');
-  document.title = data.document.title + ' · 미리보기';
+  document.title = data.document.title + ' · 제안요청서 확인';
   if (!data.pages.length) {
     showState(reader, 'empty', '제안요청서 쪽이 아직 없어요', '문서 파싱 상태를 확인해 주세요.');
     return;
@@ -32,8 +32,9 @@ async function main() {
   mountReader(reader, data, {
     label: '제안요청서',
     loadPage: (n) => fetchPreview(base + '/preview/pages/' + n + '?revision=' + data.upload_revision),
+    svgUrl: (n) => base + '/preview/pages/' + n + '/svg?revision=' + data.upload_revision,
     download: () => fetchPreview(base + '/' + data.upload_revision + '/download', true),
-  }, { note: '담당자가 등록한 최신 제안요청서 · 저장된 파싱 내용 미리보기' });
+  }, { note: '담당자가 등록한 제안요청서 · 원본 쪽 렌더링' });
 }
 
 main().catch((error) => {

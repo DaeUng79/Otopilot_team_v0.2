@@ -1,4 +1,5 @@
 // ENTRY · AUTH-01/02. Original three choices and in-place login stay intact.
+window.simsaLocalLoginAccounts=Live.config.local_login_accounts||null;
 Live.capture('[data-role]','click',(_event,button)=>Live.go({admin:'SA-00',biz:'PM-00',eval:'EV-00'}[button.dataset.role],Live.query.has('project_id')?{project_id:Live.query.get('project_id')}:{}));
 Live.capture('#f','submit',async()=>{
   const kind=cur?.dataset.role,inputs=[...f.querySelectorAll('input')];

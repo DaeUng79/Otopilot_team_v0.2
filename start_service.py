@@ -10,11 +10,11 @@ def main() -> int:
     command = [
         sys.executable,
         str(root / "apps" / "server" / "run.py"),
-        "--demo",
+        "--local-test-login",
         *sys.argv[1:],
     ]
     if not {"--port", "--help", "-h"}.intersection(sys.argv[1:]):
-        print("Open http://127.0.0.1:5190/ (local demo)", flush=True)
+        print("Open http://127.0.0.1:5190/ (local service)", flush=True)
     try:
         return subprocess.run(command, cwd=root, check=False).returncode
     except KeyboardInterrupt:

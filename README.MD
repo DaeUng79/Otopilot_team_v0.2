@@ -48,7 +48,7 @@ flowchart TB
     EVAPI --> AUTH
     ACTIONS --> CORE["app/admin · committee · evaluation"]
     EVAPI --> DOC["app/evaluation/documents · 열람·비교·질문"]
-    DOC --> PARSED["apps/documents/documents_parse.sqlite3 · 문서 저장·열람"]
+    DOC --> PARSED["apps/server/data/database/documents_parse.sqlite3 · 문서 저장·열람"]
     DOC --> CHAT["apps/chatbot/chatbot.py · AI 설정 시 사용"]
     CORE --> SHARED["app/shared · DB 접근·동기화"]
     DOC --> SHARED
@@ -100,7 +100,6 @@ simsa-service-v0.1/
     │       ├── fonts/               # Pretendard GOV
     │       └── index.html           # 선택적 기본 화면
     ├── documents/
-    │   ├── documents_parse.sqlite3 # 문서 파싱 DB · 원본·파싱 결과 저장
     │   ├── hwpx_parser.py          # HWPX 파싱
     │   ├── hwpx_storage.py         # SQLite 저장
     │   ├── rfp_toc.py              # 목차 쪽 연결
@@ -127,17 +126,21 @@ simsa-service-v0.1/
             ├── database/           # 데모 DB · v0.1 압축본에 포함
             │   ├── admin.sqlite3
             │   ├── evaluation.sqlite3
+            │   ├── documents_parse.sqlite3 # 문서 파싱 DB · 원본·파싱 결과
+            │   ├── projects_delete.sqlite3 # 삭제 사업 이력
             │   ├── keys.bin
             │   ├── access-code.txt
             │   └── sample-manifest.json
             └── production/         # 비데모 실행 시 생성 · 압축본 미포함
                 ├── admin.sqlite3
                 ├── evaluation.sqlite3
+                ├── documents_parse.sqlite3
+                ├── projects_delete.sqlite3
                 ├── keys.bin
                 └── access-code.txt
 ```
 
-현재 작업 폴더에는 `artifacts/simsa-service-v0.1.zip`이 없습니다. 서비스는 이 작업 폴더에서 실행합니다. 별도 배포본을 만들 때는 `apps/server`, `apps/web`, 필요한 `apps/documents` 데이터와 실행 파일을 함께 담아야 합니다. 기존 데모 DB를 `--demo` 없이 열어도 가상 계정은 남아 있으므로 비데모 실행에는 별도 데이터 폴더를 지정합니다.
+현재 작업 폴더에는 `artifacts/simsa-service-v0.1.zip`이 없습니다. 서비스는 이 작업 폴더에서 실행합니다. 별도 배포본을 만들 때는 `apps/server`, `apps/web`, 필요한 `apps/documents` 데이터와 실행 파일을 함께 담아야 합니다. 현재 기본 데이터 폴더에는 로컬 테스트 관리자 계정 3개가 있고 사업은 없습니다.
 
 ## macOS·Windows에서 실행
 
@@ -167,34 +170,47 @@ py -3.13 -m venv .venv
 
 위 명령 중 **한 가지 실행 방식만** 선택합니다. 브라우저에서 `http://127.0.0.1:5191/`을 열고, 실행 터미널에서 `Ctrl+C`로 종료합니다. 포트가 비어 있으면 `--port 5191`을 생략해 기본 포트 `5190`을 사용할 수 있습니다. 같은 데이터 폴더로 재실행하면 DB가 유지됩니다.
 
-비데모 폴더는 처음 만들면 관리자·사업·위원 데이터가 모두 비어 있습니다. 계정과 업무 데이터를 등록해야 로그인 및 평가를 진행할 수 있습니다. `--demo`를 빼는 것만으로 운영 데이터나 배포 환경이 마련되는 것은 아닙니다. 문서 DB는 별도로 `apps/documents/documents_parse.sqlite3`를 읽습니다. 기존 시연 평가 회차의 문서 참조는 문서 DB의 파싱 버전과 일치하는지 별도로 확인해야 합니다. 2026-10-18 최초 통합 당시 확인한 참조 3건은 모두 불일치했으며, 이후 등록한 제안요청서의 신규 참조와는 구분해야 합니다.
+비데모 폴더는 처음 만들면 관리자·사업·위원 데이터가 모두 비어 있습니다. 계정과 업무 데이터를 등록해야 로그인 및 평가를 진행할 수 있습니다. `--demo`를 빼는 것만으로 운영 데이터나 배포 환경이 마련되는 것은 아닙니다. 문서 DB 기본 위치는 선택한 `--data-dir` 안의 `documents_parse.sqlite3`이며, 기본 데모 경로는 `apps/server/data/database/documents_parse.sqlite3`입니다. 기존 시연 평가 회차의 문서 참조는 문서 DB의 파싱 버전과 일치하는지 별도로 확인해야 합니다. 2026-10-18 최초 통합 당시 확인한 참조 3건은 모두 불일치했으며, 이후 등록한 제안요청서의 신규 참조와는 구분해야 합니다.
 
 ### 실행 옵션
 
-`start_service.py`는 현재 명령을 실행한 Python(`sys.executable`)으로 `apps/server/run.py`를 실행하며 **항상 `--demo`를 전달**합니다. 비데모는 `apps/server/run.py`를 직접 실행해야 합니다. 서버 자체의 기본값은 포트 `5190`, 데이터 폴더 `apps/server/data/database`이므로, 비데모에서는 반드시 별도 `--data-dir`을 지정합니다. 프런트엔드는 같은 FastAPI 서버가 제공하므로 `npm run dev`는 필요하지 않습니다.
+`start_service.py`는 현재 명령을 실행한 Python(`sys.executable`)으로 `apps/server/run.py`를 실행하며 `--local-test-login`을 전달합니다. 데모 사업은 생성하지 않고 현재 데이터 폴더에 저장된 로컬 테스트 계정의 로그인 입력만 돕습니다. 서버의 기본 포트는 `5190`, 데이터 폴더는 `apps/server/data/database`입니다. 프런트엔드는 같은 FastAPI 서버가 제공하므로 `npm run dev`는 필요하지 않습니다.
 
 | 옵션 | 의미 |
 |---|---|
-| `--demo` | 가상 계정·시연 데이터를 초기화하거나 기존 데모 데이터와 연결합니다. `start_service.py`가 자동으로 전달합니다. |
+| `--demo` | 명시적으로 전달할 때만 가상 계정·시연 사업 데이터를 생성합니다. |
+| `--local-test-login` | 저장된 로컬 테스트 계정의 로그인 입력을 돕습니다. `start_service.py`가 자동으로 전달합니다. |
 | `--original-ui` | `apps/web/src/runtime`의 원본 화면에 기능 코드를 연결합니다. 현재 서버의 기본값도 `True`라 명시하지 않아도 같습니다. |
 | `--port 5190` | 로컬 서버 포트입니다. `--port 5191`처럼 변경할 수 있습니다. |
 | `--data-dir 경로` | SQLite DB, `keys.bin`, `access-code.txt`를 저장·읽을 폴더입니다. 데모와 비데모 폴더를 분리합니다. 기존 데이터를 이동할 때는 DB와 키를 함께 유지합니다. |
 | `--samples 경로` | 선택 사항인 샘플 문서 폴더입니다. 기본 실행에는 필요하지 않습니다. |
-| `--documents-db 파일` | 문서 파싱·원본 저장 SQLite를 연결합니다. 생략 시 `EVAL_DOCUMENTS_DB_PATH`, 그다음 `apps/documents/documents_parse.sqlite3`를 사용합니다. 상대 경로는 프로젝트 루트 기준입니다. 비데모에서는 운영용 문서 DB 경로를 따로 지정하세요. |
+| `--documents-db 파일` | 문서 파싱·원본 저장 SQLite를 연결합니다. 생략 시 `EVAL_DOCUMENTS_DB_PATH`, 그다음 선택한 `--data-dir`의 `documents_parse.sqlite3`를 사용합니다. 상대 경로는 프로젝트 루트 기준입니다. |
 
-PM-02 제안요청서 HWPX 업로드는 메인 서비스의 `/api/v2/projects/{id}/rfp`가 처리합니다. 원본·파싱 결과와 업로드 이력을 문서 DB에 저장하고, 평가위원용 고정 버전을 평가 DB에 연결합니다. 업체별 제안서, 목차 수정, AI 요구사항·평가기준 생성은 이 통합 화면에서 아직 연결되지 않았습니다.
+PM-02 제안요청서 HWPX 업로드는 메인 서비스의 `/api/v2/projects/{id}/rfp`가 처리합니다. 원본·파싱 결과와 업로드 이력을 문서 DB에 저장하고, 평가위원용 고정 버전을 평가 DB에 연결합니다.
 
-과거 실행 코드에 있던 `os.execv(...)`는 현재 사용하지 않습니다. 현재 `start_service.py`는 운영체제별 Python 경로를 고정하지 않고 `sys.executable`과 `subprocess.run`을 사용합니다. 추가한 실행 옵션은 서버로 전달되지만, 자동으로 넣는 `--demo`는 제거할 수 없습니다.
+**2026-10-18 보완:** 업체별 제안서 등록(HWPX·HWP·PDF·PPTX), 평가표 초안·검토·확정(PM-03), 결과 자료 보관(SA-04), 공식 집계표 xlsx, 정원 5~9·예비 1~3 규칙, 위원 제출 오류 수정을 반영했습니다. 내용과 검증 기록은 [docs/INTEGRATION_2026-10-18.md](docs/INTEGRATION_2026-10-18.md)를 보세요. 가상 운영 데이터는 아래 명령으로 넣습니다(서버를 끈 상태에서, 여러 번 실행 가능).
 
-### 데모 로그인
+PM-01 사업 삭제 이력은 데이터 폴더의 `projects_delete.sqlite3`에 별도로 저장합니다. 삭제 전 사업 정보·사유·사업현황 요약을 보관한 뒤 관리자 DB의 사업·연결 행과 다른 사업에서 사용하지 않는 문서 DB의 원본·파싱 결과를 물리 삭제합니다. 평가 회차가 진행 중이거나 문서 작업 중인 사업은 삭제할 수 없습니다. 평가 DB에는 삭제된 사업의 참조 스냅샷이 남을 수 있습니다. 기존 삭제 표시 사업은 서비스 시작 시 이관하며, 사업목록의 ‘삭제’ 상태에서 이력을 조회할 수 있습니다. SQLite 파일 크기는 행 삭제 직후 줄지 않고 빈 페이지가 재사용됩니다.
+
+```powershell
+.venv\Scripts\python.exe apps/server/seed_samples.py --samples "C:\coding\제안요청서, 제안서 샘플"
+```
+
+제안서 PDF·PPTX와 AI 초안(요구사항 추출·평가기준 생성·챗봇)은 선택 패키지가 필요합니다(`apps/documents/requirements.txt`의 `pypdf`, `python-pptx`, `openai`, `tiktoken`, `python-dotenv`). 목차 수정과 근거 연결(PM-08)은 아직 연결되지 않았습니다.
+
+과거 실행 코드에 있던 `os.execv(...)`는 현재 사용하지 않습니다. `start_service.py`는 운영체제별 Python 경로를 고정하지 않고 `sys.executable`과 `subprocess.run`을 사용합니다.
+
+### 로컬 테스트 로그인
 
 | 역할 | 계정 또는 이름 | 비밀번호 또는 휴대전화 뒤 4자리 |
 |---|---|---|
 | 총괄관리자 | `super-demo` | `DemoOnly!2026` |
 | 사업담당자 | `web-demo` | `DemoOnly!2026` |
-| 평가위원 | `가상위원01` ~ `가상위원07` | `0001` ~ `0007` |
+| 다른 부서 관리자 | `other-demo` | `DemoOnly!2026` |
 
-이 계정은 데모 데이터 폴더에서만 쓸 수 있습니다. 평가위원은 초청된 사업을 선택해야 할 수 있습니다. 현재 작업 폴더의 데모 DB와 `keys.bin`은 함께 유지해야 합니다.
+`seed_samples.py`를 실행하면 가상 위원 72명이 더해집니다(이름·휴대전화는 `apps/server/app/shared/sample_pool.py`). 사업별로 명단을 확정한 뒤에는 그 위원의 이름과 휴대전화 뒤 4자리로 로그인합니다(PM-07 위원 풀 화면에서 확인).
+
+이 세 계정은 현재 기본 데이터 폴더에 저장돼 있으며 `--demo` 없이 로그인할 수 있습니다. 평가위원 테스트 계정은 이번 초기화에서 제거됐습니다. DB와 `keys.bin`은 함께 유지해야 합니다.
 
 ## 확인한 동작과 검증 범위
 

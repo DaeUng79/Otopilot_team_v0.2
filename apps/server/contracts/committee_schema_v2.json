@@ -560,7 +560,7 @@
         ],
         [
           "target_count",
-          "INTEGER ! CHECK BETWEEN 7 AND 9",
+          "INTEGER ! CHECK BETWEEN 5 AND 9",
           "최종 목표 정원"
         ],
         [

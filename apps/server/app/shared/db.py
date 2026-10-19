@@ -136,6 +136,7 @@ def paginate(items: list[DTO], body: DTO) -> DTO:
 class Store:
     def __init__(self, runtime: Runtime, evaluation_path: Path) -> None:
         self.runtime, self.evaluation_path = runtime, evaluation_path
+        self.documents_path: Path | None = None
 
     @contextmanager
     def connect(
@@ -162,7 +163,10 @@ class Store:
         for database in ("admin", "evaluation"):
             for path in sorted((ROOT / "migrations" / database).glob(f"*_yujin_{database}_*.sql")):
                 sql = path.read_text("utf8")
-                with self.connect(database, True) as c:
+                # 표를 다시 만드는 마이그레이션은 첫 줄에 "-- foreign_keys=OFF"를 적는다.
+                # 그 파일만 외래키 검사 없이 적용하고 끝난 뒤 foreign_key_check로 검증한다.
+                rebuild = sql.lstrip().startswith("-- foreign_keys=OFF")
+                with self.connect(database, not rebuild) as c:
                     c.execute(
                         "CREATE TABLE IF NOT EXISTS schema_migrations(migration_name TEXT NOT NULL PRIMARY KEY,checksum TEXT NOT NULL,applied_at TEXT NOT NULL)"
                     )
@@ -177,7 +181,17 @@ class Store:
                         "MIGRATION_CHANGED",
                     )
                     if not old:
-                        c.executescript("BEGIN IMMEDIATE;\n" + sql)
+                        if rebuild:
+                            c.commit()
+                            c.execute("PRAGMA foreign_keys=OFF")
+                            # 다른 표의 트리거·외래키가 이름으로 가리키는 표를 다시 만들 때
+                            # RENAME이 참조를 바꾸거나 검사하지 않도록 한다.
+                            c.execute("PRAGMA legacy_alter_table=ON")
+                            c.executescript("BEGIN IMMEDIATE;\n" + sql + "\nCOMMIT;")
+                            c.execute("PRAGMA legacy_alter_table=OFF")
+                            c.execute("PRAGMA foreign_keys=ON")
+                        else:
+                            c.executescript("BEGIN IMMEDIATE;\n" + sql)
                         c.execute(
                             "INSERT INTO schema_migrations VALUES (?,?,?)",
                             (path.name, checksum, now()),

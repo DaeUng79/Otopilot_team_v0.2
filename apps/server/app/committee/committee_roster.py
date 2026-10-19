@@ -27,6 +27,9 @@ from app.committee.committee_app.v2_core import (
 )
 from app.committee.committee_app.v2_excel import export_xlsx
 
+# 예비위원 1~3명 (권장 2명) — 2026-10-18 사용자 결정(처음 2~3에서 하한 완화)
+RESERVE_MIN, RESERVE_MAX = 1, 3
+
 
 def _get(conn: sqlite3.Connection, project_id: str, nominee_id: str) -> sqlite3.Row:
     row = conn.execute(
@@ -48,6 +51,11 @@ async def list_nominees(ctx: Context, command: DTO, *, runtime: Runtime) -> DTO:
             (body.project_id,),
         ):
             candidate = _read(conn, runtime, _candidate(conn, ctx, runtime, row["candidate_id"]))
+            # 삭제(비활성)된 직접 등록 후보는 확정 배정이 없으면 목록에서 숨긴다.
+            if candidate["deleted_at"] and not conn.execute(
+                "SELECT 1 FROM committee_assignments WHERE nominee_id=?", (row["id"],)
+            ).fetchone():
+                continue
             if body.contact_status and row["contact_status"] != body.contact_status:
                 continue
             if body.specialty_id and body.specialty_id not in candidate["specialty_ids"]:
@@ -145,6 +153,11 @@ async def confirm_roster(ctx: Context, command: DTO, *, runtime: Runtime) -> DTO
         reserve_count = rule["reserve_count"] if body.reserve_count is None else body.reserve_count
         if len(primary) != rule["target_count"] or len(reserves) != reserve_count:
             raise ModuleError("ROSTER_COUNT", "정위원·예비위원 수가 선정 규칙과 다릅니다.", 422)
+        # 예비위원 1~3명 (2026-10-18 사용자 결정)
+        if not RESERVE_MIN <= len(reserves) <= RESERVE_MAX:
+            raise ModuleError(
+                "RESERVE_COUNT", f"예비위원은 {RESERVE_MIN}~{RESERVE_MAX}명을 지정하세요.", 422
+            )
         if len({m.nominee_id for m in body.members}) != len(body.members):
             raise ModuleError("DUPLICATE_MEMBER", "동일 후보를 중복 배정할 수 없습니다.", 422)
         if sorted(m.reserve_order for m in reserves if m.reserve_order is not None) != list(
@@ -295,19 +308,67 @@ async def export_roster(ctx: Context, command: DTO, *, runtime: Runtime) -> Expo
             (body.roster_id, body.project_id),
         ).fetchone():
             raise ModuleError("NOT_FOUND", "확정 명단을 찾을 수 없습니다.", 404)
-        rows = [
-            list(r)
-            for r in conn.execute(
-                "SELECT member_kind,reserve_order,name_snapshot,organization_snapshot "
-                "FROM committee_assignments WHERE roster_id=? ORDER BY "
-                "member_kind,reserve_order,id",
-                (body.roster_id,),
+        kinds = {"PRIMARY": "본위원", "RESERVE": "예비위원"}
+        names = {
+            r["id"]: r["name"] for r in conn.execute("SELECT id,name FROM specialties")
+        }
+
+        def fields(candidate_id: str, draw_member_id: str | None) -> str:
+            if draw_member_id:
+                row = conn.execute(
+                    "SELECT specialty_id FROM draw_members WHERE id=?", (draw_member_id,)
+                ).fetchone()
+                return names.get(row[0], row[0]) if row else ""
+            return ", ".join(
+                names.get(r[0], r[0])
+                for r in conn.execute(
+                    "SELECT specialty_id FROM candidate_specialties WHERE candidate_id=? "
+                    "ORDER BY specialty_id",
+                    (candidate_id,),
+                )
             )
-        ]
+
+        def phone(candidate: sqlite3.Row) -> str:
+            return runtime.decrypt(candidate["phone_cipher"], candidate["id"] + ":phone")
+
+        # 초청 확정 목록: 구분·예비 순위·성명·소속·분야·휴대전화
+        rows = []
+        for a in conn.execute(
+            "SELECT a.member_kind,a.reserve_order,a.name_snapshot,a.organization_snapshot,"
+            "n.candidate_id,n.draw_member_id FROM committee_assignments a "
+            "JOIN project_nominees n ON n.id=a.nominee_id WHERE a.roster_id=? "
+            "ORDER BY a.member_kind='RESERVE',a.reserve_order,a.id",
+            (body.roster_id,),
+        ):
+            candidate = _candidate(conn, ctx, runtime, a["candidate_id"])
+            rows.append([
+                kinds.get(a["member_kind"], a["member_kind"]), a["reserve_order"] or "",
+                a["name_snapshot"], a["organization_snapshot"],
+                fields(a["candidate_id"], a["draw_member_id"]), phone(candidate),
+            ])
+        # 후보 3배수 목록은 초청 확정 목록과 분리해 아래에 담는다(ROS-06 규칙).
+        statuses = {"NOT_CONTACTED": "미연락", "AVAILABLE": "수락",
+                    "UNAVAILABLE": "거절", "CALLBACK": "부재"}
+        rows.append(["", "", "", "", "", ""])
+        rows.append(["[후보 3배수 목록]", "", "", "", "", ""])
+        rows.append(["출처", "통화 결과", "성명", "소속", "분야", "휴대전화"])
+        for n in conn.execute(
+            "SELECT * FROM project_nominees WHERE project_id=? ORDER BY created_at,id",
+            (body.project_id,),
+        ):
+            candidate = _candidate(conn, ctx, runtime, n["candidate_id"])
+            rows.append([
+                "추첨" if n["source"] == "POOL_DRAW" else "직접",
+                "제외" if n["exclusion_reason"] else statuses.get(n["contact_status"], n["contact_status"]),
+                candidate["name"], candidate["organization_name"],
+                fields(n["candidate_id"], n["draw_member_id"]), phone(candidate),
+            ])
         runtime.audit(conn, ctx, "ROS-06", "committee_rosters", body.roster_id, body.project_id)
         return {"rows": rows}
 
     result = await runtime.run(ctx, "ROS-06", body.model_dump(), read, write=False)
     return export_xlsx(
-        "committee-roster.xlsx", ["구분", "예비 순위", "성명", "소속"], result["rows"]
+        "committee-roster.xlsx",
+        ["구분", "예비 순위", "성명", "소속", "분야", "휴대전화"],
+        result["rows"],
     )

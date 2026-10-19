@@ -7,3 +7,7 @@ openai==3.23.0
 
 # 문서 챗봇의 입력 토큰 계산
 tiktoken==0.14.0
+
+# 업체별 제안서(PRO-01) PDF·PPTX 본문 추출 — 2026-10-18 연결용 파서(pdf_parser.py, pptx_parser.py)
+pypdf>=5.0
+python-pptx==1.0.2

@@ -91,7 +91,7 @@ def apply_event(store: Store, envelope: DTO, source: str) -> DTO:
             "vendor.snapshot",
             "roster.confirmed",
         },
-        "documents": {"rfp.bound", "criteria.approved", "proposal.ready"},
+        "documents": {"rfp.bound", "criteria.approved", "proposal.ready", "proposal.archived"},
     }
     require(
         event["contract_name"] in allowed.get(source, set()),
@@ -216,16 +216,18 @@ def apply_event(store: Store, envelope: DTO, source: str) -> DTO:
                     )
                 }
                 ref(c, "ref_rfp_bindings", binding | {"id": digest(binding)}, version)
-            elif contract == "proposal.ready":
+            elif contract in {"proposal.ready", "proposal.archived"}:
                 if not c.execute(
                     "SELECT 1 FROM ref_project_vendors WHERE id=? AND project_id=?",
                     (p["vendor_id"], pid),
                 ).fetchone():
                     return result | {"status": "PENDING_PARENT"}
+                status = "READY" if contract == "proposal.ready" else "ARCHIVED"
+                # 제안서 형식: 설계 HWPX/PDF + 샘플 자료의 HWP/PPTX (2026-10-18)
                 require(
-                    p.get("status", "READY") == "READY"
-                    and p["format"] in {"HWPX", "PDF"},
-                    "READY 제안서와 지원 형식을 확인하세요.",
+                    p.get("status") == status
+                    and p["format"] in {"HWPX", "PDF", "HWP", "PPTX"},
+                    "제안서 상태와 지원 형식을 확인하세요.",
                     "NOT_READY",
                 )
                 data = {
@@ -242,7 +244,7 @@ def apply_event(store: Store, envelope: DTO, source: str) -> DTO:
                 ref(
                     c,
                     "ref_proposal_uploads",
-                    data | {"id": p["proposal_upload_id"], "status": "READY"},
+                    data | {"id": p["proposal_upload_id"], "status": status},
                     version,
                 )
             else:
