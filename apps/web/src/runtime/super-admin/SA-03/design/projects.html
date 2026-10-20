@@ -57,6 +57,8 @@ textarea{width:100%;min-height:88px;padding:10px 14px;border:1px solid var(--bor
 textarea:focus{outline:none;border-color:var(--primary-50);box-shadow:var(--focus)}
 select{appearance:auto}
 .lk-note{font-size:var(--t-base);color:var(--text-3);margin-top:6px}
+.head .sub{display:none}
+.mats .path,.dl-all,.zipn,.lk-note{display:none!important}
 </style>
 </head>
 <body>
@@ -77,7 +79,7 @@ select{appearance:auto}
 </aside>
 <div class="main">
   <header class="head">
-    <div><h1>전체 사업</h1><p class="sub">모든 부서의 사업을 한눈에 봐요.</p></div>
+    <div><h1>전체 사업</h1><p class="sub"></p></div>
     <button class="btn primary" type="button" id="b-new">사업 등록</button>
   </header>
   <div class="body">
@@ -92,7 +94,7 @@ select{appearance:auto}
           <button class="chip" type="button" data-s="완료" aria-pressed="false">완료</button>
         </div>
         <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-          <input type="search" id="q" placeholder="검색어 (사업명·성명)" aria-label="검색어"></div>
+          <input type="search" id="q" placeholder="사업명·담당자 검색" aria-label="검색어"></div>
         <button class="btn" type="button" id="b-reset">초기화</button>
         <span class="count" id="count"></span>
       </div>

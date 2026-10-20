@@ -2,7 +2,7 @@
 :root{
   --primary-5:#ecf2fe;--primary-10:#d8e5fd;--primary-20:#b1cefb;--primary-50:#256ef4;--primary-60:#0b50d0;--primary-70:#083891;
   --secondary-70:#063a74;--secondary-90:#031f3f;--on-dark-2:#d8e5fd;--on-dark-3:#b1cefb;--veil-light:rgb(255 255 255/.1);--veil-light-2:rgb(255 255 255/.2);
-  --gray-0:#fff;--gray-5:#f4f5f6;--gray-10:#e6e8ea;--gray-20:#cdd1d5;--gray-30:#b1b8be;--gray-50:#6d7882;--gray-60:#58616a;--gray-70:#464c53;--gray-90:#1e2124;
+  --gray-0:#fff;--gray-5:#f4f5f6;--gray-10:#e6e8ea;--gray-20:#cdd1d5;--gray-30:#b1b8be;--gray-50:#67717b;--gray-60:#58616a;--gray-70:#464c53;--gray-90:#1e2124;
   --danger-5:#fdefec;--danger-10:#fcdfd9;--danger-50:#de3412;--danger-60:#bd2c0f;
   --warning-5:#fff3db;--warning-10:#ffe0a3;--warning-50:#9e6a00;--warning-60:#8a5c00;
   --success-5:#eaf6ec;--success-10:#d8eedd;--success-50:#228738;--success-60:#267337;
@@ -154,3 +154,66 @@ td.num,th.num{text-align:right}
 .kv dd{margin:0;font-weight:700;overflow-wrap:anywhere}
 .sec-h{font-size:var(--t-lg);font-weight:700;margin-bottom:12px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+
+/* ═══════════════════════════════════════════════════════════════════
+   태블릿 보강 (CSS만 · 기능·마크업 변경 없음)
+   아래 규칙은 전부 미디어쿼리 안에 있어 데스크톱(가로 1181px 이상)에는 적용되지 않습니다.
+   · ≤1180px  가로 태블릿까지: 주소창 높이(dvh), 손가락으로 누를 크기(44px)
+   · ≤1024px  세로 태블릿: 왼쪽 메뉴를 좁히고 여백을 줄이며, 머리 줄은 줄바꿈
+   표는 카드로 바꾸지 않고 .tbl-wrap 안에서 옆으로 밀어 보게 둡니다(첫 열 고정).
+   ═══════════════════════════════════════════════════════════════════ */
+@media (max-width: 1180px) {
+  .app { height: 100vh; height: 100dvh; }
+  .app .main { height: 100vh; height: 100dvh; }
+  .btn.sm { min-height: 44px; }
+  .chip { min-height: 44px; }
+  .tbl-wrap { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .demo summary, .demo button { min-height: 44px; }
+  body .pager button { min-width: 44px; min-height: 44px; }
+  body .toolbar .btn, body .toolbar select { min-height: 44px; }
+}
+@media (max-width: 1024px) {
+  /* 왼쪽 메뉴: 232px → 176px (글자는 그대로 보이게) */
+  .app { grid-template-columns: 176px minmax(0, 1fr); }
+  .side { padding: 16px 10px; }
+  .side .brand { font-size: var(--t-lg); gap: 8px; padding: 8px 6px; }
+  .brand-mark { width: 34px; height: 34px; flex: none; }
+  .side .role { padding: 0 6px; margin-bottom: 8px; }
+  .side a, .side button.lnk { font-size: var(--t-base); padding: 0 10px; }
+
+  /* 머리 줄: 제목 아래로 버튼·필터가 내려가도록 줄바꿈 */
+  .head { flex-wrap: wrap; gap: 12px 16px; padding: 20px 24px 12px; min-height: 0; }
+  .head > :first-child { min-width: 0; }
+  .body { padding: 0 24px 16px; }
+  .demo { padding: 0 24px; }
+  .toolbar { padding: 12px 16px; gap: 8px 10px; }
+  .tabs { padding: 0 16px; }
+  .search { min-width: 180px; }
+
+  /* 표: 안에서 옆으로 밀어 보고, 첫 열은 고정 (:where 로 기존 행 색 규칙보다 약하게) */
+  :where(.tbl-wrap) tbody td:first-child { position: sticky; left: 0; z-index: 1; background: var(--gray-0); box-shadow: 1px 0 0 var(--line); }
+  :where(.tbl-wrap) thead th:first-child { left: 0; z-index: 3; box-shadow: 1px 0 0 var(--line); }
+  :where(.tbl-wrap) tbody tr[tabindex]:hover td:first-child, :where(.tbl-wrap) tbody tr.sel td:first-child { background: var(--primary-5); }
+  .drawer { width: min(460px, 92vw); }
+}
+
+/* ── 정리(문구·표시 전용) ── */
+.demo{display:none!important}
+.spec-note{display:none!important}
+
+/* 상태 알약: 성공(✓ 사용·완료)도 다른 알약과 같은 모양으로 */
+.badge.success{background:var(--success-5);padding-left:12px;padding-right:12px}
+td.st2 .badge.success{background:none;padding:0}
+/* 위험 버튼: 일반 버튼과 눈에 띄게 떨어뜨리고 붉은 테두리로 구분 */
+.btn.text-danger{border-color:var(--danger-10);background:var(--gray-0)}
+.btn.text-danger:hover:not(:disabled){background:var(--danger-5);border-color:var(--danger-50)}
+.drawer footer .btn.text-danger{margin-right:auto}
+.drawer .zone .btn.text-danger{margin-top:4px}
+/* 파일 선택·선택 상자·날짜 입력: 같은 높이와 모양 */
+input[type=file]{height:auto;min-height:48px;padding:7px 12px;font-size:var(--t-base);color:var(--text-2);cursor:pointer}
+input[type=file]::file-selector-button{appearance:none;border:1px solid var(--gray-30);background:var(--gray-5);border-radius:8px;min-height:32px;padding:0 14px;margin-right:12px;font:inherit;font-size:var(--t-base);font-weight:700;color:var(--text-1);cursor:pointer}
+input[type=file]::file-selector-button:hover{background:var(--gray-10)}
+select{appearance:none!important;-webkit-appearance:none!important;padding-right:40px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2358616a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 6 5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:16px}
+select:disabled{background-color:var(--gray-5);color:var(--text-3);cursor:not-allowed}
+input[type=date]{min-height:48px;font-variant-numeric:tabular-nums}
+input[type=date]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.75}

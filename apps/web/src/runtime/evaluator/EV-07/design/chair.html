@@ -75,6 +75,29 @@
 .ch-signed { padding: 12px 16px; border-radius: var(--radius-sm); background: var(--success-5); color: var(--success-60); font-weight: 700; font-size: 16px; }
 .ch-stale { margin: 0; }
 .ch-warn { color: var(--danger-60); font-weight: 700; font-size: 16px; }
+
+/* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
+@media (max-width: 1180px) {
+  .ch-chk { min-height: 48px; }
+  .ch-chk input { width: 32px; height: 32px; }
+}
+@media (max-width: 1024px) {
+  .ch { padding: 16px 24px 76px; }
+  .ch-grid { grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; }
+  .ch-tbl th, .ch-tbl td { padding: 0 14px; }
+}
+@media (max-width: 900px) {
+  /* 세로 태블릿: 결과표 아래에 확인 칸을 쌓고, 길어지면 이 칸 안에서 스크롤 */
+  .ch { overflow-y: auto; }
+  .ch-grid { grid-template-columns: minmax(0, 1fr); flex: none; }
+}
+.evc{display:none}
+/* 결과 확인 화면 정리: 워터마크·이미 지난 부제·계산식 반복 숨김, 영문 상태(FINALIZED)는 한글로 */
+.ch-wm::after{content:none}
+.ch-top>span:not(.ch-st){display:none}
+.ch-formula,.ch-rec{display:none}
+.ch-st.fin{font-size:0;line-height:0}
+.ch-st.fin::after{content:"최종 제출 완료";font-size:14px;line-height:24px}
 </style>
 </head>
 <body>

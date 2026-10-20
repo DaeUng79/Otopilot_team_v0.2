@@ -72,6 +72,27 @@
 .hfilt .btn{min-height:44px}
 .asof{color:var(--text-3);font-size:var(--t-base);margin-top:2px}
 .asof .late{color:var(--warning-60)}
+
+/* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
+@media (max-width: 1024px) {
+  /* 세로 태블릿: 달력 아래에 목록을 쌓고, 길어지면 이 칸 안에서 스크롤 */
+  .sched { grid-template-columns: minmax(0, 1fr); overflow: auto; align-content: start; }
+  .cal { flex: none; grid-auto-rows: auto; }
+  .day { min-height: 64px; }
+  .lists { overflow: visible; }
+  .lrow { grid-template-columns: minmax(0, 1fr) auto 88px; }
+  .todo { grid-template-columns: minmax(0, 1fr); overflow: auto; align-content: start; }
+  .todo > section { overflow: visible; padding: 16px 20px; }
+  .todo > section + section { border-left: 0; border-top: 1px solid var(--line); }
+  .drow { grid-template-columns: 140px minmax(0, 1fr) 56px; }
+  .dept { padding: 16px; }
+  .hfilt { justify-content: flex-start; }
+}
+.head .sub{display:none}
+/* 달력: 칸이 화면 높이만큼 늘어나지 않게 촘촘하게 */
+.cal{flex:none;grid-auto-rows:64px;gap:2px}
+.day{padding:4px 2px 2px}
+.calwrap{align-self:start}
 </style>
 </head>
 <body>
@@ -91,7 +112,7 @@
   </div>
 </aside>
 <div class="main">
-  <header class="head"><div><h1>대시보드</h1><p class="sub">오늘은 2026년 10월 16일이에요</p><p class="asof" id="asof" role="status"></p></div>
+  <header class="head"><div><h1>대시보드</h1><p class="sub"></p><p class="asof" id="asof" role="status"></p></div>
     <div class="hfilt">
       <select id="f-per" aria-label="기간"><option value="">기간 전체</option><option value="cur">이번 달</option><option value="next">다음 달</option><option value="q">최근 3개월~다음 달</option></select>
       <select id="f-dept" aria-label="부서"><option value="">부서 전체</option></select>

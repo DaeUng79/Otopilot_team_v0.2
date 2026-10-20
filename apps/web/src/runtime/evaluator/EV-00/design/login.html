@@ -19,6 +19,14 @@
   .msg { min-height: 0; }
   .msg:empty { display: none; }
   .help { text-align: center; font-size: 16px; color: var(--text-3); }
+/* 세 로그인 화면(총괄·사업담당·평가위원)을 같은 모양으로: 흰 바탕, 글자만 있는 로고, 같은 제목·입력·버튼 크기 */
+body{background:var(--gray-0)}
+.ev-mark i{display:none}
+.card{max-width:400px}
+.kick{display:none}
+h1{font-size:24px}
+.ev-btn{height:56px;font-size:18px}
+.head::before{content:"";display:block;width:88px;height:88px;margin:0 auto 4px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96' fill='none' stroke='%23256ef4' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='14' y='10' width='52' height='72' rx='8' fill='%23ecf2fe'/%3E%3Crect x='24' y='24' width='9' height='9' rx='2'/%3E%3Cpath d='M40 28h18'/%3E%3Crect x='24' y='42' width='9' height='9' rx='2'/%3E%3Cpath d='M40 46h18'/%3E%3Cpath d='M25 66l4 4 7-8'/%3E%3Cpath d='M52 76l-2 10 10-2 26-26-8-8z' fill='%23fff'/%3E%3Cpath d='M76 52l8 8'/%3E%3C/svg%3E") center/contain no-repeat}
 </style>
 </head>
 <body>
@@ -27,7 +35,7 @@
   <div class="card">
     <div class="head">
       <p class="kick">사업 링크로 들어오셨어요</p>
-      <h1>(가상) ○○ 사업<br>평가위원 입장</h1>
+      <h1>○○ 사업<br>평가위원 입장</h1>
       <p class="sub">이름과 휴대전화 뒤 4자리를 넣어 주세요.</p>
     </div>
     <form id="f" novalidate>
@@ -40,7 +48,7 @@
       <div class="msg ev-note error" id="msg" role="alert"></div>
       <button type="submit" class="ev-btn">들어가기</button>
     </form>
-    <p class="help">입장에 어려움이 있으면 사업 담당자에게 문의해 주세요.</p>
+    <p class="help">입장이 안 되면 담당자에게 문의해 주세요.</p>
   </div>
 </main>
 

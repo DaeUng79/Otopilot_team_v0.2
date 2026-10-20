@@ -3,6 +3,9 @@
 .evr-tx.is-rendered { display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0; }
 .evr-page-svg { display: block; width: 100%; height: 100%; object-fit: contain; }
 .evr-render-fallback { margin: 0 0 10px; color: var(--text-3); font-size: 13px; }
+/* [임시 CSS 문구 교체] "원본 쪽 렌더링을 쓸 수 없어 파싱된 내용으로 표시합니다" → 짧은 안내. 원 문구를 고치면 아래 두 줄을 삭제하세요. */
+.evr .evr-tx p.evr-render-fallback.evr-render-fallback { font-size: 0; line-height: 0; }
+.evr .evr-tx p.evr-render-fallback.evr-render-fallback::before { content: "원본 모양으로는 볼 수 없어 글만 보여 드려요."; font-size: 13px; line-height: 1.5; }
 .evr-tx h2 { font-size: 18px; color: var(--text-3); font-weight: 400; margin-bottom: 10px; }
 .evr-tx p { margin: 0 0 6px; line-height: 1.65; font-size: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .evr.is-single .evr-tx p { font-size: 18px; line-height: 1.75; }
@@ -21,3 +24,6 @@
 .evr-more { font-size: 14px; color: var(--text-3); text-align: right; margin: 6px 0 0; }
 .evr-wait, .evr-blank { color: var(--text-3); font-size: 16px; padding: 24px 0; text-align: center; }
 .evr-pn small { color: var(--text-3); margin-left: 8px; }
+
+/* 태블릿에는 키보드가 없고, "평가 시작 때 고정된 버전" 같은 안내는 사실과 다를 수 있어 숨김 */
+.evr-keys,.evr-foot .note{display:none}

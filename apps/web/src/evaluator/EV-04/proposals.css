@@ -14,3 +14,12 @@
 .pp-body { flex: 1; min-height: 0; position: relative; }
 .pp-rd { position: absolute; inset: 0; }
 .pp-rd[hidden] { display: none; }
+/* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
+@media (max-width: 1180px) {
+  .pp-v { min-height: 44px; }
+  .pp-sub a, .pp-sub span { min-height: 44px; }
+}
+@media (max-width: 1024px) {
+  .pp-bar { padding: 0 16px; gap: 10px; }
+  .pp-v { padding: 0 14px; }
+}

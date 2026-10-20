@@ -37,13 +37,20 @@ td.em{max-width:230px}
 .fgrid2{display:flex;flex-direction:column;gap:16px}
 td,th{padding-left:12px;padding-right:12px}
 
+
+/* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
+@media (max-width: 1180px) {
+  .cb { width: 32px; height: 32px; }
+}
+#pnote{display:none!important}
+#p #demo{display:none}
 </style>
 </head>
 <body>
 <div class="app">
 <aside class="side">
   <button class="brand" type="button" data-href="../../PM-01/design/projects.html" aria-label="심사임당 사업 목록으로"><span class="brand-mark">심</span><span>심사임당</span></button>
-  <p class="role">(가상) 정보화담당관</p>
+  <p class="role">사업담당자</p>
   <nav aria-label="주 메뉴">
     <a href="../../PM-01/design/projects.html">사업 목록</a>
     <a href="../../PM-07/design/pool.html" aria-current="page">위원 풀</a>
@@ -56,7 +63,7 @@ td,th{padding-left:12px;padding-right:12px}
 <div class="main">
   <header class="head">
     <div><h1>위원 풀</h1><p class="sub" id="sub"></p></div>
-    <div class="acts" style="display:flex;gap:8px"><button class="btn" type="button" id="b-tpl">엑셀 양식 다운로드</button><button class="btn" type="button" id="b-xl">엑셀 선택 / 미리보기</button><button class="btn primary" type="button" id="b-add">개별 등록</button></div>
+    <div class="acts" style="display:flex;gap:8px"><button class="btn" type="button" id="b-tpl">엑셀 양식</button><button class="btn" type="button" id="b-xl">엑셀로 등록</button><button class="btn primary" type="button" id="b-add">한 명 등록</button></div>
   </header>
   <div class="body">
     <section class="card" aria-label="위원 풀">
@@ -69,10 +76,10 @@ td,th{padding-left:12px;padding-right:12px}
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>이름</th><th>소속</th><th>부서</th><th>직책</th><th>분야</th><th>휴대전화</th><th>이메일</th><th class="num">참여</th></tr></thead>
+          <thead><tr><th>이름</th><th>소속 기관</th><th>소속 부서</th><th>직책</th><th>분야</th><th>휴대전화</th><th>이메일</th><th class="num">평가 참여</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
-        <div class="note" id="pnote" hidden style="margin:12px 16px"><span>i</span><span>이 사업에만 쓰는 후보예요. 부서 풀에는 자동으로 들어가지 않아요.</span></div>
+        <div class="note" id="pnote" hidden style="margin:12px 16px"><span>i</span><span></span></div>
         <div class="state" id="none" hidden><div class="ico" aria-hidden="true">?</div><strong>맞는 위원이 없어요</strong><p>분야를 바꾸거나 검색어를 지워 보세요.</p></div>
       </div>
     </section>

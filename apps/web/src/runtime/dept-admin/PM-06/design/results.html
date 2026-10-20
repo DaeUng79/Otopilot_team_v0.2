@@ -56,13 +56,22 @@ th.sc{text-align:center}
 .facts .hint,.pj-act .hint{color:var(--text-3);font-size:var(--t-base)}
 @media print{.tabs,.demo{display:none!important}}
 
+
+/* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
+@media (max-width: 1180px) {
+  .cb { width: 32px; height: 32px; }
+}
+.lockc .prog~p{display:none}
+.facts .formula{display:none}
+p.legend{display:none}
+#acts .hint{display:none}
 </style>
 </head>
 <body>
 <div class="app">
 <aside class="side">
   <button class="brand" type="button" data-href="../../PM-01/design/projects.html" aria-label="심사임당 사업 목록으로"><span class="brand-mark">심</span><span>심사임당</span></button>
-  <p class="role">(가상) 정보화담당관</p>
+  <p class="role">사업담당자</p>
   <nav aria-label="주 메뉴">
     <a href="../../PM-01/design/projects.html" aria-current="page">사업 목록</a>
     <a href="../../PM-07/design/pool.html">위원 풀</a>
@@ -76,7 +85,7 @@ th.sc{text-align:center}
   <div class="pj-head">
     <a class="pj-back" href="../../PM-01/design/projects.html">← 사업 목록</a>
     <div class="pj-row">
-      <div class="pj-title"><h1>(가상) 통합 민원 시스템 구축 용역</h1><span class="badge primary" id="pst">● 평가 중</span></div>
+      <div class="pj-title"><h1>사업</h1><span class="badge primary" id="pst">● 평가 중</span></div>
       <div class="pj-act" id="acts"></div>
     </div>
   </div>

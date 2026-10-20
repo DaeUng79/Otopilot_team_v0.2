@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>심사임당 v2 · 시안 보기</title>
+<title>심사임당 화면 목록</title>
 <style>
   :root { --gray-0:#fff; --gray-5:#f4f5f6; --gray-20:#cdd1d5; --gray-60:#58616a; --gray-90:#1e2124; --primary-5:#ecf2fe; --primary-60:#0b50d0; }
   * { box-sizing: border-box; }
@@ -22,36 +22,36 @@
 </head>
 <body>
 <nav aria-label="시안 목록">
-  <h1>심사임당 v2 시안</h1>
-  <p style="margin:0 8px 8px">기준: 팀 기능명세 v2</p>
+  <h1>화면 목록</h1>
+  <p style="margin:0 8px 8px"></p>
   <h2>입장</h2>
-  <button data-src="entry/design/entry.html">ENTRY 입장 화면<small>B안 · 결정</small></button>
+  <button data-src="entry/design/entry.html">입장 화면<small></small></button>
   <h2>총괄관리자</h2>
-  <button data-src="super-admin/SA-00/design/login.html">SA-00 로그인·권한</button>
-  <button data-src="super-admin/SA-01/design/dashboard.html">SA-01 대시보드</button>
-  <button data-src="super-admin/SA-02/design/departments.html">SA-02 부서·계정</button>
-  <button data-src="super-admin/SA-03/design/projects.html">SA-03 전체 사업</button>
-  <button data-src="super-admin/SA-04/design/data.html">SA-04 자료 관리</button>
+  <button data-src="super-admin/SA-00/design/login.html">총괄관리자 로그인</button>
+  <button data-src="super-admin/SA-01/design/dashboard.html">총괄관리자 대시보드</button>
+  <button data-src="super-admin/SA-02/design/departments.html">부서·계정</button>
+  <button data-src="super-admin/SA-03/design/projects.html">전체 사업</button>
+  <button data-src="super-admin/SA-04/design/data.html">자료 관리</button>
   <h2>사업담당자</h2>
-  <button data-src="dept-admin/PM-00/design/login.html">PM-00 로그인</button>
-  <button data-src="dept-admin/PM-01/design/projects.html">PM-01 사업 목록·등록</button>
-  <button data-src="dept-admin/PM-01/design/overview.html">PM-01 사업 한눈에 보기</button>
-  <button data-src="dept-admin/PM-02/design/documents.html">PM-02 문서·업체·목차</button>
-  <button data-src="dept-admin/PM-03/design/criteria.html">PM-03 평가항목</button>
-  <button data-src="dept-admin/PM-04/design/committee.html">PM-04 평가위원 선정</button>
-  <button data-src="dept-admin/PM-05/design/attendance.html">PM-05 참석·위원장</button>
-  <button data-src="dept-admin/PM-06/design/results.html">PM-06 평가 결과</button>
-  <button data-src="dept-admin/PM-07/design/pool.html">PM-07 위원 풀</button>
-  <button data-src="dept-admin/PM-08/design/evidence.html">PM-08 근거 연결 (새 화면)</button>
+  <button data-src="dept-admin/PM-00/design/login.html">사업담당자 로그인</button>
+  <button data-src="dept-admin/PM-01/design/projects.html">사업 목록·등록</button>
+  <button data-src="dept-admin/PM-01/design/overview.html">사업 한눈에 보기</button>
+  <button data-src="dept-admin/PM-02/design/documents.html">문서·업체</button>
+  <button data-src="dept-admin/PM-03/design/criteria.html">평가항목</button>
+  <button data-src="dept-admin/PM-04/design/committee.html">평가위원 선정</button>
+  <button data-src="dept-admin/PM-05/design/attendance.html">참석·위원장</button>
+  <button data-src="dept-admin/PM-06/design/results.html">평가 결과</button>
+  <button data-src="dept-admin/PM-07/design/pool.html">위원 풀</button>
+  <button data-src="dept-admin/PM-08/design/evidence.html">근거 연결</button>
   <h2>평가위원</h2>
-  <button data-src="evaluator/EV-00/design/login.html">EV-00 로그인</button>
-  <button data-src="evaluator/EV-01/design/attendance.html">EV-01 참석 확인</button>
-  <button data-src="evaluator/EV-02/design/shell.html">EV-02 공통 틀 (상단 탭)</button>
-  <button data-src="evaluator/EV-03/design/rfp.html">EV-03 제안요청서 보기</button>
-  <button data-src="evaluator/EV-04/design/proposals.html">EV-04 제안서 업체별</button>
-  <button data-src="evaluator/EV-05/design/compare.html">EV-05 항목별 비교 + 챗봇</button>
-  <button data-src="evaluator/EV-06/design/scoring.html">EV-06 평가하기 (서명·제출)</button>
-  <button data-src="evaluator/EV-07/design/chair.html">EV-07 평가결과 확인 (위원장)</button>
+  <button data-src="evaluator/EV-00/design/login.html">평가위원 로그인</button>
+  <button data-src="evaluator/EV-01/design/attendance.html">참석 확인</button>
+  <button data-src="evaluator/EV-02/design/shell.html">공통 틀</button>
+  <button data-src="evaluator/EV-03/design/rfp.html">제안요청서 보기</button>
+  <button data-src="evaluator/EV-04/design/proposals.html">업체별 제안서</button>
+  <button data-src="evaluator/EV-05/design/compare.html">항목별 비교</button>
+  <button data-src="evaluator/EV-06/design/scoring.html">평가하기</button>
+  <button data-src="evaluator/EV-07/design/chair.html">평가결과 확인</button>
 </nav>
 <iframe title="선택한 시안" id="view"></iframe>
 <script>

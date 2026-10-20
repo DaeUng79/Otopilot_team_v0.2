@@ -27,6 +27,7 @@ body{display:flex;flex-direction:column;background:var(--gray-0)}
 .seed{text-align:center;color:var(--text-3);font-size:var(--t-base)}
 .back{appearance:none;background:none;border:0;color:var(--text-3);font-size:var(--t-body);min-height:44px;padding:0 12px;cursor:pointer;border-radius:var(--radius-sm);display:inline-flex;align-items:center;margin-top:8px;text-decoration:none}
 .back:hover{background:var(--gray-10);color:var(--text-1)}
+:root{--demo-h:0px}
 </style>
 </head>
 <body>
@@ -42,7 +43,7 @@ body{display:flex;flex-direction:column;background:var(--gray-0)}
     <label class="field">아이디<input id="uid" autocomplete="username" spellcheck="false" value="info01"></label>
     <label class="field">비밀번호<input id="upw" type="password" autocomplete="current-password" value="demo1234"></label>
     <button class="btn primary go" id="go" type="submit">로그인</button>
-    <p class="seed">부서 계정은 총괄관리자가 만들어 줘요</p>
+    <p class="seed">계정이 없으면 총괄관리자에게 요청하세요</p>
   </form>
   <a class="back" href="../../../entry/design/entry.html">← 처음 화면으로</a>
 </section>
@@ -52,7 +53,7 @@ body{display:flex;flex-direction:column;background:var(--gray-0)}
   <button type="button" data-st="wrong" aria-pressed="false">틀림</button>
   <button type="button" data-st="lock" aria-pressed="false">5회 잠금</button>
   <button type="button" data-st="off" aria-pressed="false">비활성 부서 계정 (같은 문구)</button>
-  <span class="muted" style="margin-left:auto">직접 해 보기: 아이디 info01 · 비밀번호 demo1234 (info02는 비활성 계정이지만 같은 문구가 나와요)</span>
+  <span class="muted" style="margin-left:auto"></span>
 </div></details>
 <div class="scrim" id="scrim"></div><div class="scrim top" id="scrim2"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>

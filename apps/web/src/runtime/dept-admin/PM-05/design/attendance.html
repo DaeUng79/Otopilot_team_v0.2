@@ -63,13 +63,24 @@ td input.cell,td select.cell{min-height:40px;font-size:var(--t-base)}
 .rd:disabled{cursor:not-allowed}
 tr.chair td{background:var(--primary-5)}
 
+
+/* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
+@media (max-width: 1180px) {
+  .cb, .rd { width: 32px; height: 32px; }
+}
+@media (max-width: 1024px) {
+  .att { grid-template-columns: 200px minmax(0, 1fr); }
+  .cbar { padding: 12px 16px; gap: 12px; }
+}
+tbody td .muted{display:none}
+ul.chk.inl li:first-child:nth-last-child(4){display:none}
 </style>
 </head>
 <body>
 <div class="app">
 <aside class="side">
   <button class="brand" type="button" data-href="../../PM-01/design/projects.html" aria-label="심사임당 사업 목록으로"><span class="brand-mark">심</span><span>심사임당</span></button>
-  <p class="role">(가상) 정보화담당관</p>
+  <p class="role">사업담당자</p>
   <nav aria-label="주 메뉴">
     <a href="../../PM-01/design/projects.html" aria-current="page">사업 목록</a>
     <a href="../../PM-07/design/pool.html">위원 풀</a>
@@ -83,8 +94,8 @@ tr.chair td{background:var(--primary-5)}
   <div class="pj-head">
     <a class="pj-back" href="../../PM-01/design/projects.html">← 사업 목록</a>
     <div class="pj-row">
-      <div class="pj-title"><h1>(가상) 통합 민원 시스템 구축 용역</h1><span class="badge" id="pst">○ 준비</span></div>
-      <div class="pj-act"><span class="hint">평가일 2026-11-05</span></div>
+      <div class="pj-title"><h1>사업</h1><span class="badge" id="pst">○ 준비</span></div>
+      <div class="pj-act"><span class="hint">평가일</span></div>
     </div>
   </div>
   <nav class="steps" id="steps" aria-label="사업 진행 단계"></nav>

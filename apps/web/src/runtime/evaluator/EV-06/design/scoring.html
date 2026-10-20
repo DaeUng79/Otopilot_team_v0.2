@@ -118,6 +118,25 @@
 .sc-sum td:last-child { text-align: right; font-weight:700; font-variant-numeric: tabular-nums; }
 .sc-sum small { color: var(--text-3); font-weight: 400; }
 .sc-warn { color: var(--danger-60); font-weight: 700; font-size: 16px; }
+
+/* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
+@media (max-width: 1180px) {
+  /* 보이는 크기는 그대로, 누르는 영역만 44px 로 (음수 여백으로 줄 높이 유지) */
+  .sc-i { width: 44px; height: 44px; margin: -8px -8px -8px -4px; }
+  .sc-ops summary { min-height: 44px; }
+}
+@media (max-width: 1024px) {
+  .sc-in { padding: 16px 20px 20px; }
+  .sc-bar-in { padding: 0 20px; }
+  .sc-card-hd { padding: 14px 16px 10px; }
+  .sc-tbl .l { padding-left: 16px; }
+  .sc-tbl th, .sc-tbl td { padding-left: 8px; padding-right: 8px; }
+  .sc-ops { margin: 8px 16px 4px; }
+  .sc-opgrid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+}
+.sc-ctx,.sc-steps2,.evc{display:none}
+/* 항목 옆 ⓘ와 요약 패널은 가짜 예시 자료("예시 자료 · 실제 제안서 내용 아님")를 보여 주므로 숨김 */
+.sc-i,.sc-panel{display:none!important}
 </style>
 </head>
 <body>

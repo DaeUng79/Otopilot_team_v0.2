@@ -23,6 +23,12 @@ select{appearance:auto}
 #pn-acc .tbl-wrap{overflow-y:auto;overscroll-behavior:contain}
 .password-value{display:block;padding:16px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--gray-5);font-size:var(--t-xl);font-weight:700;line-height:1.5;overflow-wrap:anywhere;user-select:all}
 .password-countdown{font-size:var(--t-sm);color:var(--text-3)}
+#sub{display:none}
+#pn-dept th:first-child,#pn-dept td:first-child{display:none}
+label.field:has(#de-code){display:none}
+#p-aedit dl.kv{display:none}
+.perm code{display:none}
+#de-zone #z-del+.why{display:none}
 </style>
 </head>
 <body>
@@ -53,9 +59,9 @@ select{appearance:auto}
         <button class="tab" role="tab" id="t-acc" aria-controls="pn-acc" aria-selected="false" type="button" tabindex="-1">관리자 계정</button>
       </div>
       <div class="pn" id="pn-dept" role="tabpanel" aria-labelledby="t-dept">
-        <div class="toolbar"><span class="count" style="margin-left:0" id="d-count"></span><span class="spec-note">ⓘ 부서 목록 관리는 기능명세에 없음 · 팀 확인 필요</span></div>
+        <div class="toolbar"><span class="count" style="margin-left:0" id="d-count"></span><span class="spec-note"></span></div>
         <div class="tbl-wrap"><table>
-          <thead><tr><th>부서 코드</th><th>소속</th><th>명칭</th><th class="num">계정 수</th><th class="num">사업 수</th><th>상태</th></tr></thead>
+          <thead><tr><th>부서 코드</th><th>소속 기관</th><th>부서명</th><th class="num">계정 수</th><th class="num">사업 수</th><th>상태</th></tr></thead>
           <tbody id="d-rows"></tbody></table></div>
       </div>
       <div class="pn" id="pn-acc" role="tabpanel" aria-labelledby="t-acc" hidden>
@@ -69,7 +75,7 @@ select{appearance:auto}
         <div class="tbl-wrap"><table>
           <thead><tr><th>아이디</th><th>이름</th><th>부서</th><th>권한</th><th>마지막 로그인</th><th>상태</th></tr></thead>
           <tbody id="a-rows"></tbody></table>
-          <div class="state" id="a-none" hidden><strong>찾는 계정이 없어요</strong><p>다른 검색어나 부서·상태로 찾아 보세요.</p></div></div>
+          <div class="state" id="a-none" hidden><strong>찾는 계정이 없어요</strong><p></p></div></div>
       </div>
     </section>
   </div>
@@ -88,9 +94,9 @@ select{appearance:auto}
   <form class="dbody" id="f-dnew" novalidate>
     <label class="field">부서 코드 <span class="hint">영문 대문자·숫자·붙임표 3~12자</span>
       <input id="dn-code" autocomplete="off" placeholder="예) D-111" aria-describedby="dn-code-e"><span class="err" id="dn-code-e" hidden></span></label>
-    <label class="field">소속 <span class="hint">기관 이름</span>
-      <input id="dn-org" autocomplete="off" placeholder="예) (가상)시청" aria-describedby="dn-org-e"><span class="err" id="dn-org-e" hidden></span></label>
-    <label class="field">명칭
+    <label class="field">소속 기관 <span class="hint"></span>
+      <input id="dn-org" autocomplete="off" placeholder="예) ○○시청" aria-describedby="dn-org-e"><span class="err" id="dn-org-e" hidden></span></label>
+    <label class="field">부서명
       <input id="dn-name" autocomplete="off" placeholder="예) 정보화담당관" aria-describedby="dn-name-e"><span class="err" id="dn-name-e" hidden></span></label>
   </form>
   <footer><button class="btn" type="button" data-close>취소</button><button class="btn primary" type="submit" form="f-dnew">등록</button></footer>
@@ -102,8 +108,8 @@ select{appearance:auto}
   <div class="dbody">
     <div id="de-status"></div>
     <label class="field">부서 코드 <span class="hint">코드는 바꿀 수 없어요</span><input id="de-code" disabled></label>
-    <label class="field">소속<input id="de-org" autocomplete="off" aria-describedby="de-org-e"><span class="err" id="de-org-e" hidden></span></label>
-    <label class="field">명칭<input id="de-name" autocomplete="off" aria-describedby="de-name-e"><span class="err" id="de-name-e" hidden></span></label>
+    <label class="field">소속 기관<input id="de-org" autocomplete="off" aria-describedby="de-org-e"><span class="err" id="de-org-e" hidden></span></label>
+    <label class="field">부서명<input id="de-name" autocomplete="off" aria-describedby="de-name-e"><span class="err" id="de-name-e" hidden></span></label>
     <dl class="kv"><dt>계정 수</dt><dd id="de-acc"></dd><dt>사업 수</dt><dd id="de-cnt"></dd></dl>
     <div class="zone">
       <h3 class="sec-h" style="margin:0">부서 관리</h3>
@@ -127,7 +133,7 @@ select{appearance:auto}
       <span class="err" id="an-dept-e" hidden></span></label>
     <div class="field"><label for="an-pw">초기 비밀번호</label>
       <div class="with-btn"><input id="an-pw" autocomplete="off" aria-describedby="an-pw-e an-pw-h"><button class="btn" type="button" id="an-gen">생성</button></div>
-      <span class="hint" id="an-pw-h">처음 로그인할 때 직접 바꿔요. 서버에는 암호화해서 저장돼요. 등록한 뒤에는 다시 볼 수 없으니 전달할 곳에 적어 두세요.</span>
+      <span class="hint" id="an-pw-h">처음 로그인할 때 바꿔요. 등록하면 다시 볼 수 없어요.</span>
       <span class="err" id="an-pw-e" hidden></span></div>
   </form>
   <footer><button class="btn" type="button" data-close>취소</button><button class="btn primary" type="submit" form="f-anew">등록</button></footer>
@@ -139,11 +145,11 @@ select{appearance:auto}
   <div class="dbody">
     <div id="ae-status"></div>
     <dl class="kv"><dt>아이디</dt><dd id="ae-id"></dd><dt>마지막 로그인</dt><dd id="ae-last"></dd></dl>
-    <label class="field">표시명<input id="ae-name" autocomplete="off" aria-describedby="ae-name-e"><span class="err" id="ae-name-e" hidden></span></label>
+    <label class="field">이름<input id="ae-name" autocomplete="off" aria-describedby="ae-name-e"><span class="err" id="ae-name-e" hidden></span></label>
     <label class="field">부서<select id="ae-dept"></select></label>
     <div class="zone">
       <h3 class="sec-h" style="margin:0">권한</h3>
-      <div class="perms" id="ae-perms" role="group" aria-label="권한 코드"></div>
+      <div class="perms" id="ae-perms" role="group" aria-label="권한"></div>
       <p class="why" id="ae-perm-h">저장하면 그 계정은 다시 확인돼요</p>
       <div class="row-btns"><button class="btn" type="button" id="ae-psave">권한 저장</button></div>
     </div>
@@ -153,7 +159,7 @@ select{appearance:auto}
       <div id="ae-zone" class="row-btns" style="flex-direction:column;align-items:flex-start"></div>
     </div>
   </div>
-  <footer><button class="btn" type="button" data-close>닫기</button><button class="btn primary" type="button" id="ae-save">수정 저장</button></footer>
+  <footer><button class="btn" type="button" data-close>닫기</button><button class="btn primary" type="button" id="ae-save">이름·부서 저장</button></footer>
 </aside>
 
 <div class="dlg" id="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t" aria-describedby="dlg-b">

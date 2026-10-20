@@ -4,7 +4,7 @@
 :root {
   --primary-5:#ecf2fe;--primary-10:#d8e5fd;--primary-20:#b1cefb;--primary-50:#256ef4;--primary-60:#0b50d0;--primary-70:#083891;
   --secondary-70:#063a74;--secondary-90:#031f3f;--on-dark-2:#d8e5fd;--on-dark-3:#b1cefb;--veil-light:rgb(255 255 255/.1);--veil-light-2:rgb(255 255 255/.2);
-  --gray-0:#fff;--gray-5:#f4f5f6;--gray-10:#e6e8ea;--gray-20:#cdd1d5;--gray-30:#b1b8be;--gray-50:#6d7882;--gray-60:#58616a;--gray-70:#464c53;--gray-90:#1e2124;
+  --gray-0:#fff;--gray-5:#f4f5f6;--gray-10:#e6e8ea;--gray-20:#cdd1d5;--gray-30:#b1b8be;--gray-50:#67717b;--gray-60:#58616a;--gray-70:#464c53;--gray-90:#1e2124;
   --danger-5:#fdefec;--danger-10:#fcdfd9;--danger-50:#de3412;--danger-60:#bd2c0f;
   --warning-5:#fff3db;--warning-10:#ffe0a3;--warning-50:#9e6a00;--warning-60:#8a5c00;
   --success-5:#eaf6ec;--success-10:#d8eedd;--success-50:#228738;--success-60:#267337;
@@ -232,6 +232,9 @@ p { margin: 0; }
 .evc-empty { margin: auto 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px; }
 .evc-empty b { font-size: 18px; }
 .evc-empty p { font-size: 14px; color: var(--text-3); }
+/* [임시 CSS 문구 교체] 문서 도우미 "준비 중" 상태(추천 질문 .evc-sug 없는 빈 화면)의 서버 원문(모듈·파일 경로 포함 가능)을 짧은 안내로 바꿔 보임. 원 문구를 고치면 아래 두 줄을 삭제하세요. */
+.evc-empty:not(:has(.evc-sug)) p { font-size: 0; line-height: 0; }
+.evc-empty:not(:has(.evc-sug)) p::before { content: "지금은 문서 도우미를 쓸 수 없어요. 제안서는 직접 읽을 수 있어요."; font-size: 14px; line-height: 1.5; }
 .evc-hi { font-size: 30px; line-height: 1.2; }
 .evc-sug { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; width: 100%; }
 .evc-sq { appearance: none; border: 1px solid var(--primary-20); background: var(--gray-0); color: var(--primary-70); border-radius: var(--radius-full); min-height: 42px; padding: 0 16px; font-size: 16px; cursor: pointer; }
@@ -255,3 +258,58 @@ p { margin: 0; }
 .evr-state .spin { width: 36px; height: 36px; border-radius: 50%; border: 4px solid var(--gray-10); border-top-color: var(--primary-50); animation: evr-spin .8s linear infinite; }
 @keyframes evr-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .evr-state .spin { animation: none; } }
+
+/* ═══════════════════════════════════════════════════════════════════
+   태블릿 보강 (CSS만 · 기능·마크업 변경 없음)
+   아래 규칙은 전부 미디어쿼리 안에 있어 데스크톱(가로 1181px 이상)에는 적용되지 않습니다.
+   · ≤1180px  가로 태블릿까지: 주소창 높이(dvh), 손가락으로 누를 크기(44px)
+   · ≤1024px  세로 태블릿: 위 줄·읽기 화면 여백을 줄여 가로로 넘치지 않게
+   ═══════════════════════════════════════════════════════════════════ */
+@media (max-width: 1180px) {
+  /* 주소창이 줄었다 늘었다 하는 브라우저: vh 는 남겨 두고 dvh 를 덧붙인다 */
+  .ev-app { height: 100vh; height: 100dvh; }
+  .ev-modal { max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); }
+  .evc-win { height: min(560px, calc(100vh - var(--ev-hd-h) - var(--evc-b) - 72px - 12px)); height: min(560px, calc(100dvh - var(--ev-hd-h) - var(--evc-b) - 72px - 12px)); }
+
+  /* 누르는 칸은 44px 이상 */
+  .ev-mark { min-height: 44px; }
+  .ev-user-btn { min-height: 44px; }
+  .ev-btn.sm { height: 44px; }
+  .ev-demo summary { min-height: 44px; }
+  .ev-seg button { min-height: 44px; }
+  .evr-seg button { min-height: 44px; }
+  .evr-go input { height: 44px; }
+  .evr-toc-item { min-height: 44px; }
+  .evc-x { width: 44px; height: 44px; }
+  .evc-reset { min-height: 40px; }
+  .evc-vc { min-height: 40px; }
+  .evc-pg { min-height: 40px; padding: 0 14px; }
+}
+
+@media (max-width: 1024px) {
+  /* 위 줄: 로고 | 메뉴(넘치면 옆으로 밀어 보기) | 사용자 */
+  .ev-hd { grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; padding: 0 16px; }
+  .ev-tabs { min-width: 0; justify-content: center; gap: 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .ev-tabs::-webkit-scrollbar { display: none; }
+  .ev-tab { flex: none; white-space: nowrap; padding: 0 14px; font-size: 16px; }
+  .ev-tab[aria-current="page"]::after { left: 10px; right: 10px; bottom: 0; }
+  .ev-user-btn { display: inline-block; max-width: 270px; padding: 0 8px; font-size: 14px; line-height: 1.25; white-space: normal; text-align: left; }
+  .ev-user-btn span { margin-left: 4px; }
+
+  /* 읽기 화면: 책 면을 조금 더 넓게, 목차 팝업은 화면 안에 */
+  .evr-main { padding: 0 16px; }
+  .evr-stage { padding: 0 38px; }
+  .evr-side { width: 48px; height: 48px; margin-top: -24px; font-size: 26px; }
+  .evr-side.l { left: -44px; }
+  .evr-side.r { right: -44px; }
+  .evr-page { padding: 24px 28px 8px; }
+  .evr.is-single .evr-page { padding: 24px 40px 8px; }
+  .evr-pop { width: min(430px, calc(100vw - 112px)); }
+  .evr-top { gap: 6px; }
+  .evr-foot { height: auto; min-height: 56px; flex-wrap: wrap; gap: 4px 12px; padding-top: 4px; padding-bottom: 4px; }
+  .evr-foot .note { flex: 1 1 220px; min-width: 0; font-size: 14px; }
+  .evr-foot .fr { flex: none; white-space: nowrap; gap: 8px; }
+}
+
+.ev-demo{display:none!important}
+.ev-tab .ev-lock-text{display:none}

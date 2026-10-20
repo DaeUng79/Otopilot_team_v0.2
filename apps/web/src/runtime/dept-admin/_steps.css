@@ -19,3 +19,25 @@
 .step.is-locked{background:none;box-shadow:none;color:var(--text-3);font-weight:400;cursor:not-allowed}
 .step.is-locked:hover{background:none}
 .step.is-locked .n{background:none;font-size:var(--t-base)}
+
+/* ═══════════════════════════════════════════════════════════════════
+   태블릿 보강 (CSS만): 아래는 전부 미디어쿼리 안 — 1181px 이상 데스크톱에는 적용되지 않음
+   ═══════════════════════════════════════════════════════════════════ */
+@media (max-width: 1180px) {
+  .pj-back { min-height: 44px; }
+}
+@media (max-width: 1024px) {
+  .pj-head { padding: 8px 24px 0; }
+  .pj-row { flex-wrap: wrap; gap: 8px 16px; }
+  .pj-act { flex-wrap: wrap; }
+  /* 단계 막대: 겹치거나 잘리지 않게 글자를 한 줄로 두고, 모자라면 옆으로 밀어 보기(양끝 그림자로 표시) */
+  .steps { gap: 6px; padding: 12px 24px 16px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+    background:
+      linear-gradient(90deg, var(--gray-5) 30%, rgb(244 245 246 / 0)) 0 0 / 28px 100% no-repeat local,
+      linear-gradient(270deg, var(--gray-5) 30%, rgb(244 245 246 / 0)) 100% 0 / 28px 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%, rgb(3 31 63 / .18), rgb(3 31 63 / 0)) 0 0 / 12px 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, rgb(3 31 63 / .18), rgb(3 31 63 / 0)) 100% 0 / 12px 100% no-repeat scroll; }
+  .steps::-webkit-scrollbar { display: none; }
+  .step { flex: 1 0 auto; gap: 8px; padding: 0 12px; font-size: 15px; white-space: nowrap; }
+  .step .n { width: 26px; height: 26px; }
+}

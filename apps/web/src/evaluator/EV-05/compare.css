@@ -50,3 +50,26 @@
 .cp-hit { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-top: 1px solid var(--gray-10); }
 .cp-hit:first-of-type { border-top: 0; padding-top: 0; }
 .cp-ht { margin: 0; font-size: 15px; line-height: 1.5; color: var(--text-1); }
+/* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
+@media (max-width: 1180px) {
+  .cp-sub a, .cp-sub span { min-height: 44px; }
+  .cp-link { min-height: 44px; padding: 8px 0; }
+}
+@media (max-width: 1024px) {
+  .cp-bar { padding: 0 16px; gap: 10px; }
+  .cp-wrap { grid-template-columns: 236px minmax(0, 1fr); }
+  .cp-list { padding: 10px 8px; }
+  .cp-it { font-size: 16px; padding: 6px 10px; }
+  .cp-scroll { padding: 16px 20px 96px; }
+  .cp-cols { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .cp-hd h2 { font-size: 22px; }
+  .cp-sl { width: min(860px, 94vw); }
+}
+
+/* 상단 제목은 바로 옆 전환 탭과 같은 말이라 숨기고 버튼을 오른쪽으로 */
+.cp-bar h1{display:none}
+.cp-bar #ask-open{margin-left:auto}
+/* 발췌 문장: 세 줄까지만 */
+.cp-ht{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+/* 오른쪽 슬라이드: 보기 방식·내려받기·키 안내는 숨기고 쪽 이동만 */
+.cp-sl .evr-top{display:none}

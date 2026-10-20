@@ -13,6 +13,9 @@
 .preview-hd h1{font-size:18px;color:var(--text-1)}
 .preview-hd a{color:var(--primary-60);text-decoration:none;font-weight:700}
 .preview-hd a:hover{text-decoration:underline}
+/* [임시 CSS 문구 교체] 불러오기 실패·빈 화면 안내에 붙는 서버 원문("파싱" 등)을 짧은 안내로 바꿔 보임. 원 문구를 고치면 삭제하세요. */
+#reader .evr-state[role=alert] p{font-size:0;line-height:0}
+#reader .evr-state[role=alert] p::before{content:"문서 화면에서 제안요청서 상태를 확인한 뒤 다시 열어 주세요.";font-size:var(--t-base);line-height:1.5}
 </style>
 </head>
 <body>

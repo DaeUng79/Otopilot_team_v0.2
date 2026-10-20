@@ -29,13 +29,15 @@ td.nm{max-width:420px}
 .dbs{display:flex;flex-direction:column;gap:8px}
 .dbs div{display:flex;align-items:center;gap:12px;font-size:var(--t-base)}
 .dbs b{width:64px}
+#f-dept{display:none}
+table:not(:has(tr[data-deleted-id])) thead th:last-child,table:not(:has(tr[data-deleted-id])) #rows td:last-child{display:none}
 </style>
 </head>
 <body>
 <div class="app">
 <aside class="side">
   <button class="brand" type="button" data-href="../../PM-01/design/projects.html" aria-label="심사임당 사업 목록으로"><span class="brand-mark">심</span><span>심사임당</span></button>
-  <p class="role">(가상) 정보화담당관</p>
+  <p class="role">사업담당자</p>
   <nav aria-label="주 메뉴">
     <a href="../../PM-01/design/projects.html" aria-current="page">사업 목록</a>
     <a href="../../PM-07/design/pool.html">위원 풀</a>
@@ -54,7 +56,7 @@ td.nm{max-width:420px}
     <section class="card" aria-label="사업 목록">
       <div class="toolbar">
         <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-          <input type="search" id="q" placeholder="검색어 (사업명·성명)" aria-label="검색어"></div>
+          <input type="search" id="q" placeholder="사업명·담당자 검색" aria-label="검색어"></div>
         <select id="f-dept" aria-label="부서" disabled title="본인 부서만 볼 수 있어요"><option>정보화담당관 (우리 부서)</option></select>
         <select id="f-st" aria-label="상태"><option value="">상태 전체</option><option>준비</option><option>평가 중</option><option>완료</option></select>
         <button class="btn" type="button" id="b-reset">초기화</button>
@@ -87,7 +89,7 @@ td.nm{max-width:420px}
     </div>
     <div class="two">
       <label class="field">직책/직급<input id="n-pos" placeholder="예: 주무관" aria-describedby="n-pos-e"><span class="err" id="n-pos-e" hidden></span></label>
-      <label class="field">성명<input id="n-owner" aria-describedby="n-owner-e"><span class="err" id="n-owner-e" hidden></span></label>
+      <label class="field">담당자 이름<input id="n-owner" aria-describedby="n-owner-e"><span class="err" id="n-owner-e" hidden></span></label>
     </div>
     <label class="field">전화<input id="n-tel" type="tel" inputmode="tel" placeholder="010-0000-0000" aria-describedby="n-tel-e"><span class="err" id="n-tel-e" hidden></span></label>
     <label class="field"><span>이메일 <span class="hint">(선택)</span></span><input id="n-mail" type="email" placeholder="example@gov.test"></label>

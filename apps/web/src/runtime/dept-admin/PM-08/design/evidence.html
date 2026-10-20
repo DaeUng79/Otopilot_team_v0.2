@@ -71,13 +71,22 @@
 .sp{display:inline-block;width:16px;height:16px;border:2px solid var(--primary-20);border-top-color:var(--primary-50);border-radius:50%;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.sp{animation:none}}
+
+/* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
+@media (max-width: 1024px) {
+  .items { width: 244px; }
+  .ph { padding: 12px 16px 8px; gap: 8px 16px; }
+  .ph .t { min-width: 200px; }
+  .pick { grid-template-columns: 170px minmax(0, 1fr); }
+}
+.vsec .vmsg,.items .foot,.items .sub,.ph .acts .hint,.ilist .st,.pj-act .hint{display:none}
 </style>
 </head>
 <body>
 <div class="app">
 <aside class="side">
   <button class="brand" type="button" data-href="../../PM-01/design/projects.html" aria-label="심사임당 사업 목록으로"><span class="brand-mark">심</span><span>심사임당</span></button>
-  <p class="role">(가상) 정보화담당관</p>
+  <p class="role">사업담당자</p>
   <nav aria-label="주 메뉴">
     <a href="../../PM-01/design/projects.html" aria-current="page">사업 목록</a>
     <a href="../../PM-07/design/pool.html">위원 풀</a>
@@ -91,8 +100,8 @@
   <header class="pj-head">
     <a class="pj-back" href="../../PM-02/design/documents.html">← 문서</a>
     <div class="pj-row">
-      <div class="pj-title"><h1>(가상) 통합 민원 시스템 구축 용역</h1><span class="badge">○ 준비</span><span class="badge">근거 연결</span></div>
-      <div class="pj-act"><span class="hint">확정한 근거만 평가위원 비교 화면에 나와요</span></div>
+      <div class="pj-title"><h1>사업</h1><span class="badge">○ 준비</span><span class="badge">근거 연결 · 준비 중</span></div>
+      <div class="pj-act"><span class="hint"></span></div>
     </div>
   </header>
   <nav class="steps" id="steps" aria-label="진행 단계"></nav>
@@ -102,7 +111,7 @@
         <h2>평가항목</h2>
         <p class="sub">승인된 평가표 v1 · 확정 <b class="tnum" id="gdone"></b></p>
         <ul class="ilist" id="ilist"></ul>
-        <div class="foot">확정한 연결은 평가위원의 업체 비교 화면에 그대로 쓰여요.</div>
+        <div class="foot"></div>
       </aside>
       <div class="panel" id="panel"></div>
     </section>

@@ -18,6 +18,13 @@ td.two{line-height:1.35}td.two small{display:block;color:var(--text-3);font-size
 textarea{width:100%;min-height:88px;padding:10px 14px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-size:var(--t-body);resize:vertical}
 textarea:focus{outline:none;border-color:var(--primary-50);box-shadow:var(--focus)}
 input[type=file]{padding:8px 14px;height:auto}
+td.two small.fpath{display:none}
+#p-ed dl.kv dt:last-of-type,#p-ed dl.kv dd:last-of-type{display:none}
+.main:has(#t-files[aria-selected="true"]) #sub{display:none}
+/* 동작 칸: 버튼이 잘리지 않고 줄바꿈 */
+#rows td:last-child{overflow:visible;max-width:none;white-space:normal;text-overflow:clip}
+#rows td:last-child>span{flex-wrap:wrap}
+#rows td:last-child .btn{min-height:40px;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -65,7 +72,7 @@ input[type=file]{padding:8px 14px;height:auto}
 <aside class="drawer" id="p-up" role="dialog" aria-modal="true" aria-labelledby="p-up-t">
   <header><h2 id="p-up-t">결과 자료 등록</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
   <form class="dbody form" id="f-up" novalidate>
-    <div class="note"><div>직접 올린 결과 자료는 <span class="badge primary">UPLOADED_RESULT · 직접 올린 자료</span>로 표시돼요. 시스템이 취합한 결과와 구분돼요.</div></div>
+    <div class="note"><div>직접 올린 결과 자료는 <span class="badge primary">직접 올린 자료</span>로 표시돼요. 시스템이 모은 결과와 구분돼요.</div></div>
     <label class="field">사업<select id="u-proj" aria-describedby="u-proj-e"></select><span class="err" id="u-proj-e" hidden></span></label>
     <label class="field">파일<input id="u-file" type="file" aria-describedby="u-file-e"><span class="err" id="u-file-e" hidden></span></label>
     <label class="field">제목<input id="u-title" autocomplete="off" aria-describedby="u-title-e"><span class="err" id="u-title-e" hidden></span></label>
@@ -74,14 +81,14 @@ input[type=file]{padding:8px 14px;height:auto}
   <footer><button class="btn" type="button" data-close>취소</button><button class="btn primary" type="submit" form="f-up">등록</button></footer>
 </aside>
 <aside class="drawer" id="p-ed" role="dialog" aria-modal="true" aria-labelledby="p-ed-t">
-  <header><h2 id="p-ed-t">수정 / 파일 교체</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
+  <header><h2 id="p-ed-t">파일 교체</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
   <form class="dbody form" id="f-ed" novalidate>
     <dl class="kv"><dt>자료</dt><dd id="e-name"></dd><dt>현재 버전</dt><dd id="e-ver" class="tnum"></dd></dl>
     <label class="field">설명<textarea id="e-desc"></textarea></label>
     <label class="field">새 파일 <span class="hint" id="e-fh">(선택) 고르면 새 버전이 돼요</span><input id="e-file" type="file"></label>
-    <div class="note"><div>저장하면 <b>새 버전</b>이 만들어져요. 확정 점수·서명은 바뀌지 않아요.</div></div>
+    <div class="note"><div>이전 파일은 <b>기록</b>으로 남아요.</div></div>
   </form>
-  <footer><button class="btn" type="button" data-close>취소</button><button class="btn primary" type="submit" form="f-ed">새 버전으로 저장</button></footer>
+  <footer><button class="btn" type="button" data-close>취소</button><button class="btn primary" type="submit" form="f-ed">저장</button></footer>
 </aside>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="scrim" id="scrim"></div><div class="scrim top" id="scrim2"></div>

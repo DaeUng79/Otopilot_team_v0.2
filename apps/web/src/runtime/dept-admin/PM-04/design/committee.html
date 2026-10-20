@@ -109,13 +109,35 @@ tr.sumrow td{height:42px}
 .fin .side2{align-self:start}
 .chk .muted{display:block}
 
+
+/* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
+@media (max-width: 1180px) {
+  .seg button { min-height: 44px; }
+  .stp button, .tray .rm { width: 44px; height: 44px; }
+  .cb { width: 32px; height: 32px; }
+}
+@media (max-width: 1024px) {
+  /* 하위 단계 탭: 한 줄로 두고 모자라면 옆으로 */
+  .sub { padding: 8px 12px; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .sub::-webkit-scrollbar { display: none; }
+  .sub button { flex: 1 0 auto; white-space: nowrap; padding: 0 12px; gap: 8px; }
+  .sub .n { width: 26px; height: 26px; }
+  .stg { padding: 12px 16px; }
+  .two, .fin, .two-l, .dgrid { grid-template-columns: minmax(0, 1fr); }
+  .demo .grp { flex-wrap: wrap; margin-right: 0; }
+  .foot { flex-wrap: wrap; padding: 12px 16px; }
+  .foot .why { flex: 1 1 240px; min-width: 0; }
+  .call td input { min-width: 160px; }
+}
+/* 명단 확정 뒤 안내: 둘째 줄("평가 쪽에서 …")과 [상태 새로고침] 숨김 */
+.stg>.note>span>br,.stg>.note>span>br+.muted,#rf{display:none}
 </style>
 </head>
 <body>
 <div class="app">
 <aside class="side">
   <button class="brand" type="button" data-href="../../PM-01/design/projects.html" aria-label="심사임당 사업 목록으로"><span class="brand-mark">심</span><span>심사임당</span></button>
-  <p class="role">(가상) 정보화담당관</p>
+  <p class="role">사업담당자</p>
   <nav aria-label="주 메뉴">
     <a href="../../PM-01/design/projects.html" aria-current="page">사업 목록</a>
     <a href="../../PM-07/design/pool.html">위원 풀</a>
@@ -129,8 +151,8 @@ tr.sumrow td{height:42px}
   <div class="pj-head">
     <a class="pj-back" href="../../PM-01/design/projects.html">← 사업 목록</a>
     <div class="pj-row">
-      <div class="pj-title"><h1>(가상) 통합 민원 시스템 구축 용역</h1><span class="badge">○ 준비</span></div>
-      <div class="pj-act"><span class="hint">평가일 2026-11-05</span></div>
+      <div class="pj-title"><h1>사업</h1><span class="badge">○ 준비</span></div>
+      <div class="pj-act"><span class="hint">평가일</span></div>
     </div>
   </div>
   <nav class="steps" id="steps" aria-label="사업 진행 단계"></nav>

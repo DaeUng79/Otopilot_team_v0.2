@@ -55,6 +55,22 @@
 .cp-sl-bd { flex: 1; min-height: 0; position: relative; }
 .cp-rd { position: absolute; inset: 0; }
 @media (prefers-reduced-motion: reduce) { .cp-sl, .cp-sl-scrim { transition: none; } }
+
+/* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
+@media (max-width: 1180px) {
+  .cp-sub a, .cp-sub span { min-height: 44px; }
+  .cp-link { min-height: 44px; padding: 8px 0; }
+}
+@media (max-width: 1024px) {
+  .cp-bar { padding: 0 16px; gap: 10px; }
+  .cp-wrap { grid-template-columns: 236px minmax(0, 1fr); }
+  .cp-list { padding: 10px 8px; }
+  .cp-it { font-size: 16px; padding: 6px 10px; }
+  .cp-scroll { padding: 16px 20px 96px; }
+  .cp-cols { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .cp-hd h2 { font-size: 22px; }
+  .cp-sl { width: min(860px, 94vw); }
+}
 </style>
 </head>
 <body>
@@ -78,7 +94,7 @@
 
 <div class="cp-sl-scrim" id="sl-scrim"></div>
 <aside class="cp-sl" id="sl" role="dialog" aria-modal="true" aria-label="제안서 해당 쪽" aria-hidden="true">
-  <div class="cp-sl-hd"><b id="sl-t">제안서</b><span class="sp"></span><button type="button" class="ev-btn text sm" id="sl-x">닫기 (Esc)</button></div>
+  <div class="cp-sl-hd"><b id="sl-t">제안서</b><span class="sp"></span><button type="button" class="ev-btn text sm" id="sl-x">닫기</button></div>
   <div class="cp-sl-bd" id="sl-bd"></div>
 </aside>
 

@@ -25,6 +25,15 @@
   .refuse { display: flex; flex-direction: column; gap: 20px; }
   .refuse .ev-note { font-size: 17px; }
   [hidden] { display: none !important; }
+
+/* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
+@media (max-width: 1180px) {
+  .chk input { width: 40px; height: 40px; }
+  .chk { min-height: 52px; }
+  .more { min-height: 44px; }
+}
+#ask .ver{display:none}
+.evc{display:none}
 </style>
 </head>
 <body>
@@ -36,16 +45,16 @@
 <div class="ev-scrim" id="scrim">
   <div class="ev-modal" role="dialog" aria-modal="true" aria-labelledby="ttl">
     <div id="ask" class="refuse">
-      <p class="ev-note info" id="reserveNote" hidden>예비위원으로 등록되어 있어요. 참석을 확인해 두면, 위원 자리가 비었을 때 담당자가 바로 알려 드려요.</p>
-      <p class="ver"><b>참석 확인</b> · 로그인과 별개예요 · 개인정보 동의 v1</p>
-      <h2 id="ttl">(가상) ○○ 사업<br>평가위원으로 참석하시겠습니까?</h2>
-      <p class="when"><b>평가일</b> 2026. 11. 5.(목) 14:00 · <b>장소</b> (가상) ○○시청 3층 회의실</p>
+      <p class="ev-note info" id="reserveNote" hidden>예비위원이에요. 참석을 확인해 두면 자리가 날 때 담당자가 연락해요.</p>
+      <p class="ver"><b>참석 확인</b></p>
+      <h2 id="ttl">○○ 사업<br>평가위원으로 참석하시겠습니까?</h2>
+      <p class="when"><b>평가일</b> 담당자 확인 필요 · <b>장소</b> 담당자 확인 필요</p>
       <div class="agree">
-        <label class="chk"><input type="checkbox" id="agree" aria-describedby="hint"> 개인정보 수집·이용에 동의합니다 <span style="font-weight:400;color:var(--text-3)">(동의 v1)</span></label>
+        <label class="chk"><input type="checkbox" id="agree" aria-describedby="hint"> 개인정보 수집·이용에 동의합니다 <span style="font-weight:400;color:var(--text-3)"></span></label>
         <button type="button" class="more" id="more" aria-expanded="false" aria-controls="terms">동의 내용 보기</button>
         <div class="terms" id="terms" hidden>
           <dl>
-            <dt>버전</dt><dd>개인정보 동의 v1 (저장할 때 함께 기록)</dd>
+            <dt>기록</dt><dd>동의 내용과 시각을 저장할 때 함께 기록</dd>
             <dt>항목</dt><dd>이름, 휴대전화 뒤 4자리, 평가 점수와 의견</dd>
             <dt>쓰는 곳</dt><dd>평가위원 확인, 평가 진행, 결과 계산</dd>
             <dt>보관</dt><dd>평가가 끝나고 담당자가 확인한 뒤 폐기</dd>
@@ -60,7 +69,7 @@
     </div>
     <div id="refuse" class="refuse" hidden>
       <h2>참석이 어려우시군요</h2>
-      <p class="ev-note">사업 담당자에게 알려 주세요. 담당자가 확인한 뒤 예비위원에게 연락해요.<br><b>(가상) 박담당 · 02-0000-0000</b></p>
+      <p class="ev-note">사업 담당자에게 알려 주세요. 담당자가 확인한 뒤 예비위원에게 연락해요.<br><b>담당자 연락처</b></p>
       <button type="button" class="ev-btn ghost" id="back">돌아가기</button>
     </div>
   </div>

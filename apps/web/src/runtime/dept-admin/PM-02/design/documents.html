@@ -131,13 +131,41 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
 .rev .btn{min-height:40px;padding:0 12px;font-size:var(--t-base);flex:none}
 .hsearch{position:relative}
 .hsearch input{padding-left:14px}
+
+/* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
+@media (max-width: 1180px) {
+  .tl { min-height: 44px; }
+  .vrow .vx .tl { min-height: 44px; }
+  .vrow .btn, .filebox .btn { min-height: 44px; }
+}
+@media (max-width: 1024px) {
+  /* 세로 태블릿: 왼쪽(제안요청서)·오른쪽(업체별 제안서) 칸을 위아래로 */
+  .body { grid-template-columns: minmax(0, 1fr); }
+  .more { grid-template-columns: minmax(0, 1fr); }
+  .more section + section { border-left: 0; border-top: 1px solid var(--line); }
+  .reg-h .hint { white-space: normal; }
+}
+/* 내부 정보(저장 경로·버전 칩)와 반복 안내를 숨김 */
+.filebox .path,.vt,.mrow .nm small,.morebar .muted{display:none}
+.vrow:not(.empty) .vi>span[title]{display:none}
+.vrow.empty .vs{display:none}
+.vrow.empty .vi>span:not(:has(.bad)){display:none}
+.drop-big .rule:not([style]){display:none}
+.vrow .vx .tl.dng{display:none}
+/* 긴 오류 문단은 두 줄까지만, 경고색 대신 중립색 */
+.filebox .msg.bad{color:var(--text-2);font-weight:400;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+#m-xr .tx{display:none}
+/* [임시 CSS 문구 교체] 요구사항 요약 실패(배지 .danger) 때만, 카드 안 긴 오류 문단(API 키·.env 안내 포함)을 짧은 안내로 바꿔 보임.
+   업로드 실패 문구(배지가 .danger가 아닐 때)는 그대로 보임. JS 담당자가 원 문구를 고치면 아래 두 규칙을 삭제하세요. */
+#rfp:has(.rfp-head .badge.danger) .filebox .msg.bad{font-size:0;line-height:0;display:block;-webkit-line-clamp:unset}
+#rfp:has(.rfp-head .badge.danger) .filebox .msg.bad::before{content:"AI 요약을 지금 쓸 수 없어요. 평가항목은 직접 작성할 수 있어요.";display:block;font-size:var(--t-base);line-height:1.5}
 </style>
 </head>
 <body>
 <div class="app">
 <aside class="side">
   <button class="brand" type="button" data-href="../../PM-01/design/projects.html" aria-label="심사임당 사업 목록으로"><span class="brand-mark">심</span><span>심사임당</span></button>
-  <p class="role">(가상) 정보화담당관</p>
+  <p class="role">사업담당자</p>
   <nav aria-label="주 메뉴">
     <a href="../../PM-01/design/projects.html" aria-current="page">사업 목록</a>
     <a href="../../PM-07/design/pool.html">위원 풀</a>
@@ -151,7 +179,7 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
   <header class="pj-head">
     <a class="pj-back" href="../../PM-01/design/overview.html">← 사업 정보</a>
     <div class="pj-row">
-      <div class="pj-title"><h1>(가상) 통합 민원 시스템 구축 용역</h1><span class="badge">○ 준비</span></div>
+      <div class="pj-title"><h1>사업</h1><span class="badge">○ 준비</span></div>
       <div class="pj-act"><span class="hint" id="remain"></span><a class="btn" id="b-next" href="../../PM-03/design/criteria.html">다음: 평가항목</a></div>
     </div>
   </header>
@@ -162,12 +190,12 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
       <div class="reg-b" id="rfp"></div>
     </section>
     <section class="card reg" aria-labelledby="h-pro">
-      <div class="reg-h"><h2 id="h-pro"><span class="no" aria-hidden="true">2</span>제안서 등록</h2><span class="hint">업체마다 1개 · HWPX · PDF</span></div>
+      <div class="reg-h"><h2 id="h-pro"><span class="no" aria-hidden="true">2</span>제안서 등록</h2><span class="hint">업체마다 1개 · HWPX·HWP·PDF·PPTX</span></div>
       <div class="reg-b"><div class="vlist" id="rows"></div></div>
     </section>
     <div class="morebar">
       <button class="tl" type="button" id="b-more" aria-expanded="false" aria-controls="more">더 보기 ▾</button>
-      <span class="muted" style="font-size:var(--t-sm)">등록 이력 · 요구사항 추출 · 제안서 비교</span>
+      <span class="muted" style="font-size:var(--t-sm)"></span>
       <span class="sp"></span>
       <a class="tl pri" href="../../PM-08/design/evidence.html">근거 연결 →</a>
     </div>
@@ -206,7 +234,7 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
 <aside class="drawer wide" id="hist" role="dialog" aria-modal="true" aria-labelledby="hist-t">
   <header><h2 id="hist-t">등록 이력</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
   <div class="dbody">
-    <div class="hsearch"><label class="sr-only" for="hist-q">이력 검색</label><input id="hist-q" type="search" placeholder="파일 이름·버전·날짜로 찾기"></div>
+    <div class="hsearch"><label class="sr-only" for="hist-q">이력 검색</label><input id="hist-q" type="search" placeholder="파일 이름이나 날짜로 찾기"></div>
     <div class="note" id="hist-note"></div>
     <ul class="revs" id="hist-list"></ul>
   </div>
@@ -216,7 +244,7 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
 <aside class="drawer wide" id="toc" role="dialog" aria-modal="true" aria-labelledby="toc-t">
   <header><h2 id="toc-t">목차 확인</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
   <div class="dbody">
-    <div class="note" id="toc-note">보조 기능이에요. 컴퓨터가 읽어 온 초안이라, 제목과 쪽 번호가 틀리면 고친 뒤 [확인 완료]를 눌러 주세요. 안 해도 다음 단계로 갈 수 있어요.</div>
+    <div class="note" id="toc-note">읽어 온 목차 초안이에요. 틀린 제목이나 쪽 번호를 고친 뒤 [확인 완료]를 눌러 주세요. 안 해도 다음 단계로 갈 수 있어요.</div>
     <div class="toc-h" aria-hidden="true"><span>목차 제목</span><span style="text-align:right">쪽</span><span></span></div>
     <ul class="toc" id="toc-list"></ul>
   </div>
@@ -226,10 +254,10 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
 <aside class="drawer" id="add" role="dialog" aria-modal="true" aria-labelledby="add-t">
   <header><h2 id="add-t">업체 추가</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
   <form class="dbody form" id="f-add" novalidate>
-    <label class="field">법인명<input id="a-name" placeholder="예: (가상)하늘정보" aria-describedby="a-name-e"><span class="err" id="a-name-e" hidden></span></label>
-    <label class="field">표시 코드<input id="a-code" placeholder="예: A사" aria-describedby="a-code-e"><span class="hint" id="a-code-h"></span><span class="err" id="a-code-e" hidden></span></label>
-    <label class="field">순서<input id="a-ord" inputmode="numeric" aria-describedby="a-ord-e"><span class="err" id="a-ord-e" hidden></span></label>
-    <div class="note warn" id="a-lock">평가위원에게는 법인명 대신 이 코드가 보여요. 같은 사업에서 코드는 하나씩만 쓸 수 있어요. 평가 시작 뒤에는 코드를 바꿀 수 없어요.</div>
+    <label class="field">업체명<input id="a-name" placeholder="예: 하늘정보" aria-describedby="a-name-e"><span class="err" id="a-name-e" hidden></span></label>
+    <label class="field">평가위원에게 보이는 이름<input id="a-code" placeholder="예: A사" aria-describedby="a-code-e"><span class="hint" id="a-code-h"></span><span class="err" id="a-code-e" hidden></span></label>
+    <label class="field">표시 순서<input id="a-ord" inputmode="numeric" aria-describedby="a-ord-e"><span class="err" id="a-ord-e" hidden></span></label>
+    <div class="note warn" id="a-lock">평가위원에게는 업체명 대신 이 이름(예: A사)이 보여요. 평가가 시작되면 바꿀 수 없어요.</div>
     <div class="note bad" id="a-block" hidden>평가에 고정된 업체라 지울 수 없어요. 코드도 바꿀 수 없어요.</div>
   </form>
   <footer><button class="btn text-danger" type="button" id="a-del" style="margin-right:auto" hidden>업체 삭제</button><button class="btn" type="button" data-close>취소</button><button class="btn primary" type="submit" form="f-add" id="a-ok">추가</button></footer>
