@@ -51,8 +51,17 @@ Live.capture('[data-pick-kind]','change',(_e,el)=>{const id=el.dataset.pickId,ki
  render();});
 const originalCommitteeRender=render;
 render=function(){if(S.mode==='DIRECT'&&S.stg===3)S.q=FIELDS.map((_f,i)=>S.cands.filter(c=>c.f===i&&S.pick[c.id]==='본').length);originalCommitteeRender();simplifyContact();simplifyRoster();relabelRoster();if(S.rost!=='none'){$$('#stage select,#stage input,#stage [data-ex]').forEach(e=>e.disabled=true);}};
-Live.capture('[data-done]','change',async(_e,el)=>{const n=liveCommittee.items[Number(el.dataset.done)];const checked=el.checked;try{await Live.api('ROS-03',{project_id:Live.pid,nominee_id:n.id,version:n.version,contact_status:checked?'AVAILABLE':'NOT_CONTACTED',contact_note:n.contact_note||''});}finally{await loadCommittee(2);}toast(checked?'통화 완료로 저장했어요':'미완료로 바꿨어요');});
-async function loadCommittee(stage){
+Live.capture('[data-done]','change',async(_e,el)=>{
+ const n=liveCommittee.items[Number(el.dataset.done)],checked=el.checked;
+ const view={fst:S.fst,ffd:S.ffd,stage:$('#stage .stg')?.scrollTop||0,list:$('#stage .box.call')?.scrollTop||0,page:window.scrollY};
+ try{await Live.api('ROS-03',{project_id:Live.pid,nominee_id:n.id,version:n.version,contact_status:checked?'AVAILABLE':'NOT_CONTACTED',contact_note:n.contact_note||''});}
+ finally{
+  await loadCommittee(2,view);
+  requestAnimationFrame(()=>{const stage=$('#stage .stg'),list=$('#stage .box.call');if(stage)stage.scrollTop=view.stage;if(list)list.scrollTop=view.list;window.scrollTo(0,view.page);});
+ }
+ toast(checked?'통화 완료로 저장했어요':'미완료로 바꿨어요');
+});
+async function loadCommittee(stage,view){
  liveCommittee=await Live.get('/committee-v2/api/projects/'+encodeURIComponent(Live.pid));
  const rule=liveCommittee.rule;
  const mode=rule?.selection_mode==='DIRECT'?'DIRECT':'POOL';
@@ -62,6 +71,7 @@ async function loadCommittee(stage){
  const q=specialties.map(s=>liveCommittee.quotas.find(q=>q.specialty_id===s.id)?.final_count||0);if(!rule)q[0]=7;
  const picks={},orders={};for(const a of liveCommittee.assignments){const i=liveCommittee.items.findIndex(n=>n.id===a.nominee_id);picks[i]=a.member_kind==='PRIMARY'?'본':'예비';orders[i]=a.reserve_order;}
  S={...base(),mode,cap:rule?.target_count||7,q,saved:!!rule,drawn:!!liveCommittee.draw,cands:members,stg:stage??(liveCommittee.roster?3:rule?2:0),pick:picks,ord:orders,rost:liveCommittee.roster?(liveCommittee.handoff?.status==='SENT'?'ready':'sent'):'none'};
+ if(view){S.fst=view.fst;S.ffd=view.ffd;}
  DIRPOOL.splice(0,DIRPOOL.length,...liveCandidates.map(c=>[h(c.name),Math.max(0,specialties.findIndex(s=>s.id===c.specialty_ids[0])),c.phone.slice(-4)]));render();
 }
 await loadCommittee();

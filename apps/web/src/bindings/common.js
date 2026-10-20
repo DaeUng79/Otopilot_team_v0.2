@@ -8,7 +8,11 @@ window.Live=(()=>{
   async function evaluatorLogin(form,name,last4,project){
     const choice=form.querySelector('[data-login-project]');
     const result=await api('AUTH-02',{name,last4,...((project||choice?.value)?{project_id:project||choice.value}:{})});
-    if(!result.selection_required){go('EV-01');return;}
+    if(!result.selection_required){
+      const state=await reload();
+      go(state.attendance?.[0]?.status==='CONFIRMED'?'EV-03':'EV-01');
+      return;
+    }
     let label=choice?.parentElement;
     if(!label){label=document.createElement('label');label.className='ev-field field';label.textContent='초청받은 평가 사업';const select=document.createElement('select');select.dataset.loginProject='true';select.required=true;const inputStyle=getComputedStyle(form.querySelector('input'));for(const property of ['height','border','borderRadius','padding','backgroundColor','fontSize','fontWeight','width'])select.style[property]=inputStyle[property];label.append(select);form.insertBefore(label,form.querySelector('button[type=submit]'));}
     const select=label.querySelector('select');select.replaceChildren(new Option('평가할 사업을 선택하세요',''),...result.projects.map(p=>new Option(p.name+(p.evaluation_date?' · '+p.evaluation_date:''),p.id)));

@@ -18,7 +18,7 @@ ITEMS.splice(0,ITEMS.length,...leafItems.map(item=>[item.code,item.title,item.po
 // 업체: PRJ-05 업체 순서대로, 업체별 최신 READY 제안서 차수.
 const latestProposal={};
 for(const upload of proposalData.uploads||[]){if(upload.status!=='READY')continue;const current=latestProposal[upload.vendor_id];if(!current||upload.upload_revision>current.upload_revision)latestProposal[upload.vendor_id]=upload;}
-VEND.splice(0,VEND.length,...(detail.vendors||[]).map(vendor=>{const upload=latestProposal[vendor.id];const label=upload?'v'+upload.upload_revision:'없음';return {code:vendor.display_code+'사',name:vendor.legal_name,doc:label,latest:label,pdf:false,noDoc:!upload,format:upload?.format||''};}));
+VEND.splice(0,VEND.length,...(detail.vendors||[]).map(vendor=>{const upload=latestProposal[vendor.id];const label=upload?'v'+upload.upload_revision:'없음';return {code:vendor.display_code,name:vendor.legal_name,doc:label,latest:label,pdf:false,noDoc:!upload,format:upload?.format||''};}));
 nv=VEND.length;sel=0;D={};ITEMS.forEach((_,i)=>{D[i]=VEND.map(()=>[]);});
 $('.items .sub').innerHTML=(approved?'승인된 평가표 · 승인 번호 '+h(approved.approval_no)+' · 채점 항목 '+ITEMS.length+'개':'승인된 평가표 없음')+' · 확정 <b class="tnum" id="gdone"></b>';
 $('#demo')?.remove();

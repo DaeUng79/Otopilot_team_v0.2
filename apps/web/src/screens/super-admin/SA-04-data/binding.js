@@ -21,7 +21,7 @@ async function loadMaterials(){
  materialItems=[];F.length=0;
  for(const item of data.items){
   const project=projectById.get(item.project_id);if(!project)continue;
-  const co=item.kind==='PROPOSAL'?(item.display_code?item.display_code+'사 · ':'')+(item.legal_name||''):'—';
+  const co=item.kind==='PROPOSAL'?(item.display_code?item.display_code+' · ':'')+(item.legal_name||''):'—';
   const row=mk(project.name,KIND[item.kind]||item.label,co,item.filename,(item.byte_size/1048576).toFixed(1)+' MB',(item.date||'').slice(0,10),'보관',{ver:item.revision,desc:item.description||'',src:item.kind==='UPLOADED_RESULT'?'UPLOAD':item.kind==='GENERATED_REPORT'?'SYSTEM':null});
   row.download=item.download;row.item=item;row.material=item.kind==='UPLOADED_RESULT'||item.kind==='GENERATED_REPORT'?item:null;
   F.push(row);materialItems.push(row);
@@ -124,7 +124,7 @@ let vendorRows=[];
 async function loadVendorOptions(){
  const projectId=$('#u-proj').value,select=$('#u-vendor');
  vendorRows=projectId?((await Live.api('PRJ-05',{project_id:projectId})).vendors||[]).filter(v=>!v.deleted_at):[];
- select.innerHTML='<option value="">'+(vendorRows.length?'업체를 골라 주세요':projectId?'이 사업에 등록된 업체가 없습니다':'먼저 사업을 골라 주세요')+'</option>'+vendorRows.map(v=>`<option value="${h(v.id)}">${h(v.display_code)}사 · ${h(v.legal_name)}</option>`).join('');
+ select.innerHTML='<option value="">'+(vendorRows.length?'업체를 골라 주세요':projectId?'이 사업에 등록된 업체가 없습니다':'먼저 사업을 골라 주세요')+'</option>'+vendorRows.map(v=>`<option value="${h(v.id)}">${h(v.display_code)} · ${h(v.legal_name)}</option>`).join('');
 }
 async function applyUploadKind(){
  const kind=$('#u-kind').value,spec=UPLOAD_KINDS[kind];
@@ -150,7 +150,7 @@ Live.capture('#f-up','submit',async()=>{
  else if(kind==='PROPOSAL'){
   const vendorId=$('#u-vendor').value;if(!vendorId)throw Error('업체를 골라 주세요.');
   const vendor=vendorRows.find(v=>v.id===vendorId);url=base+'/vendors/'+encodeURIComponent(vendorId)+'/proposals';
-  done=body=>{const ack=body.data.ack?.status;return (vendor?vendor.display_code+'사 ':'')+'제안서 v'+body.data.upload_revision+'을 등록했어요 · 평가 연결 '+(ack==='APPLIED'||ack==='DUPLICATE'?'완료':ack||'대기');};
+  done=body=>{const ack=body.data.ack?.status;return (vendor?vendor.display_code+' ':'')+'제안서 v'+body.data.upload_revision+'을 등록했어요 · 평가 연결 '+(ack==='APPLIED'||ack==='DUPLICATE'?'완료':ack||'대기');};
  }else{
   const title=$('#u-title').value.trim();if(!title)throw Error('제목을 적어 주세요.');
   form.append('title',title);form.append('description',$('#u-desc').value.trim());url=base+'/result-files';
@@ -176,7 +176,7 @@ Live.capture('#f-ed','submit',async()=>{
   const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'X-Simsa-Client':'v2-web'},body:form});
   const body=await response.json().catch(()=>({}));if(!response.ok)throw Error(body.error?.message||'파일을 교체하지 못했습니다.');
   closeLayer($('#p-ed'));await loadMaterials();draw();
-  toast(item.kind==='RFP'?'제안요청서 v'+body.data.revision+'으로 교체했어요 · 이전 차수는 이력에 남아요':(item.display_code?item.display_code+'사 ':'')+'제안서 v'+body.data.upload_revision+'으로 교체했어요 · 이전 차수는 이력에 남아요');
+  toast(item.kind==='RFP'?'제안요청서 v'+body.data.revision+'으로 교체했어요 · 이전 차수는 이력에 남아요':(item.display_code?item.display_code+' ':'')+'제안서 v'+body.data.upload_revision+'으로 교체했어요 · 이전 차수는 이력에 남아요');
   return;
  }
  if(!row.material)throw Error('이 자료는 여기서 수정할 수 없습니다.');
