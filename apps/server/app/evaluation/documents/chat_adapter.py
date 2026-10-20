@@ -18,6 +18,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+from . import evidence
+from .db import connect_documents
 from .envelope import ApiError, upstream_unavailable
 from .settings import PM01_DIR, REPO_ROOT
 
@@ -28,7 +30,8 @@ STEP3_CANDIDATES = (
 )
 MAX_VENDORS = 3
 MAX_HISTORY = 6
-_PAGE_REF = re.compile(r"(\d{1,4})(?:\s*[~\-–]\s*(\d{1,4}))?\s*쪽")
+_PAGE_REF = re.compile(r"(?<!\d)(\d{1,4})(?:\s*[~\-–]\s*(\d{1,4}))?\s*(?:쪽|페이지|p\b)", re.IGNORECASE)
+_PAGE_PREFIX = re.compile(r"\bp(?:age)?\.?\s*(\d{1,4})(?:\s*[~\-–]\s*(\d{1,4}))?", re.IGNORECASE)
 _PAGE_LABEL = re.compile(r"\[\s*페이지\s*번호\s*(\d{1,4}(?:\s*[~\-–]\s*\d{1,4})?)\s*쪽\s*\]")
 
 _lock = threading.Lock()
@@ -91,15 +94,16 @@ def make_client(chatbot: ModuleType):
 
 
 def pages_from_text(text: str, *, limit: int = 8) -> list[int]:
-    """답변 속 '[페이지번호 12쪽]' · '14~15쪽' 같은 표기에서 쪽 번호를 모은다(문서 순)."""
+    """답변 속 '12쪽', '12페이지', 'p.12' 및 쪽 범위를 모은다(문서 순)."""
     found: list[int] = []
-    for first, second in _PAGE_REF.findall(text or ""):
-        a = int(first)
-        b = int(second) if second else a
-        lo, hi = (a, b) if a <= b else (b, a)
-        for page in range(lo, min(hi, lo + 3) + 1):
-            if page >= 1 and page not in found:
-                found.append(page)
+    for pattern in (_PAGE_REF, _PAGE_PREFIX):
+        for first, second in pattern.findall(text or ""):
+            a = int(first)
+            b = int(second) if second else a
+            lo, hi = (a, b) if a <= b else (b, a)
+            for page in range(lo, min(hi, lo + 3) + 1):
+                if page >= 1 and page not in found:
+                    found.append(page)
     return sorted(found)[:limit]
 
 
@@ -113,31 +117,95 @@ def _history_messages(history: list[str]) -> list[dict[str, str]]:
     return [{"role": "user", "content": f"(이전 질문) {q}"} for q in history[-MAX_HISTORY:] if q and q.strip()]
 
 
-def answer_one(chatbot: ModuleType, client, docs_db: Path, proposal: dict[str, Any], question: str, history: list[str]) -> dict[str, Any]:
-    """업체 하나의 제안서로 답한다. 반환: {text, pages, tables, history_dropped} 또는 {text: None, error}."""
-    try:
-        context = chatbot.load_context(docs_db, [proposal["document_id"]])
-    except chatbot.ChatbotError as exc:
-        return {"text": None, "pages": [], "tables": [], "error": str(exc)}
+def _prepare_one(chatbot: ModuleType, docs_db: Path, proposal: dict[str, Any], question: str, history: list[str]):
+    context = chatbot.load_context(docs_db, [proposal["document_id"]])
     document = context["documents"][0]
     if document["revision"] != proposal["parse_revision"]:
         raise ApiError("STALE_SOURCE", "평가 시작 때 고정한 제안서와 현재 문서 버전이 달라요. 담당자에게 알려 주세요.", 409)
-    try:
-        messages, dropped, _tokens = chatbot.build_messages(context["content"], _history_messages(history), question)
-        raw = "".join(chatbot.stream_answer(client, messages))
-    except chatbot.ChatbotError as exc:
-        return {"text": None, "pages": [], "tables": [], "error": str(exc)}
+    messages, dropped, tokens = chatbot.build_messages(context["content"], _history_messages(history), question)
+    return context, messages, dropped, tokens
+
+
+def _finish_one(chatbot: ModuleType, context: dict, docs_db: Path, proposal: dict[str, Any],
+                question: str, raw: str, dropped: int, tokens: int) -> dict[str, Any]:
+    document = context["documents"][0]
     text, tables, _invalid = chatbot.answer_parts(raw, context["source_tables"])
     text = tidy_answer(text)
-    pages = pages_from_text(text)
+    known_pages = {p for block in document["blocks"] for p in block.get("pages", []) if isinstance(p, int) and p > 0}
+    pages = [p for p in pages_from_text(text) if p in known_pages]
+    page_source = "citation"
     table_refs = []
     for table in tables:
         block_pages = table["block"].get("physical_page_numbers") or []
         page = block_pages[0] if block_pages else None
         table_refs.append({"page": page, "block_id": table["block"].get("block_id")})
-        if page and page not in pages:
+        if page in known_pages and page not in pages:
             pages.append(page)
-    return {"text": text, "pages": sorted(pages)[:8], "tables": table_refs, "history_dropped": dropped, "tokens": _tokens}
+    if not pages and text:
+        with connect_documents(docs_db) as conn:
+            candidates = evidence.find_candidates(conn, proposal["document_id"], proposal["parse_revision"], question, limit=3)
+        pages = [item["page"] for item in candidates if item["page"] in known_pages]
+        page_source = "candidate" if pages else "unavailable"
+    pages = list(dict.fromkeys(pages))[:8] if page_source == "candidate" else sorted(set(pages))[:8]
+    return {"text": text, "pages": pages, "page_source": page_source, "tables": table_refs,
+            "history_dropped": dropped, "tokens": tokens}
+
+
+def answer_one(chatbot: ModuleType, client, docs_db: Path, proposal: dict[str, Any], question: str, history: list[str]) -> dict[str, Any]:
+    """업체 하나의 제안서로 답한다. 반환: {text, pages, tables, history_dropped} 또는 {text: None, error}."""
+    try:
+        context, messages, dropped, tokens = _prepare_one(chatbot, docs_db, proposal, question, history)
+        raw = "".join(chatbot.stream_answer(client, messages))
+    except chatbot.ChatbotError as exc:
+        return {"text": None, "pages": [], "tables": [], "error": str(exc)}
+    return _finish_one(chatbot, context, docs_db, proposal, question, raw, dropped, tokens)
+
+
+def prepare_stream(docs_db: Path | None, proposals: list[dict[str, Any]], question: str, history: list[str]):
+    """HTTP 응답을 시작하기 전에 설정·문서 버전·입력 한도를 검사한다."""
+    if docs_db is None or not Path(docs_db).is_file():
+        raise upstream_unavailable("문서 DB 에 연결할 수 없어 문서 도우미를 쓸 수 없어요.")
+    if not proposals:
+        raise ApiError("VALIDATION_FAILED", "물어볼 업체를 하나 이상 골라 주세요.", 422)
+    if len(proposals) > MAX_VENDORS:
+        raise ApiError("VALIDATION_FAILED", f"한 번에 {MAX_VENDORS}개 업체까지 물어볼 수 있어요.", 422)
+    chatbot = load_chatbot()
+    client = make_client(chatbot)
+    prepared = []
+    for proposal in proposals:
+        try:
+            context, messages, dropped, tokens = _prepare_one(chatbot, Path(docs_db), proposal, question, history)
+            prepared.append((proposal, context, messages, dropped, tokens, None))
+        except chatbot.ChatbotError as exc:
+            prepared.append((proposal, None, None, 0, 0, str(exc)))
+    return chatbot, client, Path(docs_db), question, prepared
+
+
+def stream_answers(prepared):
+    """업체별 텍스트 조각을 보내고 마지막에 출처가 포함된 확정 답변을 보낸다."""
+    chatbot, client, docs_db, question, items = prepared
+    for proposal, context, messages, dropped, tokens, error in items:
+        vendor = proposal["session_proposal_id"]
+        if error:
+            yield {"type": "answer", "vendor": vendor, "answer": {"text": None, "pages": [], "tables": [], "error": error}}
+            continue
+        raw, shown = "", ""
+        try:
+            for chunk in chatbot.stream_answer(client, messages):
+                raw += chunk
+                visible, _, _ = chatbot.answer_parts(raw, context["source_tables"], streaming=True)
+                if visible.startswith(shown):
+                    delta = visible[len(shown):]
+                    if delta:
+                        yield {"type": "delta", "vendor": vendor, "text": delta}
+                elif visible != shown:
+                    yield {"type": "replace", "vendor": vendor, "text": visible}
+                shown = visible
+            answer = _finish_one(chatbot, context, docs_db, proposal, question, raw, dropped, tokens)
+        except chatbot.ChatbotError as exc:
+            answer = {"text": None, "pages": [], "tables": [], "error": str(exc)}
+        yield {"type": "answer", "vendor": vendor, "answer": answer}
+    yield {"type": "done"}
 
 
 def answer_for_proposals(docs_db: Path | None, proposals: list[dict[str, Any]], question: str, history: list[str]) -> dict[str, Any]:

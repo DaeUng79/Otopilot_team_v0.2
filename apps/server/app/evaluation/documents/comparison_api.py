@@ -11,6 +11,8 @@ POST /api/v2/evaluator/projects/{p}/sessions/{s}/chat {vendors[], question, hist
      문서 도우미. common/server/chat_adapter.py 가 오대웅 모듈 chatbot.py 를 경로 import 해 업체별(최대 3) 제안서 전체를 문맥으로 묻는다.
      응답 {answers:{session_proposal_id:{text,pages,tables,error?}}, model}. 문서 DB·OPENAI_API_KEY 가 없으면 503(화면은 "준비 중").
      대화는 저장하지 않는다. 감사 기록(CHAT-01)에는 업체·글자 수만 남긴다.
+POST /api/v2/evaluator/projects/{p}/sessions/{s}/chat/stream
+     같은 권한·문서를 검사한 뒤 NDJSON으로 delta, answer, done 이벤트를 순서대로 보낸다.
 POST /api/v2/evaluator/projects/{p}/sessions/{s}/comparisons/summary {criterion_id}
      고정된 제안서 근거 블록을 apps/documents/proposal_item_summary.py에서 업체별로 정리한다.
 """
@@ -47,6 +49,48 @@ def _context(req: Request, conn):
     require_participant(principal)
     session = require_session(principal, req.params["session_id"], "OPEN", "ALL_SUBMITTED", "FINALIZED")
     return principal, session
+
+
+def prepare_chat(req: Request):
+    """일반 답변과 스트리밍 답변에 같은 입력·권한·고정 문서 검사를 적용한다."""
+    body = req.json()
+    question = str(body.get("question") or "").strip()
+    if not question or len(question) > 2000:
+        raise validation_failed("질문을 2000자 이하로 써 주세요.", {"question": "내용을 확인해 주세요."})
+    wanted = body.get("vendors") or []
+    if not isinstance(wanted, list) or any(not isinstance(v, str) for v in wanted):
+        raise validation_failed("업체 목록 형식이 올바르지 않아요.", {"vendors": "업체를 다시 골라 주세요."})
+    history_raw = body.get("history") or []
+    if not isinstance(history_raw, list) or any(not isinstance(h, str) or len(h) > 2000 for h in history_raw):
+        raise validation_failed("이전 질문 형식이 올바르지 않아요.", {"history": "대화를 초기화한 뒤 다시 물어봐 주세요."})
+    history = [h.strip() for h in history_raw[-chat_adapter.MAX_HISTORY:] if h.strip()]
+    with connect(req.settings.db_path, write=True) as conn:
+        principal, session = _context(req, conn)
+        proposals = scoring.proposals_of(conn, session["id"])
+        if wanted:
+            known = {p["session_proposal_id"] for p in proposals}
+            unknown = [v for v in wanted if v not in known]
+            if unknown:
+                raise validation_failed("이 회차의 업체가 아니에요.", {"vendors": "업체를 다시 골라 주세요."})
+            proposals = [p for p in proposals if p["session_proposal_id"] in wanted]
+        uploads = {r["id"]: dict(r) for r in conn.execute(
+            "SELECT id, document_id, parse_revision FROM ref_proposal_uploads WHERE id IN (%s)" % ",".join("?" * len(proposals)),
+            [p["proposal_upload_id"] for p in proposals]).fetchall()} if proposals else {}
+    targets = []
+    for p in proposals:
+        upload = uploads.get(p["proposal_upload_id"]) or {}
+        if upload.get("document_id") and upload.get("parse_revision"):
+            targets.append({**p, "document_id": upload["document_id"], "parse_revision": upload["parse_revision"]})
+    return principal, session, targets, question, history
+
+
+def record_chat(req: Request, principal, session, targets, question, model, answered=None):
+    with connect(req.settings.db_path, write=True) as conn:
+        detail = {"vendors": [t["display_code"] for t in targets], "question_chars": len(question), "model": model}
+        if answered is not None:
+            detail["answered"] = answered
+        record(conn, actor_type="EVALUATOR", actor_id=principal.assignment_id, project_id=principal.project_id, action="CHAT-01",
+               entity_type="evaluation_session", entity_id=session["id"], detail=detail)
 
 
 def register(app: App) -> None:
@@ -170,40 +214,10 @@ def register(app: App) -> None:
         return Response(data={"summaries": summaries})
 
     def chat(req: Request) -> Response:
-        body = req.json()
-        question = str(body.get("question") or "").strip()
-        if not question or len(question) > 2000:
-            raise validation_failed("질문을 2000자 이하로 써 주세요.", {"question": "내용을 확인해 주세요."})
-        wanted = body.get("vendors") or []
-        if not isinstance(wanted, list) or any(not isinstance(v, str) for v in wanted):
-            raise validation_failed("업체 목록 형식이 올바르지 않아요.", {"vendors": "업체를 다시 골라 주세요."})
-        history_raw = body.get("history") or []
-        if not isinstance(history_raw, list) or any(not isinstance(h, str) or len(h) > 2000 for h in history_raw):
-            raise validation_failed("이전 질문 형식이 올바르지 않아요.", {"history": "대화를 초기화한 뒤 다시 물어봐 주세요."})
-        history = [h.strip() for h in history_raw[-chat_adapter.MAX_HISTORY:] if h.strip()]
-        with connect(req.settings.db_path, write=True) as conn:
-            principal, session = _context(req, conn)
-            proposals = scoring.proposals_of(conn, session["id"])
-            if wanted:
-                known = {p["session_proposal_id"] for p in proposals}
-                unknown = [v for v in wanted if v not in known]
-                if unknown:
-                    raise validation_failed("이 회차의 업체가 아니에요.", {"vendors": "업체를 다시 골라 주세요."})
-                proposals = [p for p in proposals if p["session_proposal_id"] in wanted]
-            uploads = {r["id"]: dict(r) for r in conn.execute(
-                "SELECT id, document_id, parse_revision FROM ref_proposal_uploads WHERE id IN (%s)" % ",".join("?" * len(proposals)),
-                [p["proposal_upload_id"] for p in proposals]).fetchall()} if proposals else {}
-        targets = []
-        for p in proposals:
-            upload = uploads.get(p["proposal_upload_id"]) or {}
-            if upload.get("document_id") and upload.get("parse_revision"):
-                targets.append({**p, "document_id": upload["document_id"], "parse_revision": upload["parse_revision"]})
+        principal, session, targets, question, history = prepare_chat(req)
         result = chat_adapter.answer_for_proposals(req.settings.documents_db_path, targets, question, history)
-        with connect(req.settings.db_path, write=True) as conn:
-            record(conn, actor_type="EVALUATOR", actor_id=principal.assignment_id, project_id=principal.project_id, action="CHAT-01",
-                   entity_type="evaluation_session", entity_id=session["id"],
-                   detail={"vendors": [t["display_code"] for t in targets], "question_chars": len(question), "model": result["model"],
-                           "answered": [pid for pid, a in result["answers"].items() if a.get("text")]})
+        record_chat(req, principal, session, targets, question, result["model"],
+                    [pid for pid, a in result["answers"].items() if a.get("text")])
         return Response(data=result)
 
     def criteria(req: Request) -> Response:

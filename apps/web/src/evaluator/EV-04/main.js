@@ -1,6 +1,7 @@
 // EV-04 · VIEW-01~03
 // 제안서 업체별 읽기: 업체(표시 코드)를 고르고 그 업체 제안서를 목차로 읽는다. 자료는 회차에 고정된 문서만.
 import { get, request } from '../common/api.js';
+import { close as closeChat, setOpenPageHandler } from '../common/chat.js';
 import { messageFor } from '../common/errors.js';
 import { mountReader } from '../common/reader.js';
 import { participantGate, requireAttendance, requireLogin, screenHref } from '../common/session.js';
@@ -42,14 +43,20 @@ async function ensure(p) {
   return holder;
 }
 
-async function show(id) {
+async function show(id, page = null) {
   cur = id;
   const p = proposals.find((x) => x.session_proposal_id === id);
   [...vs.children].forEach((b) => b.setAttribute('aria-selected', String(b.dataset.v === id)));
   for (const key of Object.keys(readers)) readers[key].wrap.hidden = key !== id;
   const holder = await ensure(p);
   holder.wrap.hidden = cur !== id;
-  try { history.replaceState(null, '', `?project=${encodeURIComponent(me.project.id)}&v=${encodeURIComponent(p.display_code)}`); } catch { /* */ }
+  if (cur !== id) return;
+  if (page && holder.reader) holder.reader.go(page);
+  try {
+    const q = new URLSearchParams({ project_id: me.project.id, v: p.display_code });
+    if (page) q.set('p', String(page));
+    history.replaceState(null, '', `?${q}`);
+  } catch { /* */ }
 }
 
 async function main() {
@@ -65,9 +72,16 @@ async function main() {
   body.innerHTML = '';
   vs.innerHTML = proposals.map((p) => `<button type="button" class="pp-v" role="tab" data-v="${esc(p.session_proposal_id)}" aria-selected="false">${esc(p.display_name)}<small>${p.available ? `${p.page_count}쪽` : '문서 없음'}</small></button>`).join('');
   vs.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) show(b.dataset.v); });
+  setOpenPageHandler(async (vendor, page) => {
+    const proposal = proposals.find((p) => p.session_proposal_id === vendor?.id);
+    if (!proposal || page > proposal.page_count) return;
+    await show(proposal.session_proposal_id, page);
+    closeChat(false);
+  });
   const q = new URLSearchParams(location.search);
   const start = proposals.find((p) => p.display_code === q.get('v')) || proposals[0];
-  await show(start.session_proposal_id);
+  const requestedPage = Number(q.get('p'));
+  await show(start.session_proposal_id, Number.isInteger(requestedPage) && requestedPage >= 1 && requestedPage <= start.page_count ? requestedPage : null);
 }
 
 main().catch((e) => showState(body, 'error', '제안서를 불러오지 못했어요', messageFor(e)));
