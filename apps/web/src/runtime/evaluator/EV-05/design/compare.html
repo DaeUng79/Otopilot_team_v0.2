@@ -29,7 +29,9 @@
 .cp-scroll { flex: 1; min-height: 0; overflow: auto; padding: 18px 24px 96px; }
 .cp-hd { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
 .cp-hd h2 { font-size: 24px; font-weight:700; }
+.cp-hd h2 small { font-size: 18px; font-weight: 600; color: var(--primary-60); white-space: nowrap; }
 .cp-hd span { color: var(--text-3); font-size: 16px; }
+.cp-criterion { margin: -6px 0 16px; color: var(--text-2); font-size: 16px; line-height: 1.55; white-space: pre-line; }
 .cp-cols { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 14px; }
 .cp-tag { font-size: 14px; line-height: 22px; border: 1px solid var(--primary-20); background: var(--primary-5); color: var(--primary-70); border-radius: var(--radius-lg); padding: 0 10px; font-weight: 700; white-space: nowrap; }
 .cp-col { background: var(--gray-0); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
@@ -79,8 +81,7 @@
   <main class="ev-main">
     <div class="cp">
       <div class="cp-bar"><h1>항목별 비교</h1>
-        <button type="button" class="ev-btn ghost sm" id="ask-open">문서에 질문</button>
-        <nav class="cp-sub" aria-label="제안서 보는 방식"><a href="../../EV-04/design/proposals.html">업체별</a><span aria-current="page">항목별 비교</span></nav>
+        <nav class="cp-sub" aria-label="제안서 보는 방식"><a href="../../EV-04/design/proposals.html">제안서 보기</a><span aria-current="page">항목별 비교</span></nav>
       </div>
       <div class="cp-wrap">
         <nav class="cp-list" aria-label="평가항목" id="list"></nav>
@@ -117,7 +118,7 @@
   /* 세 업체 비교 */
   function renderCols() {
     var c = CRIT.filter(function (x) { return x.id === sel; })[0];
-    $('#scroll').innerHTML = '<div class="cp-hd"><h2>' + c.name + '</h2><span>' + c.pts + '점 · ' + c.hint + '</span><span class="cp-tag">담당자 확정 근거</span></div><div class="cp-cols" style="--n:' + V.length + '">' + V.map(function (v) {
+    $('#scroll').innerHTML = '<div class="cp-hd"><h2>' + c.name + ' <small>(' + c.pts + '점)</small></h2><span class="cp-tag">담당자 확정 근거</span></div><p class="cp-criterion">' + c.hint + '</p><div class="cp-cols" style="--n:' + V.length + '">' + V.map(function (v) {
       var m = D.MATCH[sel][v];
       if (!m) return '<article class="cp-col cp-none"><h3>' + D.NAME[v] + '</h3><p>담당자가 확정한 근거가 없어요</p><button type="button" class="cp-link" data-open="' + v + '" data-p="1" data-toc="1">목차에서 직접 보기</button></article>';
       return '<article class="cp-col"><h3>' + D.NAME[v] + '</h3><div class="cp-sec">' + m.title + ' · <b>' + m.page + '–' + m.end + '쪽</b></div><ul class="cp-ex">' + m.lines.map(function (l) { return '<li>' + l + '</li>'; }).join('') + '</ul><button type="button" class="ev-btn ghost sm" data-open="' + v + '" data-p="' + m.page + '">이 쪽 열기 (' + m.page + '쪽)</button></article>';
@@ -162,11 +163,8 @@
     if (slOpen) { e.preventDefault(); closeSlide(); }
   });
 
-  /* 문서에 질문: 오른쪽 아래 떠 있는 문서 도우미 (_eval.js 공통). 근거 쪽 칩을 누르면 이 화면의 슬라이드로 연다 */
   EvalChat.setVendors(V);
   EvalChat.onOpenPage = function (v, p, btn) { openSlide(v, p, false, btn); };
-  $('#ask-open').addEventListener('click', function () { EvalChat.open(); });
-
   renderList(); renderCols();
   if (q.get('chat')) EvalChat.open(q.get('chat') !== '1' ? q.get('chat') : null);
   window.__cp = { openSlide: openSlide };

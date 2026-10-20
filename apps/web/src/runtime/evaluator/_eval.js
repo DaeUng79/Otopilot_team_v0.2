@@ -16,7 +16,7 @@
   /* ───────── EvalShell ───────── */
   var TABS = [
     { id: 'rfp', label: '제안요청서', href: '../../EV-03/design/rfp.html' },
-    { id: 'proposals', label: '제안서', href: '../../EV-04/design/proposals.html' },
+    { id: 'proposals', label: '평가항목 분석', href: '../../EV-05/design/compare.html' },
     { id: 'scoring', label: '평가하기', href: '../../EV-06/design/scoring.html' },
     { id: 'chair', label: '평가결과 확인', href: '../../EV-07/design/chair.html', chairOnly: true }
   ];

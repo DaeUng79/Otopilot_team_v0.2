@@ -6,7 +6,7 @@ export const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&am
 
 const TABS = [
   { id: 'rfp', label: '제안요청서', folder: 'EV-03', need: 'attended' },
-  { id: 'proposals', label: '제안서', folder: 'EV-04', need: 'participant' },
+  { id: 'proposals', label: '평가항목 분석', folder: 'EV-05', need: 'participant' },
   { id: 'scoring', label: '평가하기', folder: 'EV-06', need: 'participant' },
   { id: 'chair', label: '평가결과 확인', folder: 'EV-07', chairOnly: true, need: 'results' },
 ];

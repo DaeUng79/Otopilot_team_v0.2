@@ -17,6 +17,12 @@ let slOpen = false, lastBtn = null;
 
 const base = () => `/projects/${encodeURIComponent(me.project.id)}/sessions/${encodeURIComponent(me.session.id)}`;
 
+function headingHtml(c, tag = '') {
+  const criterion = String(c.description || '').split(/\r?\n\s*[-•]\s+/)[0].trim();
+  return `<div class="cp-hd"><h2>${esc(c.title)} <small>(${fromScaled(c.max_score)}점)</small></h2>${tag}</div>` +
+    (criterion ? `<p class="cp-criterion">${esc(criterion)}</p>` : '');
+}
+
 function renderList() {
   const divisions = CRIT.filter((c) => !c.is_scorable);
   const item = (c) => `<button type="button" class="cp-it" data-c="${esc(c.id)}"${c.id === sel ? ' aria-current="true"' : ''}><span class="nm">${esc(c.title)}</span><span class="pt">${fromScaled(c.max_score)}점</span></button>`;
@@ -41,16 +47,16 @@ async function evidence(cid) {
 async function renderCols() {
   const c = SCORABLE.find((x) => x.id === sel);
   const scroll = $('#scroll');
-  scroll.innerHTML = `<div class="cp-hd"><h2>${esc(c.title)}</h2><span>${fromScaled(c.max_score)}점 · ${esc(c.description || '')}</span></div><p class="evr-wait">근거를 불러오는 중…</p>`;
+  scroll.innerHTML = headingHtml(c) + '<p class="evr-wait">근거를 불러오는 중…</p>';
   let ev;
   try { ev = await evidence(sel); } catch (e) { scroll.innerHTML += `<p class="ev-note error">${esc(messageFor(e))}</p>`; return; }
   if (sel !== c.id) return;
   const byP = Object.fromEntries((ev.columns || []).map((col) => [col.session_proposal_id, col]));
   const TAG = { confirmed: '<span class="cp-tag">담당자 확정 근거</span>', mixed: '<span class="cp-tag wait">일부 자동 추천 · 확정 전</span>',
-    suggested: '<span class="cp-tag wait">담당자 확정 전 제안</span>', auto: '<span class="cp-tag wait">자동 추천 · 담당자 확정 전</span>', none: '<span class="cp-tag wait">관련 내용 없음</span>' };
-  const tag = TAG[ev.mode] || '<span class="cp-tag wait">근거 연결 준비 중</span>';
-  scroll.innerHTML = `<div class="cp-hd"><h2>${esc(c.title)}</h2><span>${fromScaled(c.max_score)}점 · ${esc(c.description || '')}</span>${tag}</div>` +
-    (ev.note ? `<p class="ev-note info" style="margin-bottom:14px">${esc(ev.note)}</p>` : '') +
+    suggested: '<span class="cp-tag wait">담당자 확정 전 제안</span>', auto: '', none: '<span class="cp-tag wait">관련 내용 없음</span>' };
+  const tag = TAG[ev.mode] ?? '<span class="cp-tag wait">근거 연결 준비 중</span>';
+  scroll.innerHTML = headingHtml(c, tag) +
+    (ev.note && ev.mode !== 'auto' ? `<p class="ev-note info" style="margin-bottom:14px">${esc(ev.note)}</p>` : '') +
     `<div class="cp-cols" style="--n:${PROPOSALS.length}">${PROPOSALS.map((p) => {
       const m = byP[p.session_proposal_id];
       const items = m && m.matches && m.matches.length ? m.matches : (m && m.excerpt ? m.excerpt.map((l) => ({ excerpt: l, page: m.page })) : []);
@@ -71,12 +77,17 @@ async function ensure(pid) {
   readers[pid] = holder;
   try {
     const { data } = await get(`${base()}/proposals/${encodeURIComponent(pid)}`);
+    if (!data.pages.length) {
+      showState(el, 'empty', '제안서 쪽이 아직 없어요', '문서 변환이 끝나면 읽을 수 있어요.');
+      return holder;
+    }
     el.innerHTML = '';
     const version = encodeURIComponent(data.document.source_version || '');
+    const isPdf = /\.pdf$/i.test(data.document.filename || '');
     holder.reader = mountReader(el, data, {
       label: `${p.display_name} 제안서`,
       loadPage: (n) => get(`${base()}/proposals/${encodeURIComponent(pid)}/pages/${n}`).then((r) => r.data),
-      svgUrl: (n) => `/api/v2/evaluator${base()}/proposals/${encodeURIComponent(pid)}/pages/${n}/svg?v=${version}`,
+      svgUrl: (n) => `/api/v2/evaluator${base()}/proposals/${encodeURIComponent(pid)}/pages/${n}/${isPdf ? 'png' : 'svg'}?v=${version}`,
       download: () => request('GET', `${base()}/proposals/${encodeURIComponent(pid)}/source`, { raw: true }),
     }, { note: '', single: true, keysWhen: () => slOpen });
   } catch (e) { showState(el, 'error', '제안서를 불러오지 못했어요', messageFor(e)); }
@@ -108,7 +119,7 @@ async function main() {
   if (!requireAttendance(me)) return;
   $('#to-proposals').href = screenHref('EV-04');
   const gate = participantGate(me);
-  if (!gate.ok) { showState($('#scroll'), 'empty', '아직 비교 화면을 볼 수 없어요', gate.reason); $('#list').innerHTML = ''; $('#ask-open').disabled = true; return; }
+  if (!gate.ok) { showState($('#scroll'), 'empty', '아직 비교 화면을 볼 수 없어요', gate.reason); $('#list').innerHTML = ''; return; }
   const { data } = await get(`${base()}/criteria`);
   CRIT = data.criteria.items; SCORABLE = CRIT.filter((c) => c.is_scorable); PROPOSALS = data.proposals;
   const q = new URLSearchParams(location.search);
@@ -121,7 +132,6 @@ async function main() {
   $('#sl-scrim').addEventListener('click', closeSlide);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && slOpen) { e.preventDefault(); closeSlide(); } });
   setOpenPageHandler((v, page, btn) => { if (v) openSlide(v.id, page, false, btn); });
-  $('#ask-open').addEventListener('click', () => openChat());
   if (q.get('chat')) openChat(q.get('chat') !== '1' ? q.get('chat') : null);
 }
 
