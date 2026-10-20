@@ -5,7 +5,13 @@ let resultData=resultSession?await Live.api('RES-01',{session_id:resultSession.i
 N=resultData.participant_count;SUB=resultData.submitted_count;st=resultData.session?.status==='FINALIZED'?'final':'before';
 calc=function(){return (resultData.items||[]).map(item=>{const inputs=resultData.inputs.filter(i=>i.session_proposal_id===item.session_proposal_id);return {name:h(item.display_code),s:inputs.map(i=>i.total_score/10000),imx:inputs.findIndex(i=>i.exclusion==='HIGHEST'),imn:inputs.findIndex(i=>i.exclusion==='LOWEST'),avg:Number(item.average_decimal),rank:item.rank};});};
 const originalResultsRender=render;
-render=function(){originalResultsRender();if(st==='final'){const badge=$('.facts .badge');if(badge)badge.textContent='✓ 위원장 최종 제출 '+(resultData.session.closed_at||'');$$('.rk tbody tr').forEach((tr,i)=>{tr.querySelector('.no').textContent=resultData.items[i].rank+'위';});}const progress=$('.prog i');if(!N&&progress)progress.style.width='0%';};
+function formatSubmittedAt(value){
+  if(!value)return '';
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime()))return '';
+  return new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(date)+' (한국 시간)';
+}
+render=function(){originalResultsRender();if(st==='final'){const badge=$('.facts .badge');if(badge){const submittedAt=formatSubmittedAt(resultData.session.closed_at);badge.textContent='✓ 위원장 최종 제출'+(submittedAt?' · '+submittedAt:'');}$$('.rk tbody tr').forEach((tr,i)=>{tr.querySelector('.no').textContent=resultData.items[i].rank+'위';});}const progress=$('.prog i');if(!N&&progress)progress.style.width='0%';};
 render();
 Live.capture('[data-pre]','click',()=>{throw Error('실제 제출 상태로만 표시합니다.');});
 // RES-05: 담당자는 공식 집계표(xlsx)와 결재·보고용 평가결과 보고서(HTML, 서명 증빙 별첨 포함). 같은 액션에 format만 다르다.
