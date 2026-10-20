@@ -640,6 +640,20 @@ def save_vendor(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
             (text(b, "vendor_id"), project["id"]),
         )
         return update(c, "project_vendors", row, b, values)
+    archived = c.execute(
+        "SELECT * FROM project_vendors WHERE project_id=? AND legal_name=? "
+        "AND active=0 AND deleted_at IS NOT NULL "
+        "ORDER BY deleted_at DESC,created_at DESC LIMIT 1",
+        (project["id"], values["legal_name"]),
+    ).fetchone()
+    if archived:
+        row = dict(archived)
+        restored = update(
+            c, "project_vendors", row, {"version": row["version"]},
+            values | {"display_code": row["display_code"], "deleted_at": None,
+                      "deleted_by": None},
+        )
+        return restored | {"restored": True}
     identity = insert(c, "project_vendors", values)
     return one(c, "SELECT * FROM project_vendors WHERE id=?", (identity,))
 

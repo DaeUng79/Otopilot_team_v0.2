@@ -14,6 +14,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from functools import partial
 from pathlib import Path
 from typing import Iterator
 
@@ -185,10 +186,11 @@ def requirement_status(db_path: Path, project_id: str) -> dict:
     return {"status": status, "revision": latest["revision"], "error": error, "summary": summary}
 
 
-def _run_criteria(db_path: Path, project_id: str, revision: int, document_id: str) -> None:
+def _run_criteria(db_path: Path, project_id: str, revision: int, document_id: str,
+                  *, force: bool = False) -> None:
     try:
         _set_job(db_path, "criteria_jobs", project_id, revision, "running")
-        criteria.extract_and_save_criteria(document_id, db_path=db_path)
+        criteria.extract_and_save_criteria(document_id, db_path=db_path, force=force)
         _set_job(db_path, "criteria_jobs", project_id, revision, "done")
     except (criteria.CriteriaError, requirements.RequirementsError) as error:
         _set_job(db_path, "criteria_jobs", project_id, revision, "failed", str(error))
@@ -205,10 +207,13 @@ def queue_criteria(db_path: Path, project_id: str, *, force: bool = False) -> di
         raise criteria.CriteriaError("등록된 제안요청서가 없습니다.")
     if requirements.load_saved_requirements(db_path, latest["document_id"]) is None:
         raise criteria.CriteriaError("제안 요구사항 추출이 끝난 뒤 평가기준을 생성할 수 있습니다.")
+    current = criteria_status(db_path, project_id)
+    if current["status"] in {"queued", "running"}:
+        return current
     if force:
         _set_job(db_path, "criteria_jobs", project_id, latest["revision"], "failed", None)
     _queue(db_path, "criteria_jobs", project_id, latest["revision"],
-           latest["document_id"], _run_criteria)
+           latest["document_id"], partial(_run_criteria, force=force))
     return criteria_status(db_path, project_id)
 
 
@@ -235,8 +240,8 @@ def queue_pipeline(db_path: Path, project_id: str, *, force: bool = False) -> di
         ready = requirements.load_saved_requirements(db_path, latest["document_id"]) is not None
     except requirements.RequirementsError:
         ready = False
-    if ready and not force:
-        return queue_criteria(db_path, project_id)
+    if ready:
+        return queue_criteria(db_path, project_id, force=force)
     revision, document_id = latest["revision"], latest["document_id"]
     with _open(db_path) as connection:
         connection.executescript(JOB_SCHEMA)

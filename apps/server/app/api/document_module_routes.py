@@ -169,6 +169,10 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
     # ---- CRT-01·02 AI 초안, CRT-03~05 사람 승인 ----
     def criteria_state(project_id: str) -> dict:
         versions = criteria_approval.list_versions(database, project_id)
+        draft = rfp_api.criteria_status(database, project_id)
+        if draft.get("result"):
+            draft["result"]["scoring_rows"] = criteria_approval.scoring_rows_with_source_pages(
+                database, project_id, draft["result"]["rows"])
         with store.connect() as db:
             acked = {r["id"] for r in rows(
                 db, "SELECT id FROM ref_approved_criteria_versions WHERE project_id=? AND status='APPROVED' AND is_deleted=0",
@@ -181,7 +185,7 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
             v["frozen"] = v["id"] in frozen
         return {"rfp": rfp_api.latest_rfp(database, project_id),
                 "requirements": rfp_api.requirement_status(database, project_id),
-                "draft": rfp_api.criteria_status(database, project_id),
+                "draft": draft,
                 "versions": versions,
                 "ai_ready": ai_ready()}
 
@@ -204,9 +208,11 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
         body = await json_body(request)
         source = body.get("source", "ai")
         require(source in {"ai", "template"}, "초안 출처를 확인하세요.", "INPUT_INVALID", 422)
+        require(type(body.get("restart", False)) is bool, "새 검토 여부를 확인하세요.", "INPUT_INVALID", 422)
         ai_result = rfp_api.criteria_status(database, project_id).get("result") if source == "ai" else None
         draft = await asyncio.to_thread(run, criteria_approval.open_draft, database, project_id=project_id,
-                                        source=source, ai_result=ai_result, actor_id=person.id)
+                                        source=source, ai_result=ai_result, actor_id=person.id,
+                                        restart=body.get("restart", False))
         return JSONResponse({"data": draft}, status_code=201)
 
     @app.put("/api/v2/projects/{project_id}/criteria-drafts/{draft_id}")

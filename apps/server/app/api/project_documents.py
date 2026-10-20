@@ -199,6 +199,7 @@ def _parsed(path: Path, row: dict) -> dict:
 def install_project_document_routes(app, store, actor, sync, *, documents_db=None):
     database = resolve_database(documents_db)
     _initialize(database)
+    document_gateway.purge_archived_sources(database)
 
     @app.get("/api/v2/admin/rfp-summary")
     async def admin_rfp_summary(request: Request):

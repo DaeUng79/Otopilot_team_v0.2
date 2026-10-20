@@ -24,7 +24,9 @@ DEFAULT_DB = Path(__file__).resolve().parents[1] / "server/data/database/documen
 DEFAULT_MODEL = "gpt-4o"
 PROCESSOR_VERSION = "proposal-requirements-1.0"
 VERIFICATION_VERSION = "semantic-support-1.0"
-CODE_RE = re.compile(r"\b[A-Z]{2,4}-\d{3}\b")
+CODE_RE = re.compile(r"(?<![A-Za-z0-9])([A-Za-z]{2,10}[-–][0-9]{1,4})(?![A-Za-z0-9])")
+IDENTIFIER_LABELS = {"고유번호", "요구사항고유번호", "요구사항번호", "요구사항id",
+                     "요구사항식별자", "요구사항식별번호", "식별번호", "관리부호"}
 TOKEN_RE = re.compile(r"[가-힣]{2,}|[a-zA-Z]{2,}|\d{2,}")
 COMPLIANCE_RE = re.compile(r"요구사항.{0,20}(?:충족|적합)|(?:충족|적합).{0,20}요구사항|평가점수")
 
@@ -109,7 +111,8 @@ def extract_requirements(result: dict) -> list[dict]:
         if not table or table.get("type") != "table":
             continue
         rows = _rows(table, lookup)
-        code = next((match.group() for row in rows if "고유번호" in " ".join(row)
+        code = next((match.group() for row in rows
+                     if row and re.sub(r"\s+", "", row[0]).lower() in IDENTIFIER_LABELS
                      for text in row for match in CODE_RE.finditer(text)), None)
         if not code:
             continue
@@ -126,7 +129,7 @@ def extract_requirements(result: dict) -> list[dict]:
                 category = values
             elif label == "요구사항명칭":
                 title = values
-            elif label in ("세부내용", "정의", "산출정보"):
+            elif label in ("요구사항상세설명", "세부내용", "정의", "산출정보", "산출물"):
                 body.append(f"{label}: {values}")
             elif len(row) > 2 and row[1].replace(" ", "") in ("세부내용", "정의"):
                 body.append(f"{row[1]}: {' '.join(row[2:])}")
@@ -140,6 +143,18 @@ def extract_requirements(result: dict) -> list[dict]:
     if not expected or actual != expected:
         raise ValueError(f"제안요청서 요구사항 목록 불일치: 누락={sorted(expected-actual)}, 초과={sorted(actual-expected)}")
     return requirements
+
+
+def _latest_visible_rfp(conn: sqlite3.Connection) -> str:
+    visibility = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='rfp_upload_visibility'"
+    ).fetchone()
+    if not visibility:
+        return "SELECT * FROM project_rfp_uploads WHERE project_id=? ORDER BY revision DESC LIMIT 1"
+    return ("SELECT u.* FROM project_rfp_uploads u "
+            "LEFT JOIN rfp_upload_visibility v ON v.project_id=u.project_id "
+            "AND v.upload_revision=u.revision "
+            "WHERE u.project_id=? AND v.archived_at IS NULL ORDER BY u.revision DESC LIMIT 1")
 
 
 def _tokens(text: str) -> set[str]:
@@ -298,8 +313,8 @@ def verify_summary(client, model: str, finding: dict) -> dict:
 
 
 def _source(conn: sqlite3.Connection, project_id: str, proposal_id: str | None) -> tuple[dict, list[dict]]:
-    rfp = conn.execute("""SELECT r.document_id, r.revision, q.result_id, q.result_json, q.source_revision
-      FROM (SELECT * FROM project_rfp_uploads WHERE project_id=? ORDER BY revision DESC LIMIT 1) r
+    rfp = conn.execute(f"""SELECT r.document_id, r.revision, q.result_id, q.result_json, q.source_revision
+      FROM ({_latest_visible_rfp(conn)}) r
       JOIN documents d ON d.document_id=r.document_id
       JOIN requirement_results q ON q.document_id=r.document_id AND q.source_revision=d.active_revision
       WHERE q.status='complete' ORDER BY q.created_at DESC LIMIT 1""",
@@ -336,7 +351,7 @@ def _run_id(rfp: dict, proposal: dict, model: str) -> str:
 
 
 def _check_sources(conn: sqlite3.Connection, rfp: dict, proposal: dict) -> None:
-    latest_rfp = conn.execute("SELECT document_id,revision FROM project_rfp_uploads WHERE project_id=? ORDER BY revision DESC LIMIT 1",
+    latest_rfp = conn.execute(f"SELECT document_id,revision FROM ({_latest_visible_rfp(conn)})",
                               (proposal["project_id"],)).fetchone()
     row = conn.execute("SELECT active_revision FROM documents WHERE document_id=?", (rfp["document_id"],)).fetchone()
     current = conn.execute("SELECT result_json FROM requirement_results WHERE result_id=?", (rfp["result_id"],)).fetchone()
@@ -377,15 +392,16 @@ def load_latest_analysis(db: Path, project_id: str, proposal_upload_id: str) -> 
 def comparison_overview(db: Path, project_id: str, *, model: str = DEFAULT_MODEL) -> dict:
     """관리 화면의 요구사항 × 업체 비교 표. 미완료 항목은 완료로 표시하지 않는다."""
     with closing(_connect(db, readonly=True)) as conn:
-        rfp = conn.execute("""SELECT r.document_id,r.revision,q.result_id,q.result_json,q.source_revision
-          FROM (SELECT * FROM project_rfp_uploads WHERE project_id=? ORDER BY revision DESC LIMIT 1) r
+        rfp = conn.execute(f"""SELECT r.document_id,r.revision,q.result_id,q.result_json,q.source_revision
+          FROM ({_latest_visible_rfp(conn)}) r
           JOIN documents d ON d.document_id=r.document_id
           JOIN requirement_results q ON q.document_id=r.document_id AND q.source_revision=d.active_revision
           WHERE q.status='complete' ORDER BY q.created_at DESC LIMIT 1""", (project_id,)).fetchone()
         if not rfp:
             return {"status": "waiting_for_requirements", "categories": [], "proposals": []}
         rfp = dict(rfp)
-        requirements = extract_requirements(json.loads(rfp["result_json"]))
+        result = json.loads(rfp["result_json"])
+        requirements = extract_requirements(result)
         has_items = bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='proposal_analysis_items'").fetchone())
         has_results = bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='proposal_analysis_results'").fetchone())
         uploads = conn.execute("""SELECT p.id,p.project_id,p.vendor_id,p.document_id,p.parse_revision,p.filename,p.upload_revision
@@ -427,6 +443,7 @@ def comparison_overview(db: Path, project_id: str, *, model: str = DEFAULT_MODEL
                  "evidence": finding["evidence"]} if finding else None)
         grouped[req["category"]].append(item)
     return {"status": "ready", "rfp_result_id": rfp["result_id"],
+            "business_status": result.get("business_status") or {},
             "categories": [{"name": name, "requirements": items} for name, items in grouped.items()],
             "proposals": columns}
 

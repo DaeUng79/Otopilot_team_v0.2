@@ -3,15 +3,16 @@ if(!Live.pid)throw Error('사업 목록에서 사업을 선택하세요.');
 let vendorRows=[],vendorDelete=null;
 async function loadVendors(){const data=await Live.api('PRJ-05',{project_id:Live.pid});vendorRows=data.vendors;S=blankState();S.inUse=['EVALUATING','COMPLETED'].includes(data.project.status);S.v=vendorRows.map(v=>({code:v.display_code,name:v.legal_name,ord:v.sort_order,fx:S.inUse,s:'none',toc:'none',entries:[],err:'',revs:[]}));paint();}
 await loadVendors();
-Live.capture('#f-inl','submit',async()=>{await Live.api('PRJ-06',{project_id:Live.pid,display_code:nextCode(),legal_name:$('#i-name').value.trim(),sort_order:S.v.length+1});adding=false;await loadVendors();toast('업체를 등록했어요');});
-Live.capture('#f-add','submit',async()=>{const vendor=editV?vendorRows[S.v.indexOf(editV)]:null;await Live.api('PRJ-06',{project_id:Live.pid,...(vendor?{vendor_id:vendor.id,version:vendor.version}:{}),display_code:$('#a-code').value.trim(),legal_name:$('#a-name').value.trim(),sort_order:Number($('#a-ord').value)});closeLayer($('#add'));await loadVendors();toast('업체 정보를 저장했어요');});
+Live.capture('#f-inl','submit',async()=>{const saved=await Live.api('PRJ-06',{project_id:Live.pid,display_code:nextCode(),legal_name:$('#i-name').value.trim(),sort_order:S.v.length+1});adding=false;await loadVendors();toast(saved.restored?`기존 업체를 ${saved.display_code}로 복원했어요. 새 제안서를 등록해 주세요.`:'업체를 등록했어요');});
+Live.capture('#f-add','submit',async()=>{const vendor=editV?vendorRows[S.v.indexOf(editV)]:null;const saved=await Live.api('PRJ-06',{project_id:Live.pid,...(vendor?{vendor_id:vendor.id,version:vendor.version}:{}),display_code:$('#a-code').value.trim(),legal_name:$('#a-name').value.trim(),sort_order:Number($('#a-ord').value)});closeLayer($('#add'));await loadVendors();toast(saved.restored?`기존 업체를 ${saved.display_code}로 복원했어요. 새 제안서를 등록해 주세요.`:'업체 정보를 저장했어요');});
 Live.capture('[data-vdel],#a-del','click',(_e,el)=>{vendorDelete=el.id==='a-del'?vendorRows[S.v.indexOf(editV)]:vendorRows[Number(el.dataset.vdel)];confirmDlg({title:'업체를 삭제할까요?',body:'평가에 사용 중인 업체는 삭제할 수 없습니다.',ok:'삭제',danger:true});});
 Live.capture('#dlg-ok','click',async()=>{if(!vendorDelete)return;await Live.api('PRJ-07',{project_id:Live.pid,vendor_id:vendorDelete.id,version:vendorDelete.version});vendorDelete=null;closeAll();await loadVendors();toast('업체를 삭제했어요');});
 // PM-02 · DOC-01/02/05: integrated HWPX parsing and SQLite storage.
 const projectUrl='/api/v2/projects/'+encodeURIComponent(Live.pid);
 const rfpUrl=projectUrl+'/rfp';
 let rfpUploads=[],rfpArchived=[],proposalUploads=[],requirementState=null,requirementTimer=null,comparisonData=null;
-let analysisJobs={},analysisTimer=null;
+let analysisJobs={},analysisTimer=null,comparisonInitialized=false;
+const proposalUploadState=new Map();
 const fmtSize=b=>(b/1048576).toFixed(1)+'MB',fmtAt=t=>new Date(t).toLocaleString('ko-KR');
 async function getJson(url,options){const response=await fetch(url,{credentials:'same-origin',headers:{'X-Simsa-Client':'v2-web',...(options?.json!==undefined?{'Content-Type':'application/json'}:{})},method:options?.method||'GET',body:options?.json!==undefined?JSON.stringify(options.json):options?.body});const body=await response.json().catch(()=>({}));if(!response.ok)throw Error(body.error?.message||'요청을 처리하지 못했습니다.');return body.data;}
 async function downloadUrl(url,filename){const response=await fetch(url,{credentials:'same-origin'});if(!response.ok)throw Error('파일을 내려받지 못했습니다.');const object=URL.createObjectURL(await response.blob());const link=document.createElement('a');link.href=object;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(object),1000);}
@@ -43,13 +44,30 @@ function extractionRows(){
   }).join('');
 }
 const originalPaint=paint;
+function showProposalUpload(index){
+  const info=proposalUploadState.get(vendorRows[index]?.id);
+  const row=$(`#rows [data-drop="${index}"]`);
+  if(!info||!row)return;
+  row.classList.add('uploading');row.classList.remove('empty','drop');row.setAttribute('aria-busy','true');
+  const name=document.createElement('b');name.textContent=info.filename;name.title=info.filename;
+  const state=document.createElement('span');state.className='upload-state';
+  state.textContent=info.processing?'파일 전송 완료 · 등록 정보 확인 중':info.percent===null?'파일 전송 중':`파일 전송 중 · ${info.percent}%`;
+  const meter=document.createElement('div');meter.className='upload-meter';meter.setAttribute('role','progressbar');
+  meter.setAttribute('aria-label',`${S.v[index].code} 제안서 파일 전송`);
+  if(info.percent!==null){meter.setAttribute('aria-valuemin','0');meter.setAttribute('aria-valuemax','100');meter.setAttribute('aria-valuenow',String(info.percent));}
+  const fill=document.createElement('i');fill.style.width=info.percent===null?'35%':`${info.percent}%`;
+  if(info.percent===null)meter.classList.add('indeterminate');
+  meter.append(fill);row.querySelector('.vi').replaceChildren(name,state,meter);
+  row.querySelector('.vs').innerHTML='<span class="badge info">⟳ 등록 중</span>';
+  row.querySelectorAll('.va button,.vx button').forEach(button=>button.disabled=true);
+}
 paint=()=>{
   originalPaint();
   if(S.rfp.revs.length){
     $('#rfp .fa [data-retry="rfp"]')?.remove();
     const badge=$('#rfp .rfp-head .badge');
     const st=REQ[requirementState?.status]||REQ.none;
-    if(badge){badge.className='badge '+st[0];badge.textContent=requirementState?.status==='done'?'✓ 완료':requirementState?.status==='failed'?'! 요약 실패':'⟳ 요약 중';}
+    if(badge){badge.className='badge '+st[0];badge.textContent=requirementState?.status==='done'?'✓ 완료':requirementState?.status==='failed'?'! 요약 실패':'⟳ 분석 중';}
     const message=$('#rfp .msg');
     if(message&&requirementState?.status==='failed'){
       message.className='msg bad';message.textContent=st[2]+(requirementState.error?' '+requirementState.error:'');
@@ -62,11 +80,6 @@ paint=()=>{
     const actions=$('#rfp .fa');
     if(actions){
       const ready=requirementState?.status==='done';
-      const requirements=document.createElement('button');
-      requirements.type='button';requirements.className='btn';requirements.dataset.previewRequirements='';
-      requirements.textContent='요구사항 요약';requirements.disabled=!ready;
-      if(!ready)requirements.title='요구사항 요약 처리가 끝나면 사용할 수 있습니다.';
-      actions.appendChild(requirements);
       const preview=document.createElement('button');
       preview.type='button';preview.className='btn';preview.dataset.previewRfp='';
       preview.textContent='제안요청서 확인';preview.disabled=!ready;
@@ -78,6 +91,7 @@ paint=()=>{
   }
   // The prototype's TOC confirmation and synthetic state controls are not persisted.
   $('#demo').hidden=true;
+  S.v.forEach((_vendor,index)=>showProposalUpload(index));
 };
 function rfpRevision(n){return rfpUploads.find(u=>u.revision===n)}
 async function loadRfp(){
@@ -89,7 +103,12 @@ async function loadRfp(){
   if(rfpUploads.length)S.rfp.s=requirementState?.status==='done'?'done':requirementState?.status==='failed'?'fail':'run';
   paint();
   clearTimeout(requirementTimer);
-  if(['queued','running'].includes(requirementState?.status))requirementTimer=setTimeout(()=>loadRfp().catch(error=>Live.message(error.message)),5000);
+  if(['queued','running'].includes(requirementState?.status))requirementTimer=setTimeout(async()=>{
+    try{
+      await loadRfp();
+      if(comparisonInitialized&&requirementState?.status==='done')await loadComparison();
+    }catch(error){Live.message(error.message);}
+  },5000);
 }
 // PRO-01~03: 업체별 제안서. 업체 줄(S.v[i]) ↔ vendorRows[i] ↔ 문서 DB 업로드(vendor_id).
 function proposalsOf(i){return proposalUploads.filter(u=>u.vendor_id===vendorRows[i].id&&u.status!=='ARCHIVED');}
@@ -99,7 +118,7 @@ async function loadProposals(){
   paint();
 }
 const originalLoadVendors=loadVendors;
-loadVendors=async()=>{await originalLoadVendors();await loadRfp();await loadProposals();if(moreOpen)await loadComparison();};
+loadVendors=async()=>{await originalLoadVendors();await loadRfp();await loadProposals();await loadComparison();};
 await loadRfp();await loadProposals();
 Live.capture('[data-up="rfp"]','click',()=>{target='rfp';$('#file').accept='.hwpx';$('#file').value='';$('#file').click();});
 Live.capture('[data-up]:not([data-up="rfp"])','click',(_e,el)=>{target=el.dataset.up;$('#file').accept='.hwpx,.hwp,.pdf,.pptx';$('#file').value='';$('#file').click();});
@@ -116,7 +135,7 @@ async function uploadRfp(file){
       headers:{'X-Simsa-Client':'v2-web'},body:form});
     const body=await response.json();
     if(!response.ok)throw Error(body.error?.message||'문서를 저장하지 못했습니다.');
-    comparisonData=null;await loadRfp();if(moreOpen)await loadComparison();
+    comparisonData=null;await loadRfp();await loadComparison();
     toast('제안요청서를 저장하고 요구사항 요약을 시작했어요.');
   }catch(error){requirementState=previousRequirementState;S.rfp.s=rfpUploads.length?(requirementState?.status==='done'?'done':'fail'):'none';S.rfp.err=error.message;paint();throw error;}
 }
@@ -124,16 +143,39 @@ async function uploadProposal(index,file){
   if(!file)return;const vendor=vendorRows[index],row=S.v[index];
   if(!/\.(hwpx|hwp|pdf|pptx)$/i.test(file.name))throw Error('HWPX·HWP·PDF·PPTX 파일만 올릴 수 있습니다.');
   if(file.size>50*1024*1024)throw Error('50MB 이하의 파일을 올려 주세요.');
+  if(proposalUploadState.has(vendor.id))throw Error(`${row.code} 제안서를 등록하고 있습니다. 완료된 뒤 다시 시도해 주세요.`);
   const form=new FormData();form.append('file',file);
+  proposalUploadState.set(vendor.id,{filename:file.name,percent:null,processing:false});
   row.s='run';row.err='';paint();
   try{
-    const response=await fetch(projectUrl+'/vendors/'+encodeURIComponent(vendor.id)+'/proposals',{method:'POST',credentials:'same-origin',headers:{'X-Simsa-Client':'v2-web'},body:form});
-    const body=await response.json();
-    if(!response.ok)throw Error(body.error?.message||'제안서를 저장하지 못했습니다.');
-    comparisonData=null;await loadProposals();if(moreOpen)await loadComparison();
+    // XHR exposes the bytes sent, so a large file can show real transfer progress.
+    const body=await new Promise((resolve,reject)=>{
+      const xhr=new XMLHttpRequest();
+      xhr.open('POST',projectUrl+'/vendors/'+encodeURIComponent(vendor.id)+'/proposals');
+      xhr.withCredentials=true;xhr.setRequestHeader('X-Simsa-Client','v2-web');
+      xhr.upload.onprogress=event=>{
+        if(!event.lengthComputable)return;
+        const info=proposalUploadState.get(vendor.id);if(!info)return;
+        info.percent=Math.min(100,Math.round(event.loaded/event.total*100));showProposalUpload(index);
+      };
+      xhr.upload.onload=()=>{
+        const info=proposalUploadState.get(vendor.id);if(!info)return;
+        info.percent=100;info.processing=true;showProposalUpload(index);
+      };
+      xhr.onload=()=>{
+        let result;try{result=JSON.parse(xhr.responseText);}catch{result={};}
+        if(xhr.status<200||xhr.status>=300){reject(Error(result.error?.message||'제안서를 저장하지 못했습니다.'));return;}
+        resolve(result);
+      };
+      xhr.onerror=()=>reject(Error('파일을 전송하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.'));
+      xhr.onabort=()=>reject(Error('파일 전송이 중단됐습니다.'));
+      xhr.send(form);
+    });
+    comparisonData=null;await loadProposals();await loadComparison();
+    proposalUploadState.delete(vendor.id);paint();
     const ack=body.data.ack?.status;
     toast(`${row.code} 제안서 v${body.data.upload_revision}을 저장했어요 · ${body.data.pages}쪽 · 평가 연결 ${ack==='APPLIED'||ack==='DUPLICATE'?'완료':ack||'대기'}`);
-  }catch(error){row.s=proposalsOf(index).length?'done':'none';row.err=error.message;paint();throw error;}
+  }catch(error){proposalUploadState.delete(vendor.id);row.s=proposalsOf(index).length?'done':'none';row.err=error.message;paint();throw error;}
 }
 Live.capture('#file','change',event=>target==='rfp'?uploadRfp(event.target.files?.[0]):uploadProposal(Number(target),event.target.files?.[0]));
 Live.capture('[data-drop="rfp"]','drop',event=>{const file=event.dataTransfer?.files?.[0];if(!file)return;return uploadRfp(file);});
@@ -175,11 +217,11 @@ function showParsed(title,data){
 }
 async function showParsedRfp(){
   const upload=rfpUploads[0];if(!upload)throw Error('등록된 문서가 없습니다.');
-  showParsed('제안요청서 파싱 원문',await getJson(rfpUrl+'/'+upload.revision+'/source'));
+  showParsed('제안요청서 파싱 결과 확인',await getJson(rfpUrl+'/'+upload.revision+'/source'));
 }
 async function showParsedProposal(index){
   const upload=proposalsOf(index)[0];if(!upload)throw Error('등록된 제안서가 없습니다.');
-  showParsed(`${S.v[index].code} 제안서 파싱 원문 · ${upload.filename}`,await getJson(projectUrl+'/proposals/'+encodeURIComponent(upload.id)+'/source'));
+  showParsed(`${S.v[index].code} 제안서 파싱 결과 확인 · ${upload.filename}`,await getJson(projectUrl+'/proposals/'+encodeURIComponent(upload.id)+'/source'));
 }
 Live.capture('[data-toc="rfp"]','click',showParsedRfp);
 function openRfpPreview(){
@@ -187,12 +229,9 @@ function openRfpPreview(){
   location.href='/app/dept-admin/PM-02/design/rfp-preview.html?project_id='+encodeURIComponent(Live.pid);
 }
 Live.capture('[data-preview-rfp],[data-view="rfp"]','click',openRfpPreview);
-Live.capture('[data-preview-requirements]','click',()=>{
-  location.href='/app/dept-admin/PM-02/design/requirements-preview.html?project_id='+encodeURIComponent(Live.pid);
-});
 Live.capture('[data-toc]:not([data-toc="rfp"])','click',(_e,el)=>showParsedProposal(Number(el.dataset.toc)));
 Live.capture('[data-view]:not([data-view="rfp"])','click',(_e,el)=>openProposalPreview(Number(el.dataset.view)));
-// DOC-06·PRO-03: 보관 처리(목록 제외). 원본·스냅샷·과거 평가 참조는 서버가 보존한다.
+// DOC-06·PRO-03: 등록 목록에서 제외하고 삭제 사유를 보존한다.
 function archiveDialog(key){
   const isRfp=key==='rfp',index=Number(key);
   if(!isRfp&&!proposalsOf(index).length)throw Error('등록된 제안서가 없습니다.');
@@ -201,7 +240,12 @@ function archiveDialog(key){
     try{
       if(isRfp)await getJson(rfpUrl+'/'+rfpUploads[0].revision,{method:'DELETE',json:{reason}});
       else await getJson(projectUrl+'/proposals/'+encodeURIComponent(proposalsOf(index)[0].id),{method:'DELETE',json:{reason}});
-      closeLayer($('#hist'));await loadRfp();await loadProposals();toast('목록에서 뺐어요 · 원본과 이력은 보존돼요');
+      comparisonData=null;$('#comparison-tools').hidden=true;$('#comparison-wrap').hidden=true;
+      $('#business-panel').hidden=true;
+      comparisonStatus.textContent='자료를 다시 확인하고 있습니다.';
+      closeLayer($('#hist'));await loadRfp();await loadProposals();
+      await loadComparison();
+      toast('목록에서 삭제했어요. 삭제 사유는 기록에 남습니다.');
     }catch(error){Live.message(error.message);}
   }});
 }
@@ -223,6 +267,16 @@ Live.capture('#toc-ok','click',()=>{throw Error('목차 수정은 아직 연결�
 const comparisonStatus=$('#comparison-status');
 const comparisonCategory=$('#comparison-category');
 const comparisonSearch=$('#comparison-search');
+function renderBusinessStatus(data){
+  const panel=$('#business-panel');
+  const categories=[['current_status','현황'],['background_and_need','배경 및 필요성'],['scope','사업 범위']];
+  const status=data?.status==='ready'?data.business_status||{}:{};
+  const entries=categories.map(([key,title])=>({title,points:Array.isArray(status[key])?status[key].filter(point=>point?.text?.trim()):[]}));
+  panel.hidden=!entries.some(entry=>entry.points.length);
+  $('#business-grid').innerHTML=panel.hidden?'':entries.map(({title,points})=>
+    `<div class="business-card"><h4>${title}</h4>${points.length?'<ul>'+points.map(point=>`<li>${h(point.text)}</li>`).join('')+'</ul>':'<p>추출된 내용이 없습니다.</p>'}</div>`
+  ).join('');
+}
 function previewLink(uploadId,page){
   return '/app/dept-admin/PM-02/design/proposal-preview.html?project_id='
     +encodeURIComponent(Live.pid)+'&upload_id='+encodeURIComponent(uploadId)
@@ -242,6 +296,7 @@ function findingHtml(finding,column){
 function renderComparison(){
   const data=comparisonData;
   if(!data)return;
+  renderBusinessStatus(data);
   if(data.status!=='ready'){
     comparisonStatus.textContent='제안요청서 요구사항 추출이 완료되면 비교 표를 볼 수 있습니다.';
     $('#comparison-tools').hidden=true;$('#comparison-wrap').hidden=true;return;
@@ -298,13 +353,14 @@ async function loadComparison(){
     renderComparison();
     paint();
   }catch(error){comparisonStatus.textContent='비교 표를 불러오지 못했습니다. '+error.message;
+    $('#business-panel').hidden=true;
     $('#comparison-tools').hidden=true;$('#comparison-wrap').hidden=true;}
   clearTimeout(analysisTimer);
-  if(Object.values(analysisJobs).some(job=>['queued','running'].includes(job.status))&&moreOpen)
+  if(Object.values(analysisJobs).some(job=>['queued','running'].includes(job.status)))
     analysisTimer=setTimeout(loadComparison,5000);
 }
-$('#b-more').onclick=()=>{moreOpen=!moreOpen;paint();if(moreOpen)loadComparison();};
 $('#comparison-refresh').onclick=loadComparison;
 comparisonCategory.onchange=renderComparison;
 comparisonSearch.oninput=renderComparison;
-if(moreOpen)loadComparison();
+comparisonInitialized=true;
+loadComparison();

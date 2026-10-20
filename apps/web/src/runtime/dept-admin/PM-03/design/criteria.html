@@ -15,6 +15,8 @@
 .flow .fs.on i{background:var(--primary-50);color:#fff}
 .flow .fs.done{background:var(--success-5);color:var(--success-60)}
 .flow .fs.done i{background:var(--success-60);color:#fff}
+.flow button.fs{border:0;font-family:inherit;font-size:inherit;font-weight:700;cursor:pointer}
+.flow button.fs:hover{text-decoration:underline}
 .flow .sep{color:var(--gray-30)}
 .flow .rt{margin-left:auto;color:var(--text-2)}
 .strip{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 24px;border-bottom:1px solid var(--line);flex:none;min-height:56px}
@@ -60,6 +62,14 @@ th.num,td.num{text-align:right}
 .empty .row{display:flex;gap:8px;margin-top:4px}
 .empty.warn .ico{background:var(--warning-5);color:var(--warning-60)}
 .empty.bad .ico{background:var(--danger-5);color:var(--danger-60)}
+.empty.generating .ico{animation:criteria-spin 1.5s linear infinite}
+.criteria-restart{display:flex;justify-content:flex-end;padding:12px 24px;border-top:1px solid var(--line)}
+.ai-progress-steps{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:4px}
+.ai-progress-steps span{padding:7px 12px;border-radius:var(--radius-full);background:var(--gray-10);color:var(--text-2);font-size:var(--t-sm);font-weight:700}
+.ai-progress-steps span.active{background:var(--primary-5);color:var(--primary-60);box-shadow:inset 0 0 0 1px var(--primary-50)}
+.ai-progress-steps span.done{background:var(--success-5);color:var(--success-60)}
+@keyframes criteria-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.empty.generating .ico{animation:none}}
 .btn.is-off{background:var(--gray-20);border-color:var(--gray-20);color:var(--gray-60);cursor:not-allowed}
 
 /* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
@@ -73,8 +83,6 @@ th.num,td.num{text-align:right}
 .strip .src{display:none}
 .flow .rt{display:none}
 /* [임시 CSS 문구 교체] 개발용 문구(AI 오류 원문·ACK·승인 번호·"평가 쪽")를 짧은 안내로 바꿔 보임. 원 문구를 고치면 아래 규칙을 삭제하세요. */
-.empty.bad h2+p{font-size:0;line-height:0}
-.empty.bad h2+p::before{content:"요구사항과 제안요청서는 그대로예요. 다시 만들거나 서식으로 직접 작성할 수 있어요.";font-size:var(--t-base);line-height:1.5}
 .lockbar .badge{font-size:0}
 .lockbar .badge.success::before{content:"✓ 평가위원에게 전달했어요";font-size:var(--t-base)}
 .lockbar .badge.info::before{content:"⟳ 평가위원에게 전달하는 중이에요";font-size:var(--t-base)}
@@ -107,7 +115,8 @@ th.num,td.num{text-align:right}
   </header>
   <nav class="steps" id="steps" aria-label="진행 단계"></nav>
   <div class="body">
-    <section class="card" aria-label="평가표" id="card"></section>
+    <section class="card" aria-label="평가표" id="card" aria-busy="true"><div class="empty" role="status"><div class="ico" aria-hidden="true">⟳</div><h2>평가항목을 불러오고 있습니다</h2><p>저장된 평가표와 생성 상태를 확인하는 중입니다.</p></div></section>
+    <p class="sr-only" id="criteria-progress" role="status"></p>
   </div>
   <details class="demo" id="demo"><summary>시안 상태</summary><div class="demo-in"><button type="button" data-st="none" aria-pressed="false">없음</button>
     <button type="button" data-st="gen" aria-pressed="false">생성 중</button>
@@ -141,7 +150,7 @@ const base=()=>[
  N('5','정보 보안 대책',10,15,'표 5'),
  N('6','유지보수 및 교육 지원',8,null,''),
 ];
-let T=base(),phase='ready',ack='wait',agreed=false,ackT=null,genT=null;
+let T=window.Live?[]:base(),phase=window.Live?'loading':'ready',ack='wait',agreed=false,ackT=null,genT=null;
 const flat=(list=T,d=0,par=null,out=[])=>{list.forEach((n,i)=>{out.push({n,d,par,sib:list,i});flat(n.kids,d+1,n,out)});return out};
 const val=n=>n.kids.length?n.kids.reduce((a,k)=>a+val(k),0):(+n.pt||0);
 const leaves=()=>flat().filter(r=>!r.n.kids.length);
@@ -163,7 +172,9 @@ const STAGE=['초안 생성','검토 (복사본 고치기)','확정'];
 function stage(){return phase==='locked'?3:phase==='edit'?1:phase==='ready'?1:0}
 function flowbar(){
   const cur={none:0,gen:0,genfail:0,reqwait:0,ready:0,edit:1,locked:2}[phase];
-  const fs=STAGE.map((s,i)=>`<span class="fs ${i<cur||(phase==='locked'&&i===2&&ack==='done')?'done':i===cur?'on':''}"><i aria-hidden="true">${i<cur?'✓':i+1}</i>${s}</span>`).join('<span class="sep" aria-hidden="true">›</span>');
+  const fs=STAGE.map((s,i)=>{const open=window.Live&&i<2;
+    const tag=open?'button':'span',action=i===0?'view-draft':'view-current';
+    return `<${tag} ${open?`type="button" data-act="${action}"`:''} class="fs ${i<cur||(phase==='locked'&&i===2&&ack==='done')?'done':i===cur?'on':''}"${i===cur?' aria-current="step"':''}><i aria-hidden="true">${i<cur?'✓':i+1}</i>${s}</${tag}>`}).join('<span class="sep" aria-hidden="true">›</span>');
   const rt={ready:'',edit:'AI 초안은 그대로 두고 복사본을 고쳐요',locked:'확정된 평가표예요',gen:'AI가 만드는 중이에요'}[phase]||'';
   return `<div class="flow">${fs}${rt?`<span class="rt">${rt}</span>`:''}</div>`}
 function emptyBox(){
@@ -184,7 +195,8 @@ function rowHtml(r,edit){const n=r.n,iss=issues().map[n.id],par=n.kids.length>0,
   return `<tr class="${L}${par?' has':''}${iss&&edit?' bad':''}">${edit?`<td>${mv}</td>`:''}<td>${cd}</td><td class="nm strong">${nm}${edit?err:''}</td><td class="num">${pt}</td><td class="src">${ev}</td>${edit?`<td class="ac">${ac}</td>`:''}</tr>`}
 function paint(){
   const f=document.activeElement,keep=f&&f.dataset&&f.dataset.id?{id:f.dataset.id,f:f.dataset.f,m:f.dataset.mv,s:f.selectionStart}:null;
-  const card=$('#card');const showTable=['ready','edit','locked'].includes(phase);
+  const card=$('#card');card.setAttribute('aria-busy',phase==='loading'?'true':'false');const showTable=['ready','edit','locked'].includes(phase);
+  if(phase==='loading'){card.innerHTML='<div class="empty" role="status"><div class="ico" aria-hidden="true">⟳</div><h2>평가항목을 불러오고 있습니다</h2><p>저장된 평가표와 생성 상태를 확인하는 중입니다.</p></div>';head();return}
   if(!showTable){card.innerHTML=flowbar()+emptyBox();bindActs();head();return}
   const edit=phase==='edit',lock=phase==='locked',I=issues(),s=total(),d=s-LIMIT;
   const lockbar=lock?`<div class="lockbar"><span role="img" aria-label="잠김">🔒</span><span>확정했어요. 평가표는 이제 고칠 수 없어요.</span>${ack==='done'?'<span class="badge success">✓ 평가 쪽 수신 확인(ACK) 완료</span>':'<span class="badge info">⟳ 평가 쪽 수신 확인(ACK) 대기</span><button class="btn" type="button" data-act="refresh">새로고침</button>'}<span class="muted" style="font-weight:400;margin-left:auto">승인 번호 7c1e…a94f</span></div>`:'';
@@ -194,7 +206,7 @@ function paint(){
   const tb=F.map(r=>rowHtml(r,edit)).join('');
   const strip=`<div class="strip"><span class="big">기술 배점 ${LIMIT}점</span><span class="src">${edit?'가격 20점은 별도예요':'제안요청서 14쪽에서 읽었어요 · 가격 20점은 별도예요'}</span><div class="sum">${edit?'<button class="btn" type="button" data-act="add" style="min-height:40px;font-size:16px">+ 항목 추가</button>':''}<span id="sumv" style="display:flex;gap:12px;align-items:center"><span>말단 배점 합계 <b class="tnum">${s}</b>점</span><span class="badge ${d===0?'success':'danger'}">${d===0?'✓ 기술 배점과 같아요':`! 기술 배점(${LIMIT}점)과 ${Math.abs(d)}점 ${d<0?'모자라요':'넘쳐요'}`}</span></span></div></div>`;
   card.innerHTML=flowbar()+lockbar+note+strip+''+`<div class="tbl-wrap"><table>${thead}<tbody>${tb}</tbody></table></div>`
-   +(phase==='ready'?`<div class="foot"><span class="why">AI 초안은 고칠 수 없어요. [검토 시작]을 누르면 복사본이 만들어지고, 복사본을 고쳐요.</span><button class="btn primary" type="button" data-act="review">검토 시작</button></div>`:'')
+   +(phase==='ready'?`<div class="foot"><span class="why">AI 초안을 검토본에 적용할 수 있어요.</span><button class="btn primary" type="button" data-act="review">AI 초안 반영</button></div>`:'')
    +(edit?`<div class="foot" id="foot"><span class="why" id="why"></span><label class="agree"><input type="checkbox" id="agree" ${agreed?'checked':''}>원문·배점·빠진 항목을 확인했어요</label><button class="btn primary" type="button" id="b-ok">평가표 확정</button></div>`:'');
   bindActs();
   if(edit){$$('#card [data-f]').forEach(i=>{

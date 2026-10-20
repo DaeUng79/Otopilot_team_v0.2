@@ -62,6 +62,9 @@ statusSelect.addEventListener('change',async()=>{if(statusSelect.value==='삭제
 // The original edit drawer already uses a date input. Reuse that field style at registration.
 const scheduleLabel=document.createElement('label');scheduleLabel.className='field';scheduleLabel.textContent='평가일정 (평가일)';
 const scheduleInput=document.createElement('input');scheduleInput.id='n-date';scheduleInput.type='date';scheduleLabel.append(scheduleInput);$('#n-name').closest('label').after(scheduleLabel);
+scheduleInput.addEventListener('change',()=>{
+  if(scheduleInput.value)requestAnimationFrame(()=>$('#n-org').focus());
+});
 $('#b-new').addEventListener('click',()=>{scheduleInput.value='';});
 Live.capture('#f-new','submit',async()=>{
   const row=await Live.api('PRJ-02',{department_id:Live.boot.actor.department_id,name:$('#n-name').value.trim(),evaluation_date:$('#n-date').value,contact_organization:$('#n-org').value.trim(),contact_department:$('#n-dept').value.trim(),contact_position:$('#n-pos').value.trim(),contact_name:$('#n-owner').value.trim(),contact_phone:$('#n-tel').value.trim(),contact_email:$('#n-mail').value.trim()});

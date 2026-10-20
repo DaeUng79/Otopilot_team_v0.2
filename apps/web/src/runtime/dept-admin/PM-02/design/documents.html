@@ -45,6 +45,12 @@
 .vrow .vi span:not(.vt){display:block;font-size:var(--t-sm);color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .vrow .vi .bad{color:var(--danger-60);font-weight:700}
 .vrow .vi .info{color:var(--info-60);font-weight:700}
+.vrow.uploading{border:1px solid var(--primary-50);background:var(--primary-5)}
+.vrow .vi .upload-state{color:var(--primary-60);font-weight:700}
+.vrow .vi .upload-meter{height:6px;margin-top:6px;border-radius:99px;background:var(--gray-20);overflow:hidden}
+.vrow .vi .upload-meter i{display:block;height:100%;border-radius:inherit;background:var(--primary-50);transition:width .15s}
+.vrow .vi .upload-meter.indeterminate i{animation:upload-slide 1.2s ease-in-out infinite alternate}
+@keyframes upload-slide{from{transform:translateX(-100%)}to{transform:translateX(285%)}}
 .vrow .vs{flex:none}
 .vrow .va{flex:none;display:flex;gap:6px}
 .vrow .btn,.filebox .btn{min-height:40px;padding:0 14px;font-size:var(--t-base)}
@@ -58,9 +64,9 @@
 .addrow .hint{color:var(--text-3);font-size:var(--t-sm)}
 .addrow .err{flex-basis:100%;font-size:var(--t-sm)}
 .vadd{align-self:flex-start;margin-left:-4px}
-/* 더 보기 */
-.morebar{grid-column:1/-1;display:flex;align-items:center;gap:8px;min-height:40px;margin-top:-4px}
-.morebar .sp{flex:1}
+/* 등록 자료와 분석 결과 */
+.morebar{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:8px;min-height:40px;margin-top:-4px}
+.morebar[hidden]{display:none}
 .tl{appearance:none;border:0;background:none;color:var(--text-2);font:inherit;font-size:var(--t-base);min-height:32px;padding:0 10px;border-radius:var(--radius-sm);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
 .tl:hover{background:var(--gray-10);color:var(--text-1)}
 .tl.pri{color:var(--primary-60);font-weight:700}
@@ -71,6 +77,13 @@
 .more section+section{border-left:1px solid var(--line)}
 .more h3{font-size:var(--t-base);margin:0 0 2px;color:var(--text-2)}
 .more .comparison-panel{grid-column:1/-1;border-left:0;border-top:1px solid var(--line);padding:16px 20px 20px}
+.more .business-panel{grid-column:1/-1;border-left:0;border-top:1px solid var(--line);padding:16px 20px 20px}
+.business-panel h3{margin:0 0 12px;color:var(--text-1)}
+.business-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.business-card{min-width:0;padding:14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--gray-0)}
+.business-card h4{margin:0 0 10px;font-size:var(--t-sm)}
+.business-card ul{margin:0;padding-left:18px}.business-card li{margin:6px 0;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:760px){.business-grid{grid-template-columns:1fr}}
 .comparison-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .comparison-head h3{margin:0;flex:1}
 .comparison-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
@@ -190,21 +203,21 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
       <div class="reg-b" id="rfp"></div>
     </section>
     <section class="card reg" aria-labelledby="h-pro">
-      <div class="reg-h"><h2 id="h-pro"><span class="no" aria-hidden="true">2</span>제안서 등록</h2><span class="hint">업체마다 1개 · HWPX·HWP·PDF·PPTX</span></div>
+      <div class="reg-h"><h2 id="h-pro"><span class="no" aria-hidden="true">2</span>제안서 등록</h2><span class="hint">업체마다 1개 · HWPX·PDF</span></div>
       <div class="reg-b"><div class="vlist" id="rows"></div></div>
     </section>
-    <div class="morebar">
-      <button class="tl" type="button" id="b-more" aria-expanded="false" aria-controls="more">더 보기 ▾</button>
-      <span class="muted" style="font-size:var(--t-sm)"></span>
-      <span class="sp"></span>
+    <div class="morebar" id="morebar" hidden>
       <a class="tl pri" href="../../PM-08/design/evidence.html">근거 연결 →</a>
     </div>
-    <section class="card more" id="more" hidden aria-label="더 보기">
+    <section class="card more" id="more" aria-label="등록 자료와 분석 결과" hidden>
       <section><h3>등록된 파일</h3><div id="m-files"></div></section>
       <section><h3>요구사항 추출</h3><div id="m-xr"></div></section>
+      <section class="business-panel" id="business-panel" aria-labelledby="business-title" hidden>
+        <h3 id="business-title">사업 현황</h3><div class="business-grid" id="business-grid"></div>
+      </section>
       <section class="comparison-panel" aria-labelledby="comparison-title">
         <div class="comparison-head"><h3 id="comparison-title">제안요청서 · 업체별 제안사항</h3><button class="tl" type="button" id="comparison-refresh">표 새로고침</button></div>
-        <p class="comparison-status" id="comparison-status" role="status">더 보기를 열면 정리된 자료를 불러옵니다.</p>
+        <p class="comparison-status" id="comparison-status" role="status">정리된 자료를 불러오는 중입니다.</p>
         <div class="comparison-tools" id="comparison-tools" hidden>
           <label for="comparison-category">요구사항 구분</label><select id="comparison-category"></select>
           <label class="sr-only" for="comparison-search">요구사항 검색</label><input id="comparison-search" type="search" placeholder="요구사항 코드·명칭·내용 검색">
@@ -242,7 +255,7 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
 </aside>
 
 <aside class="drawer wide" id="toc" role="dialog" aria-modal="true" aria-labelledby="toc-t">
-  <header><h2 id="toc-t">목차 확인</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
+  <header><h2 id="toc-t">파싱 결과 확인</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
   <div class="dbody">
     <div class="note" id="toc-note">읽어 온 목차 초안이에요. 틀린 제목이나 쪽 번호를 고친 뒤 [확인 완료]를 눌러 주세요. 안 해도 다음 단계로 갈 수 있어요.</div>
     <div class="toc-h" aria-hidden="true"><span>목차 제목</span><span style="text-align:right">쪽</span><span></span></div>
@@ -291,7 +304,8 @@ function initState(){return{
   {code:'C사',name:'(가상)한빛소프트',ord:3,fx:false,s:'none',toc:'none',entries:[],err:'',revs:[]},
  ]}}
 function blankState(){const s=initState();s.rfp={s:'none',toc:'none',entries:[],err:'',revs:[]};s.inUse=false;s.v.forEach(v=>{Object.assign(v,{s:'none',toc:'none',entries:[],err:'',revs:[],fx:false})});return s}
-let S=initState(),adding=false,addErr='',addVal='',target=null,timers=[],histObj=null,editV=null,moreOpen=false;
+let S=blankState(),adding=false,addErr='',addVal='',target=null,timers=[],histObj=null,editV=null;
+S.v=[];
 const BADGE={none:['','— 파일 없음'],wait:['','○ 대기'],run:['info','⟳ 처리 중'],done:['success','✓ 완료'],fail:['danger','! 실패'],unsup:['danger','! 지원 안 함'],pdfchk:['info','⟳ PDF 확인 중']};
 const bd=s=>`<span class="badge ${BADGE[s][0]}">${BADGE[s][1]}</span>`;
 const fileOf=o=>o.revs.length?o.revs[0].file:'';
@@ -326,12 +340,13 @@ function paint(){
     const sub=v.err?`<span class="bad">${h(v.err)}</span>`:v.s==='pdfchk'?'<span class="info">PDF 연결 확인 중 · 성공으로 표시하지 않아요</span>':v.s==='fail'?'<span class="bad">파일을 읽지 못했어요. 이전 버전은 그대로예요</span>':v.s==='wait'?'<span>처리를 기다리는 중이에요</span>':`<span title="${h(pathOf('제안서',top.file))}">${h(pathOf("제안서",top.file))}</span>`;
     const act=(v.s==='fail'?`<button class="btn" type="button" data-retry="${i}">다시 시도</button>`:'')+`<button class="btn" type="button" data-up="${i}">${v.s==='unsup'?'다시 올리기':'바꾸기'}</button>`;
     return `<div class="vrow" data-drop="${i}"><div class="who"><span class="code">${h(v.code)}</span><small>${h(v.name.replace('(가상)',''))}</small></div><div class="vi"><b>${h(top.file)}${ver}</b>${sub}</div><div class="vs">${bd(v.s)}</div><div class="va">${act}</div>${vx(i)}</div>`}).join('')+addArea(pk);
-  /* 더 보기 */
+  /* 등록 자료와 분석 결과 */
   const files=[['rfp','제안요청서','',r,'제안요청서'],...sorted().map(v=>[String(S.v.indexOf(v)),v.code,v.name,v,'제안서'])].filter(x=>x[3].revs.length);
-  $('#m-files').innerHTML=files.length?files.map(([k,lab,nm,o,kind])=>`<div class="mrow"><span class="nm" title="${h(nm)}">${h(lab)}<small>v${o.revs[0].n}</small></span><span class="ls"><button class="tl" type="button" data-view="${k}">${kind==='제안서'?'제안서 보기':'원본 보기'}</button><button class="tl" type="button" data-dl="${k}">내려받기</button><button class="tl" type="button" data-hist="${k}">이력 ${o.revs.length}</button>${o.s==='done'?`<button class="tl" type="button" data-toc="${k}" title="보조 기능이에요">목차 확인</button>`:''}<button class="tl dng" type="button" data-del="${k}">삭제</button></span></div>`).join(''):'<p class="muted" style="margin:6px 0">아직 등록된 파일이 없어요</p>';
+  $('#m-files').innerHTML=files.length?files.map(([k,lab,nm,o,kind])=>`<div class="mrow"><span class="nm" title="${h(nm)}">${h(lab)}<small>v${o.revs[0].n}</small></span><span class="ls"><button class="tl" type="button" data-view="${k}">${kind==='제안서'?'제안서 보기':'원본 보기'}</button><button class="tl" type="button" data-dl="${k}">내려받기</button><button class="tl" type="button" data-hist="${k}">이력 ${o.revs.length}</button>${o.s==='done'?`<button class="tl" type="button" data-toc="${k}" title="보조 기능이에요">파싱 결과 확인</button>`:''}<button class="tl dng" type="button" data-del="${k}">삭제</button></span></div>`).join(''):'<p class="muted" style="margin:6px 0">아직 등록된 파일이 없어요</p>';
   const xr={wait:['','대기','기다리는 중이에요. 몇 초마다 자동으로 확인해요'],run:['info','처리 중','요구사항을 뽑는 중이에요'],fail:['danger','실패','못 뽑았어요. 원본은 그대로예요'],done:['success','완료','요구사항 추출이 끝났어요']}[r.s];
   $('#m-xr').innerHTML=!f?'<p class="muted" style="margin:6px 0">제안요청서를 올리면 보여요</p>':`<div class="mrow"><span class="badge ${xr[0]}">${xr[1]}</span><span class="tx">${xr[2]}</span>${r.s==='fail'?'<button class="tl pri" type="button" data-retry="rfp">다시 시도</button>':''}<button class="tl" type="button" data-refresh>새로고침</button></div>`;
-  $('#more').hidden=!moreOpen;$('#b-more').textContent=moreOpen?'더 보기 ▴':'더 보기 ▾';$('#b-more').setAttribute('aria-expanded',moreOpen);
+  $('#morebar').hidden=!f;
+  $('#more').hidden=!f;
   const ba=$('#b-add');if(ba)ba.onclick=()=>{adding=true;addErr='';addVal='';paint();$('#i-name').focus()};
   const fi=$('#f-inl');if(fi){$('#i-name').oninput=e=>e.target.removeAttribute('aria-invalid');$('#i-cancel').onclick=()=>{adding=false;addErr='';paint()};
     fi.onsubmit=e=>{e.preventDefault();const n=$('#i-name').value.trim();addVal=n;
@@ -358,7 +373,6 @@ function paint(){
   $('#demo [data-use]').setAttribute('aria-pressed',S.inUse);
 }
 function pick(key){target=key;$('#file').accept=key==='rfp'?'.hwpx':'.hwpx,.pdf';$('#file').value='';$('#file').click()}
-$('#b-more').onclick=()=>{moreOpen=!moreOpen;paint()};
 $('#b-next').addEventListener('click',e=>{if(remainCount()){e.preventDefault();toast('남은 일을 끝내면 열려요 · 남은 일 '+remainCount()+'가지')}});
 function flow(o){timers.push(setTimeout(()=>{if(o.s!=='wait')return;o.s='run';paint();
   timers.push(setTimeout(()=>{if(o.s!=='run')return;const f=fileOf(o);
@@ -406,7 +420,7 @@ function delRfp(){askReason({title:'제안요청서 등록을 삭제할까요?',
 /* 목차 칸 (보조) */
 let tocObj=null;
 function openToc(key){tocObj=key==='rfp'?S.rfp:S.v[+key];
-  $('#toc-t').textContent=(key==='rfp'?'제안요청서':S.v[+key].code+' 제안서')+' 목차 확인 (보조)';
+  $('#toc-t').textContent=(key==='rfp'?'제안요청서':S.v[+key].code+' 제안서')+' 파싱 결과 확인 (보조)';
   $('#toc-list').innerHTML=tocObj.entries.map((e,i)=>`<li class="${e.l===2?'l2':''}"><input class="tt" data-i="${i}" value="${h(e.t)}" aria-label="목차 ${i+1} 제목"><input class="pg tnum" data-i="${i}" inputmode="numeric" value="${e.p==null?'':e.p}" placeholder="쪽" aria-label="목차 ${i+1} 쪽 번호"><span class="mk"></span></li>`).join('');
   $$('#toc-list .tt').forEach(i=>i.oninput=()=>{tocObj.entries[+i.dataset.i].t=i.value});
   $$('#toc-list .pg').forEach(i=>i.oninput=()=>{const v=i.value.replace(/\D/g,'');i.value=v;tocObj.entries[+i.dataset.i].p=v?+v:null;tocMarks()});
@@ -450,9 +464,8 @@ $$('#demo [data-all]').forEach(b=>b.onclick=()=>{timers.forEach(clearTimeout);
   else{S=initState();S.rfp.toc='ok';S.v.forEach(v=>{if(!v.revs.length)v.revs=[rv(1,v.name.replace('(가상)','')+'_제안서.hwpx',NOW,'5.0MB')];v.revs[0].file=v.revs[0].file.replace(/\.pdf$/,'.hwpx');v.s='done';v.toc='ok';v.err='';v.entries=ent(VT).map(e=>({...e,p:e.p||40}))})}
   paint()});
 paint();
-if(location.hash==='#more'){moreOpen=true;paint()}
 if(location.hash==='#toc'){openToc('rfp')}
-if(location.hash==='#hist'){moreOpen=true;paint();openHist('rfp')}
+if(location.hash==='#hist')openHist('rfp')
 </script>
 </body>
 </html>

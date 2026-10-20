@@ -2,8 +2,9 @@
 
 연결용 신규 파일 · 오대웅(DaeUng79) 문서 모듈 검토 대상.
 설계(인계서 v2 §15 DOC 모듈)의 `list_uploads`·`view_source`·`archive_upload`를 구현한다.
-원본·스냅샷은 지우지 않는다. 제안서는 `project_proposal_uploads.status='ARCHIVED'`,
-제안요청서는 `rfp_upload_visibility` 행으로 목록에서만 뺀다.
+삭제 사유와 파싱 이력은 보존한다. 원본 파일은 다른 등록 건에서 쓰지 않을 때 지운다.
+제안서는 `project_proposal_uploads.status='ARCHIVED'`, 제안요청서는
+`rfp_upload_visibility` 행으로 목록에서 제외한다.
 """
 
 from __future__ import annotations
@@ -84,14 +85,75 @@ def parsed_blocks(db_path: Path, document_id: str, parse_revision: str) -> dict[
     return {"warnings": document.get("warnings", []), "blocks": visible}
 
 
+def _delete_unused_source(db, document_id: str) -> bool:
+    """다른 등록 건이나 결과 자료가 참조하지 않는 원본 BLOB만 제거한다."""
+    tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if not {"documents", "source_files"} <= tables:
+        return False
+    document = db.execute("SELECT source_sha256 FROM documents WHERE document_id=?",
+                          (document_id,)).fetchone()
+    if not document:
+        return False
+    sha256 = document[0]
+    if "managed_result_files" in tables and db.execute(
+        "SELECT 1 FROM managed_result_files WHERE source_sha256=? LIMIT 1", (sha256,)
+    ).fetchone():
+        return False
+    for linked in db.execute("SELECT document_id FROM documents WHERE source_sha256=?", (sha256,)):
+        linked_id = linked[0]
+        rfp_exists = "project_rfp_uploads" in tables and db.execute(
+            "SELECT 1 FROM project_rfp_uploads WHERE document_id=? LIMIT 1", (linked_id,)
+        ).fetchone()
+        proposal_exists = "project_proposal_uploads" in tables and db.execute(
+            "SELECT 1 FROM project_proposal_uploads WHERE document_id=? LIMIT 1", (linked_id,)
+        ).fetchone()
+        if not rfp_exists and not proposal_exists:
+            return False
+        if rfp_exists and "rfp_upload_visibility" not in tables:
+            return False
+        if rfp_exists and db.execute(
+            "SELECT 1 FROM project_rfp_uploads u "
+            "LEFT JOIN rfp_upload_visibility v ON v.project_id=u.project_id "
+            "AND v.upload_revision=u.revision "
+            "WHERE u.document_id=? AND v.archived_at IS NULL LIMIT 1", (linked_id,)
+        ).fetchone():
+            return False
+        if proposal_exists and db.execute(
+            "SELECT 1 FROM project_proposal_uploads "
+            "WHERE document_id=? AND status<>'ARCHIVED' LIMIT 1", (linked_id,)
+        ).fetchone():
+            return False
+    return bool(db.execute("DELETE FROM source_files WHERE sha256=?", (sha256,)).rowcount)
+
+
+def purge_archived_sources(db_path: Path) -> int:
+    """이미 보관 처리된 등록 건에도 같은 원본 정리 규칙을 적용한다."""
+    with connect(db_path) as db:
+        db.execute("PRAGMA secure_delete=ON")
+        tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        document_ids = set()
+        if {"rfp_upload_visibility", "project_rfp_uploads"} <= tables:
+            document_ids.update(row[0] for row in db.execute(
+                "SELECT u.document_id FROM project_rfp_uploads u "
+                "JOIN rfp_upload_visibility v ON v.project_id=u.project_id "
+                "AND v.upload_revision=u.revision WHERE v.archived_at IS NOT NULL"
+            ))
+        if "project_proposal_uploads" in tables:
+            document_ids.update(row[0] for row in db.execute(
+                "SELECT document_id FROM project_proposal_uploads WHERE status='ARCHIVED'"
+            ))
+        return sum(_delete_unused_source(db, document_id) for document_id in document_ids)
+
+
 def archive_upload(db_path: Path, project_id: str, *, reason: str, actor_id: str,
                    proposal_upload_id: str | None = None,
                    upload_revision: int | None = None) -> dict[str, Any]:
-    """DOC-06·PRO-03: 목록에서 뺀다. 원본·스냅샷·과거 평가 참조는 보존한다."""
+    """DOC-06·PRO-03: 목록에서 빼고 사용하지 않는 원본 BLOB을 지운다."""
     if not reason.strip():
         raise ValueError("사유를 적어 주세요.")
     with connect(db_path) as db:
         db.executescript(VISIBILITY_SCHEMA)
+        db.execute("PRAGMA secure_delete=ON")
         db.execute("BEGIN IMMEDIATE")
         if proposal_upload_id:
             changed = db.execute(
@@ -100,15 +162,20 @@ def archive_upload(db_path: Path, project_id: str, *, reason: str, actor_id: str
                 (reason.strip(), _now(), proposal_upload_id, project_id)).rowcount
             if not changed:
                 raise LookupError("보관 처리할 제안서를 찾을 수 없습니다.")
-            return {"id": proposal_upload_id, "status": "ARCHIVED"}
+            document_id = db.execute("SELECT document_id FROM project_proposal_uploads WHERE id=?",
+                                     (proposal_upload_id,)).fetchone()[0]
+            source_deleted = _delete_unused_source(db, document_id)
+            return {"id": proposal_upload_id, "status": "ARCHIVED", "source_deleted": source_deleted}
         if upload_revision is None:
             raise ValueError("대상을 지정하세요.")
-        if not db.execute("SELECT 1 FROM project_rfp_uploads WHERE project_id=? AND revision=?",
-                          (project_id, upload_revision)).fetchone():
+        upload = db.execute("SELECT document_id FROM project_rfp_uploads WHERE project_id=? AND revision=?",
+                            (project_id, upload_revision)).fetchone()
+        if not upload:
             raise LookupError("보관 처리할 제안요청서를 찾을 수 없습니다.")
         db.execute(
             "INSERT INTO rfp_upload_visibility VALUES (?,?,?,?,?) "
             "ON CONFLICT(project_id,upload_revision) DO UPDATE SET archived_at=excluded.archived_at,"
             "archived_by=excluded.archived_by,reason=excluded.reason",
             (project_id, upload_revision, _now(), actor_id, reason.strip()))
-        return {"upload_revision": upload_revision, "status": "ARCHIVED"}
+        source_deleted = _delete_unused_source(db, upload[0])
+        return {"upload_revision": upload_revision, "status": "ARCHIVED", "source_deleted": source_deleted}

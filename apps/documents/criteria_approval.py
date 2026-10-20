@@ -121,10 +121,79 @@ def _criteria_table_page(db, document_id: str, parse_revision: str) -> int | Non
     return None
 
 
+def split_scored_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """원문 평가항목 한 셀의 점수별 지표를 독립 평가행으로 펼친다.
+
+    원문 배점과 세부 점수 합이 다르면 점수를 추측하지 않고 원래 행을 유지한다.
+    """
+    expanded = []
+    for row in rows:
+        title = row.get("evaluation_item") or ""
+        parts = [part.strip() for part in re.split(r"(?:^|\s)[∘○◦•∙●]\s*", title) if part.strip()]
+        if len(parts) < 2:
+            expanded.append(row)
+            continue
+        details = []
+        for part in parts:
+            match = re.search(r"[（(]\s*(\d+)\s*점\s*[)）]", part)
+            if not match:
+                break
+            item_title = part[:match.start()].strip()
+            if not item_title:
+                break
+            details.append((item_title, int(match.group(1)), part[match.end():].strip()))
+        if len(details) != len(parts) or sum(score for _, score, _ in details) != row.get("score"):
+            expanded.append(row)
+            continue
+        for index, (item_title, score, note) in enumerate(details, 1):
+            item = dict(row)
+            item["row_id"] = f"{row.get('row_id', '')}-{index:02d}"
+            item["evaluation_item"] = item_title
+            item["score"] = score
+            if note:
+                item["evaluation_criteria"] = "\n".join(filter(None, (note, row.get("evaluation_criteria"))))
+            expanded.append(item)
+    return expanded
+
+
+def _rows_with_source_pages(db, binding: dict[str, Any], rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """파싱 문단에서 지표명과 배점이 함께 확인된 쪽만 연결한다."""
+    paragraphs = []
+    for block in db.execute(
+        "SELECT block_id,text,physical_page_numbers_json FROM blocks "
+        "WHERE document_id=? AND revision=? AND type='paragraph' ORDER BY order_index",
+        (binding["document_id"], binding["parse_revision"]),
+    ):
+        pages = json.loads(block["physical_page_numbers_json"] or "[]")
+        if pages and block["text"]:
+            paragraphs.append((block["block_id"], block["text"], pages[0]))
+    result = []
+    for row in split_scored_rows(rows):
+        item = dict(row)
+        title = re.sub(r"\W+", "", item.get("evaluation_item") or "").lower()
+        score = item.get("score")
+        if title and isinstance(score, (int, float)):
+            point = re.compile(rf"[（(]\s*{score:g}\s*점\s*[)）]")
+            for block_id, text, page in paragraphs:
+                if title in re.sub(r"\W+", "", text).lower() and point.search(text):
+                    item["source_page"] = page
+                    item["source_block_id"] = block_id
+                    break
+        result.append(item)
+    return result
+
+
+def scoring_rows_with_source_pages(db_path: Path, project_id: str,
+                                   rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    with connect(db_path) as db:
+        binding = _binding(db, project_id)
+        return _rows_with_source_pages(db, binding, rows) if binding else split_scored_rows(rows)
+
+
 def _items_from_ai(rows: list[dict[str, Any]], page: int | None) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     divisions: list[str] = []
-    for row in rows:
+    for row in split_scored_rows(rows):
         division = row.get("evaluation_division") or "평가부문"
         if division not in divisions:
             divisions.append(division)
@@ -138,7 +207,8 @@ def _items_from_ai(rows: list[dict[str, Any]], page: int | None) -> list[dict[st
                       "parent_code": str(divisions.index(division) + 1),
                       "title": row.get("evaluation_item") or "평가항목",
                       "description": description or None,
-                      "max_score": float(row.get("score") or 0), "source_page": page})
+                      "max_score": float(row.get("score") or 0),
+                      "source_page": row.get("source_page")})
     return items
 
 
@@ -240,16 +310,19 @@ def list_versions(db_path: Path, project_id: str) -> list[dict[str, Any]]:
 
 
 def open_draft(db_path: Path, *, project_id: str, source: str, ai_result: dict[str, Any] | None,
-               actor_id: str) -> dict[str, Any]:
-    """CRT-03: AI 초안('ai') 또는 기본 서식('template')을 복사한 DRAFT를 만든다. 열린 DRAFT가 있으면 그대로 돌려준다."""
+               actor_id: str, restart: bool = False) -> dict[str, Any]:
+    """CRT-03: 초안을 복사한다. restart 요청은 기존 작업본을 이력으로 남기고 새 복사본을 연다."""
     initialize(db_path)
     with connect(db_path) as db:
         db.execute("BEGIN IMMEDIATE")
         existing = db.execute(
             "SELECT id FROM approved_criteria_versions WHERE project_id=? AND status='DRAFT' "
             "ORDER BY approval_no DESC LIMIT 1", (project_id,)).fetchone()
-        if existing:
-            return _read_version(db, existing[0])
+        if existing and not restart:
+            current = _read_version(db, existing[0])
+            if source == "ai" and current["draft_result_id"] != (ai_result or {}).get("_id"):
+                raise CriteriaApprovalError("현재 검토본은 AI 초안과 다릅니다. AI 초안 반영을 선택해 새 검토본을 열어 주세요.")
+            return current
         binding = _binding(db, project_id)
         if binding is None:
             raise CriteriaApprovalError("제안요청서를 먼저 등록해 주세요.")
@@ -257,7 +330,7 @@ def open_draft(db_path: Path, *, project_id: str, source: str, ai_result: dict[s
         if source == "ai":
             if not ai_result or not ai_result.get("rows"):
                 raise CriteriaApprovalError("AI 초안이 아직 없습니다. 초안 생성을 먼저 실행해 주세요.")
-            items = _items_from_ai(ai_result["rows"], page)
+            items = _items_from_ai(_rows_with_source_pages(db, binding, ai_result["rows"]), page)
             total = float(ai_result.get("total_score") or sum(r.get("score", 0) for r in ai_result["rows"]))
             draft_result_id = ai_result.get("_id")
         else:
@@ -265,6 +338,11 @@ def open_draft(db_path: Path, *, project_id: str, source: str, ai_result: dict[s
             total = float(sum(s for _, _, s in DEFAULT_TEMPLATE))
             draft_result_id = None
         normalized = validate_items(items, total)
+        if existing:
+            db.execute(
+                "UPDATE approved_criteria_versions SET status='RETIRED',updated_at=? WHERE id=?",
+                (_now(), existing[0]),
+            )
         approval_no = db.execute(
             "SELECT COALESCE(MAX(approval_no),0)+1 FROM approved_criteria_versions WHERE project_id=?",
             (project_id,)).fetchone()[0]
