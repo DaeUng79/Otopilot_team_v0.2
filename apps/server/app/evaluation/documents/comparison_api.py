@@ -11,16 +11,33 @@ POST /api/v2/evaluator/projects/{p}/sessions/{s}/chat {vendors[], question, hist
      문서 도우미. common/server/chat_adapter.py 가 오대웅 모듈 chatbot.py 를 경로 import 해 업체별(최대 3) 제안서 전체를 문맥으로 묻는다.
      응답 {answers:{session_proposal_id:{text,pages,tables,error?}}, model}. 문서 DB·OPENAI_API_KEY 가 없으면 503(화면은 "준비 중").
      대화는 저장하지 않는다. 감사 기록(CHAT-01)에는 업체·글자 수만 남긴다.
+POST /api/v2/evaluator/projects/{p}/sessions/{s}/comparisons/summary {criterion_id}
+     고정된 제안서 근거 블록을 apps/documents/proposal_item_summary.py에서 업체별로 정리한다.
 """
 
 from __future__ import annotations
+
+import importlib.util
+from functools import lru_cache
 
 from app.evaluation.documents.app import App, Request, Response
 from app.evaluation.documents.audit import record
 from app.evaluation.documents.auth import require_attended, require_participant, require_project, require_session
 from app.evaluation.documents.db import connect, connect_documents
 from app.evaluation.documents.envelope import ApiError, validation_failed
-from app.evaluation.documents import chat_adapter, evidence, scoring
+from app.evaluation.documents import chat_adapter, evidence, scoring, summary_store
+from app.evaluation.documents.settings import PM01_DIR
+
+
+@lru_cache(maxsize=1)
+def _summary_module():
+    path = PM01_DIR / "proposal_item_summary.py"
+    spec = importlib.util.spec_from_file_location("proposal_item_summary", path)
+    if spec is None or spec.loader is None:
+        raise ApiError("UPSTREAM_UNAVAILABLE", "AI 정리 모듈을 읽을 수 없습니다.", 503)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _context(req: Request, conn):
@@ -56,8 +73,7 @@ def register(app: App) -> None:
                 "excerpt": [m["excerpt"] for m in matches], "page": matches[0]["page"], "matches": matches,
                 "document_id": rows[0]["document_id"], "parse_revision": rows[0]["parse_revision"]}
 
-    def comparisons(req: Request) -> Response:
-        criterion_id = req.arg("criterion_id")
+    def _comparison_data(req: Request, criterion_id: str) -> dict:
         if not criterion_id:
             raise validation_failed("criterion_id 가 필요해요.", {"criterion_id": "평가항목을 골라 주세요."})
         wanted = [v.strip() for v in (req.arg("vendors") or "").split(",") if v.strip()]
@@ -109,8 +125,49 @@ def register(app: App) -> None:
             mode, note = "suggested", "담당자가 아직 확정하지 않은 제안 근거예요. 쪽을 열어 직접 확인해 주세요."
         else:
             mode, note = "auto", "담당자가 확정한 근거가 아직 없어서, 제안서 본문에서 자동으로 찾은 후보예요. 쪽을 열어 직접 확인해 주세요."
-        return Response(data={"criterion": dict(item), "available": available, "mode": mode, "columns": columns,
-                              "proposals": [_head(p) for p in proposals], "note": note})
+        return {"criterion": dict(item), "available": available, "mode": mode, "columns": columns,
+                "proposals": [_head(p) for p in proposals], "note": note}
+
+    def comparisons(req: Request) -> Response:
+        return Response(data=_comparison_data(req, req.arg("criterion_id")))
+
+    def comparison_summary(req: Request) -> Response:
+        criterion_id = str(req.json().get("criterion_id") or "")
+        data = _comparison_data(req, criterion_id)
+        proposals = []
+        sources = []
+        if data["columns"]:
+            with connect_documents(req.settings.documents_db_path) as docs:
+                for col in data["columns"]:
+                    evidence_blocks = []
+                    for match in col.get("matches", [])[:3]:
+                        row = docs.execute(
+                            "SELECT text FROM blocks WHERE document_id=? AND revision=? AND block_id=?",
+                            (col["document_id"], col["parse_revision"], match["block_id"])).fetchone()
+                        text = (row["text"] if row else "") or ""
+                        if text.strip():
+                            evidence_blocks.append({"page": match.get("page"), "text": text.strip()})
+                    if evidence_blocks:
+                        proposals.append({"id": col["session_proposal_id"], "evidence": evidence_blocks})
+                        sources.append({"session_proposal_id": col["session_proposal_id"],
+                                        "document_id": col["document_id"],
+                                        "parse_revision": col["parse_revision"],
+                                        "source": col["source"],
+                                        "block_ids": [m["block_id"] for m in col.get("matches", [])[:3]]})
+        criterion = str(data["criterion"].get("description") or "").split("\n-")[0]
+        summarizer = _summary_module()
+        try:
+            summaries = summary_store.get_or_generate(
+                req.settings.db_path, project_id=req.params["project_id"],
+                session_id=req.params["session_id"], criterion_id=criterion_id,
+                fingerprint={"title": data["criterion"]["title"], "criterion": criterion,
+                             "sources": sources, "proposals": proposals},
+                processor_version=summarizer.PROCESSOR_VERSION,
+                generate=lambda: summarizer.summarize_item(data["criterion"]["title"], criterion, proposals),
+            ) if proposals else {}
+        except summarizer.SummaryUnavailable as exc:
+            raise ApiError("UPSTREAM_UNAVAILABLE", str(exc), 503, retryable=True) from exc
+        return Response(data={"summaries": summaries})
 
     def chat(req: Request) -> Response:
         body = req.json()
@@ -164,4 +221,5 @@ def register(app: App) -> None:
     base = r"/projects/(?P<project_id>[^/]+)/sessions/(?P<session_id>[^/]+)"
     app.route("GET", base + r"/criteria", criteria)
     app.route("GET", base + r"/comparisons", comparisons)
+    app.route("POST", base + r"/comparisons/summary", comparison_summary)
     app.route("POST", base + r"/chat", chat)

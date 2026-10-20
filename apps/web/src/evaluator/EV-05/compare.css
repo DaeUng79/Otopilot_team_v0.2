@@ -23,7 +23,9 @@
 .cp-hd h2 small { font-size: 18px; font-weight: 600; color: var(--primary-60); white-space: nowrap; }
 .cp-hd span { color: var(--text-3); font-size: 16px; }
 .cp-criterion { margin: -6px 0 16px; color: var(--text-2); font-size: 16px; line-height: 1.55; white-space: pre-line; }
-.cp-cols { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 14px; }
+.cp-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.cp-cols[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cp-cols[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .cp-tag { font-size: 14px; line-height: 22px; border: 1px solid var(--primary-20); background: var(--primary-5); color: var(--primary-70); border-radius: var(--radius-lg); padding: 0 10px; font-weight: 700; white-space: nowrap; }
 .cp-tag.wait { border-color: var(--warning-10); background: var(--warning-5); color: var(--warning-60); }
 .cp-col { background: var(--gray-0); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
@@ -52,6 +54,13 @@
 .cp-hit { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-top: 1px solid var(--gray-10); }
 .cp-hit:first-of-type { border-top: 0; padding-top: 0; }
 .cp-ht { margin: 0; font-size: 15px; line-height: 1.5; color: var(--text-1); }
+.cp-summary { margin: 4px 0 8px; font-size: 16px; line-height: 1.6; color: var(--text-1); flex: 1; overflow-wrap: anywhere; }
+.cp-pages { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; padding: 4px 0; scrollbar-width: thin; }
+.cp-pages .ev-btn { flex: none; margin: 0; white-space: nowrap; }
+.cp-retry { align-self: flex-start; border: 0; background: none; padding: 3px 0; color: var(--primary-60); text-decoration: underline; cursor: pointer; }
+@media (max-width: 1500px) { .cp-cols[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1200px) { .cp-cols[data-count="3"] { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .cp-cols, .cp-cols[data-count="3"], .cp-cols[data-count="4"] { grid-template-columns: minmax(0, 1fr); } }
 /* ── 태블릿 보강 (CSS만): 1181px 이상 데스크톱에는 적용되지 않음 ── */
 @media (max-width: 1180px) {
   .cp-sub a, .cp-sub span { min-height: 44px; }
