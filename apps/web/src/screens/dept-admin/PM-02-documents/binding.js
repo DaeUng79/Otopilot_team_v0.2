@@ -14,6 +14,11 @@ const rfpUrl=projectUrl+'/rfp';
 let rfpUploads=[],rfpArchived=[],proposalUploads=[],requirementState=null,requirementTimer=null,comparisonData=null;
 let analysisJobs={},analysisTimer=null,comparisonInitialized=false;
 const proposalUploadState=new Map();
+let rfpUploadState=null;
+const autoAnalysisKey='pm02-auto-analysis:'+Live.pid;
+const pendingAutoAnalysis=new Set(JSON.parse(sessionStorage.getItem(autoAnalysisKey)||'[]'));
+const autoAnalysisInFlight=new Set();
+function savePendingAnalysis(){sessionStorage.setItem(autoAnalysisKey,JSON.stringify([...pendingAutoAnalysis]));}
 const fmtSize=b=>(b/1048576).toFixed(1)+'MB',fmtAt=t=>new Date(t).toLocaleString('ko-KR');
 async function getJson(url,options){const response=await fetch(url,{credentials:'same-origin',headers:{'X-Simsa-Client':'v2-web',...(options?.json!==undefined?{'Content-Type':'application/json'}:{})},method:options?.method||'GET',body:options?.json!==undefined?JSON.stringify(options.json):options?.body});const body=await response.json().catch(()=>({}));if(!response.ok)throw Error(body.error?.message||'요청을 처리하지 못했습니다.');return body.data;}
 async function downloadUrl(url,filename){const response=await fetch(url,{credentials:'same-origin'});if(!response.ok)throw Error('파일을 내려받지 못했습니다.');const object=URL.createObjectURL(await response.blob());const link=document.createElement('a');link.href=object;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(object),1000);}
@@ -29,6 +34,9 @@ function extractionRows(){
     let label='제안서 미등록',detail='제안서를 등록하면 분석 상태를 볼 수 있습니다.',tone='';
     if(uploaded){
       label='2차 분석 전';detail='제안서는 등록됐습니다. 2차 분석 결과가 없습니다.';
+      if(pendingAutoAnalysis.has(upload.id)){
+        label='분석 대기';detail='제안요청서 요구사항 요약이 끝나면 자동으로 분석을 시작합니다.';tone='info';
+      }
       if(column?.status==='complete'){
         label='분석 완료';detail=`확인 ${column.confirmed}건 · 확인되지 않음 ${column.unconfirmed}건`;tone='success';
       }else if(column?.status==='partial'){
@@ -45,6 +53,30 @@ function extractionRows(){
   }).join('');
 }
 const originalPaint=paint;
+function showRfpUpload(){
+  if(!rfpUploadState)return;
+  const info=rfpUploadState;
+  const box=document.createElement('div');box.className='filebox rfp-uploading';
+  box.setAttribute('aria-busy','true');
+  const name=document.createElement('div');name.className='fn';name.textContent=info.filename;
+  const state=document.createElement('div');state.className='upload-state';
+  state.setAttribute('role','status');state.setAttribute('aria-live','polite');
+  state.textContent=info.processing?'파일 전송 완료 · 서버에서 문서 등록 중':info.percent===null?'파일 전송 중':`파일 전송 중 · ${info.percent}%`;
+  const meter=document.createElement('div');meter.className='upload-meter';
+  meter.setAttribute('role','progressbar');meter.setAttribute('aria-label','제안요청서 파일 전송');
+  if(info.percent===null)meter.classList.add('indeterminate');
+  else{
+    meter.setAttribute('aria-valuemin','0');meter.setAttribute('aria-valuemax','100');
+    meter.setAttribute('aria-valuenow',String(info.percent));
+  }
+  const fill=document.createElement('i');fill.style.width=info.percent===null?'35%':`${info.percent}%`;
+  meter.append(fill);box.append(name,state,meter);
+  if(rfpUploads.length){
+    const note=document.createElement('div');note.className='msg';
+    note.textContent='기존 파일은 새 등록이 완료될 때까지 유지됩니다.';box.append(note);
+  }
+  $('#rfp').replaceChildren(box);
+}
 function showProposalUpload(index){
   const info=proposalUploadState.get(vendorRows[index]?.id);
   const row=$(`#rows [data-drop="${index}"]`);
@@ -92,6 +124,7 @@ paint=()=>{
   }
   // The prototype's TOC confirmation and synthetic state controls are not persisted.
   $('#demo').hidden=true;
+  showRfpUpload();
   S.v.forEach((_vendor,index)=>showProposalUpload(index));
 };
 function rfpRevision(n){return rfpUploads.find(u=>u.revision===n)}
@@ -103,6 +136,7 @@ async function loadRfp(){
   requirementState=rfpUploads.length?await getJson(projectUrl+'/requirements').catch(error=>({status:'failed',error:'처리 상태를 확인하지 못했습니다. 통신 상태를 확인하고 새로고침해 주세요. '+error.message})):null;
   if(rfpUploads.length)S.rfp.s=requirementState?.status==='done'?'done':requirementState?.status==='failed'?'fail':'run';
   paint();
+  if(comparisonInitialized&&requirementState?.status==='done')void flushAutoAnalysis();
   clearTimeout(requirementTimer);
   if(['queued','running'].includes(requirementState?.status))requirementTimer=setTimeout(async()=>{
     try{
@@ -127,18 +161,40 @@ async function uploadRfp(file){
   if(!file)return;
   if(!file.name.toLowerCase().endsWith('.hwpx'))throw Error('HWPX 파일만 올릴 수 있습니다.');
   if(file.size>50*1024*1024)throw Error('50MB 이하의 파일을 올려 주세요.');
+  if(rfpUploadState)throw Error('제안요청서를 등록하고 있습니다. 완료된 뒤 다시 시도해 주세요.');
   const form=new FormData();form.append('file',file);
   const previousRequirementState=requirementState;
+  rfpUploadState={filename:file.name,percent:null,processing:false};
   requirementState=null;
   S.rfp.s='run';S.rfp.err='';paint();
   try{
-    const response=await fetch(rfpUrl,{method:'POST',credentials:'same-origin',
-      headers:{'X-Simsa-Client':'v2-web'},body:form});
-    const body=await response.json();
-    if(!response.ok)throw Error(body.error?.message||'문서를 저장하지 못했습니다.');
+    // XHR reports transferred bytes. Server parsing begins after the transfer reaches 100%.
+    await new Promise((resolve,reject)=>{
+      const xhr=new XMLHttpRequest();
+      xhr.open('POST',rfpUrl);xhr.withCredentials=true;
+      xhr.setRequestHeader('X-Simsa-Client','v2-web');
+      xhr.setRequestHeader('X-Simsa-Role','DEPARTMENT_ADMIN');
+      xhr.upload.onprogress=event=>{
+        if(!event.lengthComputable||!rfpUploadState)return;
+        rfpUploadState.percent=Math.min(100,Math.round(event.loaded/event.total*100));showRfpUpload();
+      };
+      xhr.upload.onload=()=>{
+        if(!rfpUploadState)return;
+        rfpUploadState.percent=100;rfpUploadState.processing=true;showRfpUpload();
+      };
+      xhr.onload=()=>{
+        let body;try{body=JSON.parse(xhr.responseText);}catch{body={};}
+        if(xhr.status<200||xhr.status>=300){reject(Error(body.error?.message||'문서를 저장하지 못했습니다.'));return;}
+        resolve(body);
+      };
+      xhr.onerror=()=>reject(Error('파일을 전송하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.'));
+      xhr.onabort=()=>reject(Error('파일 전송이 중단됐습니다.'));
+      xhr.send(form);
+    });
     comparisonData=null;await loadRfp();await loadComparison();
+    rfpUploadState=null;paint();
     toast('제안요청서를 저장하고 요구사항 요약을 시작했어요.');
-  }catch(error){requirementState=previousRequirementState;S.rfp.s=rfpUploads.length?(requirementState?.status==='done'?'done':'fail'):'none';S.rfp.err=error.message;paint();throw error;}
+  }catch(error){rfpUploadState=null;requirementState=previousRequirementState;S.rfp.s=rfpUploads.length?(requirementState?.status==='done'?'done':'fail'):'none';S.rfp.err=error.message;paint();throw error;}
 }
 async function uploadProposal(index,file){
   if(!file)return;const vendor=vendorRows[index],row=S.v[index];
@@ -155,6 +211,7 @@ async function uploadProposal(index,file){
       const xhr=new XMLHttpRequest();
       xhr.open('POST',projectUrl+'/vendors/'+encodeURIComponent(vendor.id)+'/proposals');
       xhr.withCredentials=true;xhr.setRequestHeader('X-Simsa-Client','v2-web');
+      xhr.setRequestHeader('X-Simsa-Role','DEPARTMENT_ADMIN');
       xhr.upload.onprogress=event=>{
         if(!event.lengthComputable)return;
         const info=proposalUploadState.get(vendor.id);if(!info)return;
@@ -178,6 +235,12 @@ async function uploadProposal(index,file){
     const ack=body.data.ack?.status;
     toast(`${row.code} 제안서 v${body.data.upload_revision}을 저장했어요 · ${body.data.pages}쪽 · 평가 연결 ${ack==='APPLIED'||ack==='DUPLICATE'?'완료':ack||'대기'}`);
   }catch(error){proposalUploadState.delete(vendor.id);row.s=proposalsOf(index).length?'done':'none';row.err=error.message;paint();throw error;}
+  const upload=proposalsOf(index)[0];
+  if(upload?.status==='READY'){
+    pendingAutoAnalysis.add(upload.id);savePendingAnalysis();paint();
+    if(requirementState?.status==='done')await flushAutoAnalysis();
+    else toast(`${row.code} 제안서는 저장됐어요. 제안요청서 요약이 끝나면 자동 분석을 시작합니다.`);
+  }
 }
 Live.capture('#file','change',event=>target==='rfp'?uploadRfp(event.target.files?.[0]):uploadProposal(Number(target),event.target.files?.[0]));
 Live.capture('[data-drop="rfp"]','drop',event=>{const file=event.dataTransfer?.files?.[0];if(!file)return;return uploadRfp(file);});
@@ -240,7 +303,11 @@ function archiveDialog(key){
   askReason({title:isRfp?'제안요청서를 영구 삭제할까요?':`${S.v[index].code} 제안서를 영구 삭제할까요?`,body:'파일과 연결된 분석 데이터가 삭제되며 복구할 수 없습니다. 평가가 시작된 사업의 문서는 삭제할 수 없습니다.',block:S.inUse?'평가가 시작된 사업의 문서는 삭제할 수 없습니다.':'',requireReason:false,onOk:async()=>{
     try{
       if(isRfp)await getJson(rfpUrl+'/'+rfpUploads[0].revision,{method:'DELETE'});
-      else await getJson(projectUrl+'/proposals/'+encodeURIComponent(proposalsOf(index)[0].id),{method:'DELETE'});
+      else{
+        const uploadId=proposalsOf(index)[0].id;
+        await getJson(projectUrl+'/proposals/'+encodeURIComponent(uploadId),{method:'DELETE'});
+        pendingAutoAnalysis.delete(uploadId);savePendingAnalysis();
+      }
       comparisonData=null;$('#comparison-tools').hidden=true;$('#comparison-wrap').hidden=true;
       $('#business-panel').hidden=true;
       comparisonStatus.textContent='자료를 다시 확인하고 있습니다.';
@@ -261,12 +328,29 @@ Live.capture('[data-reextract]','click',async()=>{
   }catch(error){requirementState=previous;S.rfp.s=previous?.status==='done'?'done':'fail';paint();throw error;}
   await loadRfp();
 });
-Live.capture('[data-analyze-upload]','click',async(_event,button)=>{
-  const uploadId=button.dataset.analyzeUpload;
+async function startProposalAnalysis(uploadId){
+  if(['queued','running'].includes(analysisJobs[uploadId]?.status))return;
   const job=await getJson(projectUrl+'/requirements/proposal-analysis/jobs',
     {method:'POST',json:{proposal_upload_id:uploadId}});
   analysisJobs[uploadId]=job;
-  paint();await loadComparison();toast('선택한 제안서의 2차 분석을 시작했어요.');
+  paint();await loadComparison();
+}
+async function flushAutoAnalysis(){
+  if(requirementState?.status!=='done')return;
+  for(const uploadId of [...pendingAutoAnalysis]){
+    if(autoAnalysisInFlight.has(uploadId))continue;
+    autoAnalysisInFlight.add(uploadId);
+    pendingAutoAnalysis.delete(uploadId);savePendingAnalysis();
+    try{
+      await startProposalAnalysis(uploadId);
+      toast('새로 등록한 제안서의 2차 분석을 자동으로 시작했어요.');
+    }catch(error){toast(`제안서는 저장됐지만 자동 분석을 시작하지 못했어요. ${error.message}`);}
+    finally{autoAnalysisInFlight.delete(uploadId);paint();}
+  }
+}
+Live.capture('[data-analyze-upload]','click',async(_event,button)=>{
+  await startProposalAnalysis(button.dataset.analyzeUpload);
+  toast('선택한 제안서의 2차 분석을 시작했어요.');
 });
 Live.capture('[data-retry]','click',async()=>{await getJson(projectUrl+'/requirements/jobs',{method:'POST',json:{force:requirementState?.status==='failed'}});await loadRfp();toast('요구사항 요약을 시작했어요. 몇 분 걸릴 수 있어요');});
 Live.capture('#toc-ok','click',()=>{throw Error('목차 수정은 아직 연결되지 않았습니다. 저장된 파싱 원문을 확인하세요.');});
@@ -371,4 +455,4 @@ $('#comparison-refresh').onclick=loadComparison;
 comparisonCategory.onchange=renderComparison;
 comparisonSearch.oninput=renderComparison;
 comparisonInitialized=true;
-loadComparison();
+loadComparison().then(flushAutoAnalysis);

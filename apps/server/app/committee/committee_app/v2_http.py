@@ -204,8 +204,8 @@ def create_app(runtime: Runtime, settings: WebSettings) -> FastAPI:
         def extra(conn: sqlite3.Connection) -> DTO:
             runtime.project(conn, ctx, project_id)
             draw = conn.execute(
-                "SELECT id,created_at FROM committee_draws WHERE project_id=? "
-                "ORDER BY created_at DESC LIMIT 1",
+                "SELECT id,created_at FROM committee_draws WHERE project_id=? AND status='CONFIRMED' "
+                "ORDER BY revision_no DESC LIMIT 1",
                 (project_id,),
             ).fetchone()
             handoff = conn.execute(

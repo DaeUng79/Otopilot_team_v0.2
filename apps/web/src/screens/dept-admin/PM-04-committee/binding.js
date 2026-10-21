@@ -55,7 +55,21 @@ Live.capture('[data-pick-kind]','change',(_e,el)=>{const id=el.dataset.pickId,ki
  Object.keys(S.pick).filter(k=>S.pick[k]==='예비').sort((a,b)=>(S.ord[a]||99)-(S.ord[b]||99)).forEach((k,i)=>S.ord[k]=i+1);
  render();});
 const originalCommitteeRender=render;
-render=function(){if(S.mode==='DIRECT'&&S.stg===3)S.q=FIELDS.map((_f,i)=>S.cands.filter(c=>c.f===i&&S.pick[c.id]==='본').length);originalCommitteeRender();simplifyContact();simplifyRoster();relabelRoster();if(S.rost!=='none'){$$('#stage select,#stage input,#stage [data-ex]').forEach(e=>e.disabled=true);}};
+let renderedCommitteeStage=null;
+render=function(){
+ const sameStage=renderedCommitteeStage===S.stg;
+ const scrollTop=sameStage?$('#stage .stg')?.scrollTop:undefined;
+ if(S.mode==='DIRECT'&&S.stg===3)S.q=FIELDS.map((_f,i)=>S.cands.filter(c=>c.f===i&&S.pick[c.id]==='본').length);
+ originalCommitteeRender();simplifyContact();simplifyRoster();relabelRoster();
+ if(S.rost!=='none'){$$('#stage select,#stage input,#stage [data-ex]').forEach(e=>e.disabled=true);}
+ if(S.drawn&&S.rost==='none'){
+  const reset=document.createElement('button');reset.type='button';reset.className='btn';
+  reset.id='reset-draw';reset.textContent='추첨 취소 · 다시 선정';
+  $('#foot').append(reset);
+ }
+ if(scrollTop!==undefined)$('#stage .stg').scrollTop=scrollTop;
+ renderedCommitteeStage=S.stg;
+};
 Live.capture('[data-done]','change',async(_e,el)=>{
  const n=liveCommittee.items[Number(el.dataset.done)],checked=el.checked;
  const view={fst:S.fst,ffd:S.ffd,stage:$('#stage .stg')?.scrollTop||0,list:$('#stage .box.call')?.scrollTop||0,page:window.scrollY};
@@ -73,7 +87,8 @@ async function loadCommittee(stage,view){
  liveCandidates=await Live.all('COM-01',{department_id:department,scope:'DEPARTMENT_POOL',active:true});
  POOLN.ok=specialties.map(s=>liveCandidates.filter(c=>c.specialty_ids.includes(s.id)).length);
  const members=liveCommittee.items.map((n,i)=>{const drawField=liveCommittee.draw_members.find(d=>d.id===n.draw_member_id)?.specialty_id;return {id:i,name:n.candidate.name,f:Math.max(0,specialties.findIndex(s=>s.id===(drawField||n.candidate.specialty_ids[0]))),l4:n.candidate.phone.slice(-4),st:statusNames[n.contact_status],memo:n.contact_note||'',src:mode==='DIRECT'?'직접':'추첨',ex:n.exclusion_reason};});
- const q=specialties.map(s=>liveCommittee.quotas.find(q=>q.specialty_id===s.id)?.final_count||0);if(!rule)q[0]=7;
+ const q=specialties.map(s=>liveCommittee.quotas.find(q=>q.specialty_id===s.id)?.final_count||0);
+ if(!rule){const firstAvailable=POOLN.ok.findIndex(count=>count>0);if(firstAvailable>=0)q[firstAvailable]=7;}
  const picks={},orders={};for(const a of liveCommittee.assignments){const i=liveCommittee.items.findIndex(n=>n.id===a.nominee_id);picks[i]=a.member_kind==='PRIMARY'?'본':'예비';orders[i]=a.reserve_order;}
  S={...base(),mode,cap:rule?.target_count||7,q,saved:!!rule,drawn:!!liveCommittee.draw,cands:members,stg:stage??(liveCommittee.roster?3:rule?2:0),pick:picks,ord:orders,rost:liveCommittee.roster?(liveCommittee.handoff?.status==='SENT'?'ready':'sent'):'none'};
  if(view){S.fst=view.fst;S.ffd=view.ffd;}
@@ -92,10 +107,28 @@ Live.capture('#save','click',async()=>{
  toast(saved?.cleared_nominees?`선정 규칙을 저장했어요 · 이전 후보 ${saved.cleared_nominees}명을 정리했어요`:'선정 규칙을 저장했어요');
 });
 Live.capture('#draw','click',async()=>{await Live.api('DRAW-02',{project_id:Live.pid,rule_version:liveCommittee.rule.version});await loadCommittee(1);toast('3배수 명단을 저장했어요');});
+Live.capture('#reset-draw','click',async()=>{
+ if(!confirm('현재 추첨을 취소하고 다시 선정할까요? 추첨 기록은 보존되지만 이 추첨의 후보·통화 기록·본위원·예비 선택은 초기화됩니다. 명단 확정 전까지만 가능합니다.'))return;
+ const rule=liveCommittee.rule;
+ await Live.api('DRAW-01',{project_id:Live.pid,selection_mode:rule.selection_mode,
+  target_count:rule.target_count,reserve_count:rule.reserve_count,
+  quotas:liveCommittee.quotas.map(q=>({specialty_id:q.specialty_id,final_count:q.final_count})),
+  version:rule.version,clear_nominees:true});
+ await loadCommittee(0);toast('기존 추첨을 취소했어요. 규칙과 후보를 조정한 뒤 다시 선정할 수 있어요.');
+});
 Live.capture('#dl','click',()=>Live.api('DRAW-03',{project_id:Live.pid,draw_id:liveCommittee.draw.id},'선정명단.xlsx'));
 Live.capture('[data-st],[data-memo]','change',async(_e,el)=>{const i=Number(el.dataset.st??el.dataset.memo),n=liveCommittee.items[i];await Live.api('ROS-03',{project_id:Live.pid,nominee_id:n.id,version:n.version,contact_status:el.dataset.st!==undefined?Object.keys(statusNames).find(k=>statusNames[k]===el.value):n.contact_status,contact_note:el.dataset.memo!==undefined?el.value:n.contact_note||''});await loadCommittee(2);toast('통화 결과를 저장했어요');});
 Live.capture('[data-ex]','click',(_e,el)=>{$('#p').style.width='';excludeIndex=Number(el.dataset.ex);exclude(excludeIndex);});
 Live.capture('#xo','click',async()=>{const n=liveCommittee.items[excludeIndex];await Live.api('ROS-04',{project_id:Live.pid,nominee_id:n.id,version:n.version,reason:$('#xr').value+($('#xm').value?' · '+$('#xm').value:'')});closeLayer($('#p'));await loadCommittee(2);toast('후보를 제외했어요');});
+Live.capture('[data-restore]','click',async(_e,el)=>{
+ const n=liveCommittee.items[Number(el.dataset.restore)];
+ const view={fst:S.fst,ffd:S.ffd,stage:$('#stage .stg')?.scrollTop||0,list:$('#stage .box.call')?.scrollTop||0};
+ await Live.api('ROS-04',{project_id:Live.pid,nominee_id:n.id,version:n.version,reason:null});
+ await loadCommittee(2,view);
+ const stage=$('#stage .stg'),list=$('#stage .box.call');
+ if(stage)stage.scrollTop=view.stage;if(list)list.scrollTop=view.list;
+ toast('후보 제외를 취소했어요.');
+});
 // ROS-02 사업 후보 추가: 넓은 창에서 검색 + 여러 명 체크 → 한 번에 저장 (2026-10-18 사용자 요청)
 let pickSet=new Set(),pickQuery='';
 const fieldNames=c=>c.specialty_ids.map(id=>specialties.find(s=>s.id===id)?.name||id).join(', ');

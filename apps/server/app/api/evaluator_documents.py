@@ -19,6 +19,10 @@ from app.api.project_documents import resolve_database
 from app.shared.db import require
 
 
+def evaluator_token(request):
+    return request.cookies.get("simsa_v2_evaluator_session") or request.cookies.get("simsa_v2_session")
+
+
 def install_document_routes(app, store, actor, *, documents_db=None):
     path = resolve_database(documents_db, store.runtime.path.parent)
     settings = Settings(store.evaluation_path, path)
@@ -28,7 +32,7 @@ def install_document_routes(app, store, actor, *, documents_db=None):
 
     def dispatch(request, body, request_id):
         with connect(settings.db_path) as conn:
-            principal = load_principal(conn, settings, request.cookies.get("simsa_v2_session"), touch=False)
+            principal = load_principal(conn, settings, evaluator_token(request), touch=False)
         if request.url.path == API_PREFIX + "/auth/me" and request.method == "GET":
             return JSONResponse(success(principal.summary(), request_id))
         req = Request(request.method, request.url.path, parse_qs(request.url.query),
@@ -62,7 +66,7 @@ def install_document_routes(app, store, actor, *, documents_db=None):
             body = await read_body(request)
             def prepare():
                 with connect(settings.db_path) as conn:
-                    principal = load_principal(conn, settings, request.cookies.get("simsa_v2_session"), touch=False)
+                    principal = load_principal(conn, settings, evaluator_token(request), touch=False)
                 req = Request("POST", request.url.path, parse_qs(request.url.query), dict(request.headers), body,
                               request_id, {"project_id": project_id, "session_id": session_id}, settings, principal)
                 principal, session, targets, question, history = comparison_api.prepare_chat(req)

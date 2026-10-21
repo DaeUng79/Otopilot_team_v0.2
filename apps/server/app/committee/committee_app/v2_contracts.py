@@ -108,7 +108,7 @@ class Contact(ProjectQuery):
 class Exclude(ProjectQuery):
     nominee_id: ID
     version: Version
-    reason: str = Field(min_length=1, max_length=500)
+    reason: str | None = Field(min_length=1, max_length=500)
 
 
 class NomineeQuery(ProjectQuery):

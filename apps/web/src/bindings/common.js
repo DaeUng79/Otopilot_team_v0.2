@@ -1,6 +1,18 @@
 /* Behavior only. Original design markup, CSS and visual renderers stay authoritative. */
 window.Live=(()=>{
   let boot=null,config=null,screen='',pid='',busy=false;
+  const nativeFetch=window.fetch.bind(window);
+  // Each tab identifies its screen role while the browser keeps separate role cookies.
+  window.fetch=(input,init={})=>{
+    const url=new URL(input instanceof Request?input.url:String(input),location.href);
+    if(url.origin!==location.origin||!(/^\/api\/v2(?:\/|$)/.test(url.pathname)||/^\/committee-v2\/api(?:\/|$)/.test(url.pathname)))
+      return nativeFetch(input,init);
+    const role=screen==='SA-00'&&query.get('role')==='department'?'DEPARTMENT_ADMIN':screen.startsWith('SA')?'SUPER_ADMIN':screen.startsWith('PM')?'DEPARTMENT_ADMIN':screen.startsWith('EV')?'EVALUATOR':'';
+    if(!role)return nativeFetch(input,init);
+    const headers=new Headers(init.headers||input.headers);
+    headers.set('X-Simsa-Role',role);
+    return nativeFetch(input,{...init,headers});
+  };
   const keys=new Map();
   const query=new URLSearchParams(location.search);
   const paths={ENTRY:'entry/design/entry.html','PM-00':'dept-admin/PM-00/design/login.html','PM-01':'dept-admin/PM-01/design/projects.html','PM-01-overview':'dept-admin/PM-01/design/overview.html','SA-00':'super-admin/SA-00/design/login.html','SA-01':'super-admin/SA-01/design/dashboard.html','EV-00':'evaluator/EV-00/design/login.html','EV-01':'evaluator/EV-01/design/attendance.html','EV-03':'evaluator/EV-03/design/rfp.html'};
@@ -67,7 +79,7 @@ window.Live=(()=>{
       syncShell();
     }
     capture('[data-logout],.ev-menu a[href],a[href$="#logout"]','click',async()=>{await api('AUTH-03');sessionStorage.removeItem('simsa.original.project');go('ENTRY');});
-    capture('[data-account]','click',()=>{location.href='/app/'+paths['SA-00']+'#account';});
+    capture('[data-account]','click',()=>{location.href='/app/'+paths['SA-00']+(boot?.actor.role==='DEPARTMENT_ADMIN'?'?role=department':'')+'#account';});
     document.addEventListener('click',e=>{
       const el=e.target.closest('a[href],[data-href]');if(!el||el.hasAttribute('download')||el.dataset.locked||e.defaultPrevented)return;
       const raw=el.getAttribute('href')||el.dataset.href;if(!raw||raw.startsWith('#'))return;

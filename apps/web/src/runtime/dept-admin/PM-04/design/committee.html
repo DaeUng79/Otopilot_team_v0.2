@@ -212,19 +212,20 @@ function render(){
   [stg1,stg2,stg3,stg4][S.stg]();
 }
 /* ① 규칙 (DRAW-01) */
-function stg1(){const ok=sum()===S.cap,lk=S.drawn;
+function stg1(){const empty=S.mode==='POOL'&&S.q.some((q,i)=>q>0&&POOLN.ok[i]===0),ok=sum()===S.cap&&!empty,lk=S.drawn;
   $('#stage').innerHTML=`<div class="stg"><div class="cfg">
    <div class="cfg-row"><b>선정 방식</b><div class="seg" role="group" aria-label="선정 방식" id="mode"><button type="button" data-m="POOL" aria-pressed="${S.mode==='POOL'}" ${lk?'disabled':''}>풀에서 추첨 (POOL)</button><button type="button" data-m="DIRECT" aria-pressed="${S.mode==='DIRECT'}" ${lk?'disabled':''}>직접 선정 (DIRECT)</button></div></div>
    <div class="cfg-row"><b>정원</b><div class="stp"><button type="button" id="cm" aria-label="정원 줄이기" ${S.cap<=7||lk?'disabled':''}>−</button><output>${S.cap}</output><button type="button" id="cp" aria-label="정원 늘리기" ${S.cap>=9||lk?'disabled':''}>＋</button><span class="muted">명 (7~9명)</span></div></div>
-   <div class="box"><table><thead><tr><th>분야</th><th class="num">본위원 인원</th></tr></thead><tbody>${FIELDS.map((f,i)=>`<tr><td class="strong">${f}</td><td class="num"><div class="stp" style="justify-content:flex-end"><button type="button" data-d="-1" data-i="${i}" aria-label="${f} 줄이기" ${S.q[i]<=0||lk?'disabled':''}>−</button><output>${S.q[i]}</output><button type="button" data-d="1" data-i="${i}" aria-label="${f} 늘리기" ${lk?'disabled':''}>＋</button></div></td></tr>`).join('')}
+   <div class="box"><table><thead><tr><th>분야</th><th class="num">본위원 인원</th></tr></thead><tbody>${FIELDS.map((f,i)=>`<tr${S.mode==='POOL'&&POOLN.ok[i]===0?' style="opacity:.55"':''}><td class="strong">${f}${S.mode==='POOL'&&POOLN.ok[i]===0?' <span class="badge">후보 0명 · 선택 불가</span>':''}</td><td class="num"><div class="stp" style="justify-content:flex-end"><button type="button" data-d="-1" data-i="${i}" aria-label="${f} 줄이기" ${S.q[i]<=0||lk?'disabled':''}>−</button><output>${S.q[i]}</output><button type="button" data-d="1" data-i="${i}" aria-label="${f} 늘리기" ${lk||S.mode==='POOL'&&POOLN.ok[i]===0?'disabled':''}>＋</button></div></td></tr>`).join('')}
    <tr class="sumrow"><td>합계</td><td class="num tnum ${ok?'':'err'}" style="justify-content:flex-end">${sum()} / ${S.cap}명</td></tr></tbody></table></div>
-   ${ok?'':`<p class="err" role="alert">분야별 인원의 합이 정원(${S.cap}명)과 달라요. 맞춰 주세요.</p>`}
+   ${sum()===S.cap?'':`<p class="err" role="alert">분야별 인원의 합이 정원(${S.cap}명)과 달라요. 맞춰 주세요.</p>`}
+   ${empty?'<p class="err" role="alert">후보가 0명인 분야의 인원을 0명으로 줄여 주세요.</p>':''}
    ${S.mode==='DIRECT'?'<div class="note"><span>i</span><span>직접 선정은 추첨하지 않아요. [3배수 무작위 선정] 버튼이 숨겨지고, ③ 연락·초청에서 후보를 직접 넣어요.</span></div>':'<div class="note"><span>i</span><span>풀에서 추첨하면 분야별로 정원의 3배수를 뽑아요. 한 사람이 여러 분야에 있어도 한 번만 배정돼요.</span></div>'}
-   ${lk?'<div class="note warn"><span>🔒</span><span>추첨한 뒤에는 방식·정원·분야별 인원이 잠겨요.</span></div>':''}</div></div>`;
+   ${lk?'<div class="note warn"><span>↺</span><span>추첨 결과를 취소하면 명단 확정 전까지 방식·정원·분야별 인원을 다시 조정할 수 있어요.</span></div>':''}</div></div>`;
   $$('#mode button').forEach(b=>b.onclick=()=>{S.mode=b.dataset.m;S.saved=false;render()});
   $('#cm').onclick=()=>{S.cap--;S.saved=false;render()};$('#cp').onclick=()=>{S.cap++;S.saved=false;render()};
-  $$('[data-d]').forEach(b=>b.onclick=()=>{S.q[+b.dataset.i]+=+b.dataset.d;S.saved=false;render()});
-  $('#foot').innerHTML=`<span class="why">${S.saved?'✓ 저장했어요 · 규칙 '+S.mode+' · 정원 '+S.cap+'명':'바꾼 뒤에는 [저장]을 눌러 주세요'}</span><button class="btn ${S.saved?'':'primary'}" type="button" id="save" ${ok&&!lk?'':'disabled'}>저장</button>${S.saved?'<button class="btn primary" type="button" id="nx">다음: '+(S.mode==='DIRECT'?'3배수 선정 안내':'3배수 선정')+'</button>':''}`;
+  $$('[data-d]').forEach(b=>b.onclick=()=>{const i=+b.dataset.i,d=+b.dataset.d;if(d>0&&S.mode==='POOL'&&POOLN.ok[i]===0)return;S.q[i]+=d;S.saved=false;render()});
+  $('#foot').innerHTML=`<span class="why">${S.saved?'✓ 저장했어요 · 규칙 '+S.mode+' · 정원 '+S.cap+'명':'바꾼 뒤에는 [저장]을 눌러 주세요'}</span><button class="btn ${S.saved?'':'primary'}" type="button" id="save" ${ok&&!lk?'':'disabled'}>저장</button>${S.saved?'<button class="btn primary" type="button" id="nx" '+(empty?'disabled':'')+'>다음: '+(S.mode==='DIRECT'?'3배수 선정 안내':'3배수 선정')+'</button>':''}`;
   $('#save').onclick=()=>{S.saved=true;render();toast('규칙을 저장했어요')};$('#nx')&&($('#nx').onclick=()=>{S.stg=1;render()})}
 /* ② 3배수 선정 (DRAW-02, DRAW-03) */
 function stg2(){
@@ -235,11 +236,12 @@ function stg2(){
   let body=`<div class="stg">`;
   if(S.err&&bad)body+=`<div class="note bad" role="alert"><span>!</span><span><b>3배수를 뽑지 못해 추첨을 멈췄어요. 아무도 뽑히지 않았어요.</b><br>${sh.map((x,i)=>x?`${FIELDS[i]} 분야 ${x}명 부족 (필요 ${n[i]}명 · 풀 ${a[i]}명)`:'').filter(Boolean).join('<br>')}<br>풀에 위원을 더 등록한 뒤 다시 눌러 주세요.</span></div>`;
   if(!S.drawn){
-   body+=`<div class="box" style="flex:none"><table><thead><tr><th>분야</th><th class="num">본위원</th><th class="num">필요한 3배수</th><th class="num">풀 인원(중복 제외)</th><th>확인</th></tr></thead><tbody>${FIELDS.map((f,i)=>`<tr><td class="strong">${f}</td><td class="num tnum">${S.q[i]}명</td><td class="num tnum">${n[i]}명</td><td class="num tnum">${a[i]}명</td><td>${sh[i]?`<span class="badge danger">! ${sh[i]}명 부족</span>`:'<span class="badge success">✓ 충분</span>'}</td></tr>`).join('')}</tbody></table></div>
+   body+=`<div class="box" style="flex:none"><table><thead><tr><th>분야</th><th class="num">본위원</th><th class="num">필요한 3배수</th><th class="num">풀 인원(중복 제외)</th><th>확인</th></tr></thead><tbody>${FIELDS.map((f,i)=>`<tr${a[i]===0?' style="opacity:.55"':''}><td class="strong">${f}</td><td class="num tnum">${S.q[i]}명</td><td class="num tnum">${n[i]}명</td><td class="num tnum">${a[i]}명</td><td>${sh[i]?`<span class="badge danger">! ${sh[i]}명 부족</span>`:a[i]===0?'<span class="badge">후보 없음</span>':'<span class="badge success">✓ 충분</span>'}</td></tr>`).join('')}</tbody></table></div>
    <p class="muted">부족한 분야가 하나라도 있으면 일부만 뽑지 않고 <b>전체를 멈춰요</b>. 한 사람은 한 분야에만 배정돼요.</p>`}
   else{
-   body+=`<div class="note"><span>✓</span><span>분야별 3배수 ${S.cands.length}명을 뽑았어요 · 규칙 v1 · 같은 요청은 한 번만 실행돼요. 이제 규칙과 후보가 잠겨요.</span></div>
-   <div class="dgrid">${FIELDS.map((f,i)=>`<div class="dcard"><h3>${f} <span class="badge">${S.cands.filter(c=>c.f===i).length}명</span></h3><ul>${S.cands.filter(c=>c.f===i).map(c=>`<li>${h(c.name)} <span>…${c.l4}</span></li>`).join('')}</ul></div>`).join('')}</div>`}
+   const selectedFields=FIELDS.map((name,i)=>({name,members:S.cands.filter(c=>c.f===i)})).filter(field=>field.members.length>0);
+   body+=`<div class="note"><span>✓</span><span>분야별 3배수 ${S.cands.length}명을 뽑았어요. 명단 확정 전에는 추첨을 취소하고 규칙·후보를 조정한 뒤 다시 선정할 수 있어요.</span></div>
+   ${selectedFields.length?`<div class="dgrid">${selectedFields.map(field=>`<div class="dcard"><h3>${field.name} <span class="badge">${field.members.length}명</span></h3><ul>${field.members.map(c=>`<li>${h(c.name)} <span>…${c.l4}</span></li>`).join('')}</ul></div>`).join('')}</div>`:'<p class="muted">선정된 위원이 없습니다.</p>'}`}
   body+='</div>';$('#stage').innerHTML=body;
   $('#foot').innerHTML=S.drawn
    ?`<span class="why">선정명단에는 연락에 필요한 정보만 들어가요. 다운로드는 기록돼요.</span><button class="btn" type="button" id="dl">선정명단 다운로드</button><button class="btn primary" type="button" id="nx">다음: 연락·초청</button>`
@@ -255,7 +257,7 @@ function stg3(){
    <div class="cfg-row"><div class="chips" role="group" aria-label="연락 상태로 거르기" id="cst">${['전체',...STS].map((s,i)=>`<button class="chip" type="button" data-s="${i?s:''}" aria-pressed="${(S.fst||'')===(i?s:'')}">${s}${i?' '+cnt(s):''}</button>`).join('')}</div>
     <label class="sr-only" for="ffd">분야</label><select id="ffd" style="max-width:180px"><option value="">모든 분야</option>${FIELDS.map((f,i)=>`<option value="${i}" ${String(S.ffd)===String(i)?'selected':''}>${f}</option>`).join('')}</select>
     <span style="margin-left:auto;display:flex;gap:8px;align-items:center">${S.mode==='DIRECT'?'<button class="btn" type="button" id="addc">사업 후보 추가</button>':''}</span></div>
-   <div class="box call"><table><thead><tr><th>이름</th><th>분야</th><th>휴대전화</th><th>출처</th><th>통화 결과</th><th>메모</th><th style="width:96px"></th></tr></thead><tbody>${L.length?L.map(c=>c.ex?`<tr style="color:var(--text-3)"><td><s>${h(c.name)}</s></td><td>${FIELDS[c.f]}</td><td class="tnum">${tel(c)}</td><td><span class="badge">${c.src}</span></td><td colspan="2"><span class="badge danger">제외</span> ${h(c.ex)}</td><td></td></tr>`
+   <div class="box call"><table><thead><tr><th>이름</th><th>분야</th><th>휴대전화</th><th>출처</th><th>통화 결과</th><th>메모</th><th style="width:96px"></th></tr></thead><tbody>${L.length?L.map(c=>c.ex?`<tr style="color:var(--text-3)"><td><s>${h(c.name)}</s></td><td>${FIELDS[c.f]}</td><td class="tnum">${tel(c)}</td><td><span class="badge">${c.src}</span></td><td colspan="2"><span class="badge danger">제외</span> ${h(c.ex)}</td><td><button class="btn sm" type="button" data-restore="${c.id}">복원</button></td></tr>`
      :`<tr><td class="strong">${h(c.name)}</td><td>${FIELDS[c.f]}</td><td class="tnum">${tel(c)}</td><td><span class="badge ${c.src==='추첨'?'info':'primary'}">${c.src}</span></td>
       <td><select class="cell" data-st="${c.id}" aria-label="${h(c.name)} 통화 결과">${STS.map(s=>`<option ${s===c.st?'selected':''}>${s}</option>`).join('')}</select></td>
       <td><input class="cell" data-memo="${c.id}" value="${h(c.memo)}" placeholder="메모" aria-label="${h(c.name)} 메모" style="min-width:160px"></td><td><button class="btn sm text-danger" type="button" data-ex="${c.id}">제외</button></td></tr>`).join(''):'<tr><td colspan="7" class="muted" style="text-align:center;height:120px">맞는 후보가 없어요</td></tr>'}</tbody></table></div>

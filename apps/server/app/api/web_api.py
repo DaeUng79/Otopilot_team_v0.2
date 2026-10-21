@@ -31,6 +31,33 @@ from app.shared.sync_service import deliver_outbox
 WEB = ROOT.parent / "web"
 DESIGN_WEB = WEB / "public"
 COOKIE = "simsa_v2_session"
+ROLE_COOKIES = {
+    "SUPER_ADMIN": "simsa_v2_super_session",
+    "DEPARTMENT_ADMIN": "simsa_v2_department_session",
+    "EVALUATOR": "simsa_v2_evaluator_session",
+}
+
+
+def session_token(request: Request) -> str:
+    """Use the role selected by this tab; retain the original cookie for older clients."""
+    role = request.headers.get("x-simsa-role", "")
+    if role in ROLE_COOKIES:
+        return request.cookies.get(ROLE_COOKIES[role], "")
+    # Images do not send custom headers. Their URL family identifies the viewer.
+    if request.url.path.startswith("/api/v2/evaluator/"):
+        return request.cookies.get(ROLE_COOKIES["EVALUATOR"]) or request.cookies.get(COOKIE, "")
+    if request.url.path.startswith("/api/v2/projects/"):
+        return (request.cookies.get(ROLE_COOKIES["DEPARTMENT_ADMIN"])
+                or request.cookies.get(ROLE_COOKIES["SUPER_ADMIN"])
+                or request.cookies.get(COOKIE, ""))
+    return request.cookies.get(COOKIE, "")
+
+
+def clear_session_cookie(response: Response, request: Request, role: str) -> None:
+    token = session_token(request)
+    response.delete_cookie(ROLE_COOKIES[role], path="/")
+    if request.cookies.get(COOKIE) == token:
+        response.delete_cookie(COOKIE, path="/")
 
 
 def create_app(
@@ -121,7 +148,7 @@ def create_app(
 
     async def actor(request: Request) -> Actor:
         person = await asyncio.to_thread(
-            auth_service.authorize, store, request.cookies.get(COOKIE, "")
+            auth_service.authorize, store, session_token(request)
         )
         if request.url.path not in {
             "/api/v2/bootstrap",
@@ -239,14 +266,18 @@ def create_app(
             response.set_cookie(
                 COOKIE, token, httponly=True, samesite="strict", max_age=28800, path="/"
             )
+            response.set_cookie(
+                ROLE_COOKIES[person.role], token, httponly=True, samesite="strict",
+                max_age=28800, path="/"
+            )
             return response
         person = await actor(request)
         if action_id == "AUTH-03":
             await asyncio.to_thread(
-                auth_service.logout, store, request.cookies.get(COOKIE, "")
+                auth_service.logout, store, session_token(request)
             )
             response = output({"logged_out": True})
-            response.delete_cookie(COOKIE, path="/")
+            clear_session_cookie(response, request, person.role)
             return response
         key = request.headers.get("idempotency-key", "")
         if action_id == "AUTH-04":
@@ -261,7 +292,7 @@ def create_app(
                 write=True,
             )
             response = output(result)
-            response.delete_cookie(COOKIE, path="/")
+            clear_session_cookie(response, request, person.role)
             return response
         require(
             not auth_service.must_change(store, person),
@@ -460,7 +491,7 @@ def create_app(
             result.update(
                 draw_members=rows(
                     c,
-                    "SELECT dm.id,dm.specialty_id FROM draw_members dm JOIN committee_draws d ON d.id=dm.draw_id WHERE d.project_id=?",
+                    "SELECT dm.id,dm.specialty_id FROM draw_members dm JOIN committee_draws d ON d.id=dm.draw_id WHERE d.project_id=? AND d.status='CONFIRMED'",
                     (project_id,),
                 ),
                 quotas=rows(
@@ -475,7 +506,7 @@ def create_app(
                 ),
             )
             draw = c.execute(
-                "SELECT id,created_at FROM committee_draws WHERE project_id=? ORDER BY created_at DESC LIMIT 1",
+                "SELECT id,created_at FROM committee_draws WHERE project_id=? AND status='CONFIRMED' ORDER BY revision_no DESC LIMIT 1",
                 (project_id,),
             ).fetchone()
             handoff = c.execute(
@@ -528,12 +559,12 @@ def create_app(
 
     @app.delete("/committee-v2/api/session")
     async def legacy_logout(request: Request) -> Response:
-        await actor(request)
+        person = await actor(request)
         await asyncio.to_thread(
-            auth_service.logout, store, request.cookies.get(COOKIE, "")
+            auth_service.logout, store, session_token(request)
         )
         response = output({"connected": False})
-        response.delete_cookie(COOKIE, path="/")
+        clear_session_cookie(response, request, person.role)
         return response
 
     @app.get("/api/v2/result-sessions/{project_id}")

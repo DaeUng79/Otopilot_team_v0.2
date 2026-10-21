@@ -169,27 +169,26 @@ class Runtime:
                     raise ModuleError(
                         "SCHEMA_INCOMPATIBLE", f"{table} 테이블이 v2 필드 계약과 다릅니다."
                     )
-            migration = ROOT / "migrations/admin/20261016_lex_001.sql"
-            content = migration.read_text(encoding="utf8")
-            checksum = hashlib.sha256(content.encode()).hexdigest()
-            if "schema_migrations" in names:
-                row = conn.execute(
-                    "SELECT checksum FROM schema_migrations WHERE migration_name=?",
-                    (migration.name,),
-                ).fetchone()
-                if row:
-                    if row[0] != checksum:
-                        raise ModuleError(
-                            "MIGRATION_CHANGED", "이미 적용한 migration이 변경되었습니다."
-                        )
-                    if conn.execute("PRAGMA foreign_key_check").fetchall():
-                        raise ModuleError("FK_INVALID", "외래키 검증에 실패했습니다.")
-                    return
-            # executescript commits any pending transaction; BEGIN belongs inside the script.
-            conn.executescript("BEGIN IMMEDIATE;\n" + content)
-            conn.execute(
-                "INSERT INTO schema_migrations VALUES (?,?,?)", (migration.name, checksum, now())
-            )
+            for name in ("20261016_lex_001.sql", "20261021_redraw_before_roster.sql"):
+                migration = ROOT / "migrations/admin" / name
+                content = migration.read_text(encoding="utf8")
+                checksum = hashlib.sha256(content.encode()).hexdigest()
+                if "schema_migrations" in names or name != "20261016_lex_001.sql":
+                    row = conn.execute(
+                        "SELECT checksum FROM schema_migrations WHERE migration_name=?",
+                        (migration.name,),
+                    ).fetchone()
+                    if row:
+                        if row[0] != checksum:
+                            raise ModuleError(
+                                "MIGRATION_CHANGED", "이미 적용한 migration이 변경되었습니다."
+                            )
+                        continue
+                # executescript commits any pending transaction; BEGIN belongs inside the script.
+                conn.executescript("BEGIN IMMEDIATE;\n" + content)
+                conn.execute(
+                    "INSERT INTO schema_migrations VALUES (?,?,?)", (migration.name, checksum, now())
+                )
             if conn.execute("PRAGMA foreign_key_check").fetchall():
                 raise ModuleError("FK_INVALID", "외래키 검증에 실패했습니다.")
 

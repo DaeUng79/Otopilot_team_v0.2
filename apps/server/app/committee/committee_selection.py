@@ -25,18 +25,27 @@ async def save_rules(ctx: Context, command: DTO, *, runtime: Runtime) -> DTO:
     def save(conn: sqlite3.Connection) -> DTO:
         runtime.project(conn, ctx, body.project_id, edit=True)
         runtime.unlocked(conn, body.project_id)
-        if conn.execute(
-            "SELECT 1 FROM committee_draws WHERE project_id=?", (body.project_id,)
-        ).fetchone():
-            raise ModuleError("DRAW_LOCKED", "추첨 후에는 선정 규칙을 변경할 수 없습니다.")
+        active_draw = conn.execute(
+            "SELECT id FROM committee_draws WHERE project_id=? AND status='CONFIRMED'",
+            (body.project_id,),
+        ).fetchone()
+        if active_draw and not body.clear_nominees:
+            raise ModuleError("DRAW_LOCKED", "기존 추첨을 취소한 뒤 선정 규칙을 변경하세요.")
         _specialties(conn, [q.specialty_id for q in body.quotas])
         old = conn.execute(
             "SELECT * FROM committee_rules WHERE project_id=?", (body.project_id,)
         ).fetchone()
         cleared = 0
+        if active_draw:
+            cleared = _clear_nominees(conn, ctx, runtime, body)
+            conn.execute(
+                "UPDATE committee_draws SET status='SUPERSEDED',updated_at=?,version=version+1 WHERE id=?",
+                (now(), active_draw["id"]),
+            )
+            runtime.audit(conn, ctx, "DRAW-01", "committee_draws", active_draw["id"], body.project_id)
         if old:
             version(old, body.version)
-            if old["selection_mode"] != body.selection_mode:
+            if old["selection_mode"] != body.selection_mode and not active_draw:
                 cleared = _clear_nominees(conn, ctx, runtime, body)
             rid = old["id"]
             conn.execute(
@@ -93,8 +102,7 @@ async def save_rules(ctx: Context, command: DTO, *, runtime: Runtime) -> DTO:
 def _clear_nominees(conn: sqlite3.Connection, ctx: Context, runtime: Runtime, body: Rules) -> int:
     """선정 방식을 바꿀 때 이전 방식으로 등록한 사업 후보를 정리한다.
 
-    추첨 뒤(DRAW_LOCKED)·명단 확정 뒤(ROSTER_LOCKED)는 여기 오기 전에 거부되므로, 남아 있는
-    후보는 직접 등록(DIRECT) 후보뿐이고 확정 단계에서 SOURCE_MISMATCH로 거부될 것들이다.
+    명단 확정 전에는 이전 추첨을 SUPERSEDED로 보존하고 연결된 사업 후보를 정리한다.
     방식을 바꾸면 되돌아갈 길이 없는 막다른 상태가 되지 않도록, 담당자가 확인(clear_nominees)
     했을 때만 지우고 지운 후보마다 감사 기록을 남긴다. (2026-10-18)
     """
@@ -167,7 +175,7 @@ async def draw_shortlist(ctx: Context, command: DTO, *, runtime: Runtime) -> DTO
             raise ModuleError("RANDOM_REQUIRED", "부서 풀 무작위 선정 방식만 추첨할 수 있습니다.")
         version(rule, body.rule_version)
         if conn.execute(
-            "SELECT 1 FROM committee_draws WHERE project_id=?", (body.project_id,)
+            "SELECT 1 FROM committee_draws WHERE project_id=? AND status='CONFIRMED'", (body.project_id,)
         ).fetchone():
             raise ModuleError("ALREADY_DRAWN", "이미 추첨된 사업입니다.")
         quotas = [
@@ -206,7 +214,10 @@ async def draw_shortlist(ctx: Context, command: DTO, *, runtime: Runtime) -> DTO
             {
                 "project_id": body.project_id,
                 "rule_id": rule["id"],
-                "revision_no": 1,
+                "revision_no": conn.execute(
+                    "SELECT COALESCE(MAX(revision_no),0)+1 FROM committee_draws WHERE project_id=?",
+                    (body.project_id,),
+                ).fetchone()[0],
                 "policy_snapshot_json": packed(dict(rule) | {"quotas": quotas}),
                 "eligible_pool_json": packed(eligible),
                 "pool_sha256": digest(eligible),
