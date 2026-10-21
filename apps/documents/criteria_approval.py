@@ -7,7 +7,7 @@ AI 초안(`criteria_results`, step4)은 읽기만 하고 수정하지 않는다.
 `criteria.approved` 계약 payload를 돌려준다(평가 DB 전달은 서버 어댑터가 한다).
 표 열은 schema_v2.json을 따르되 `criteria_results`·`requirement_results`·`ref_admin_users`
 외래키는 새 문서 DB에 그 표가 없을 수 있어 선언하지 않고, 항목에는 화면의 '근거 쪽'을 담는
-`source_page` 열을 더했다. 배점은 평가 DB와 같은 점수×10000 정수다.
+`source_page`와 `source_page_end` 열을 더했다. 배점은 평가 DB와 같은 점수×10000 정수다.
 """
 
 from __future__ import annotations
@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS approved_criteria_items (
     sort_order INTEGER NOT NULL,
     source_block_id TEXT,
     source_page INTEGER,
+    source_page_end INTEGER,
     UNIQUE(approved_criteria_version_id, code),
     UNIQUE(project_id, approved_criteria_version_id, id)
 );
@@ -97,6 +98,9 @@ def initialize(db_path: Path) -> None:
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     with connect(db_path) as db:
         db.executescript(SCHEMA + CRITERIA_SCHEMA)
+        columns = {row[1] for row in db.execute("PRAGMA table_info(approved_criteria_items)")}
+        if "source_page_end" not in columns:
+            db.execute("ALTER TABLE approved_criteria_items ADD COLUMN source_page_end INTEGER")
 
 
 def _binding(db, project_id: str) -> dict[str, Any] | None:
@@ -119,6 +123,28 @@ def _criteria_table_page(db, document_id: str, parse_revision: str) -> int | Non
             if pages:
                 return pages[0]
     return None
+
+
+def _page_range(pages: list[int]) -> tuple[int, int | None] | None:
+    pages = sorted({page for page in pages if isinstance(page, int) and page > 0})
+    return (pages[0], pages[-1] if pages[-1] != pages[0] else None) if pages else None
+
+
+def _compact(value: Any) -> str:
+    return re.sub(r"\W+", "", str(value or "")).lower()
+
+
+def _table_sources(db, binding: dict[str, Any]):
+    for record in db.execute(
+        "SELECT block_id,block_json,physical_page_numbers_json FROM blocks "
+        "WHERE document_id=? AND revision=? AND type='table' ORDER BY order_index",
+        (binding["document_id"], binding["parse_revision"]),
+    ):
+        block = json.loads(record["block_json"])
+        rows = block.get("table", {}).get("cells", [])
+        pages = _page_range(json.loads(record["physical_page_numbers_json"] or "[]"))
+        if pages and rows:
+            yield record["block_id"], rows, pages
 
 
 def split_scored_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -156,8 +182,9 @@ def split_scored_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return expanded
 
 
-def _rows_with_source_pages(db, binding: dict[str, Any], rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """파싱 문단에서 지표명과 배점이 함께 확인된 쪽만 연결한다."""
+def _rows_with_source_pages(db, binding: dict[str, Any], rows: list[dict[str, Any]],
+                            template_source: str | None = None) -> list[dict[str, Any]]:
+    """원문 평가표의 행 또는 요구사항 그룹과 연결된 쪽 범위를 찾는다."""
     paragraphs = []
     for block in db.execute(
         "SELECT block_id,text,physical_page_numbers_json FROM blocks "
@@ -167,27 +194,56 @@ def _rows_with_source_pages(db, binding: dict[str, Any], rows: list[dict[str, An
         pages = json.loads(block["physical_page_numbers_json"] or "[]")
         if pages and block["text"]:
             paragraphs.append((block["block_id"], block["text"], pages[0]))
+    tables = list(_table_sources(db, binding))
     result = []
     for row in split_scored_rows(rows):
         item = dict(row)
-        title = re.sub(r"\W+", "", item.get("evaluation_item") or "").lower()
+        source = template_source or item.get("template_source")
+        title = _compact(item.get("evaluation_item"))
         score = item.get("score")
         if title and isinstance(score, (int, float)):
             point = re.compile(rf"[（(]\s*{score:g}\s*점\s*[)）]")
             for block_id, text, page in paragraphs:
-                if title in re.sub(r"\W+", "", text).lower() and point.search(text):
+                if title in _compact(text) and point.search(text):
                     item["source_page"] = page
                     item["source_block_id"] = block_id
                     break
+        if item.get("source_page") is None and source == "request_document" and title:
+            # 표 셀에 항목명과 배점이 분리되어 있어도 같은 행이면 원문 평가표로 인정한다.
+            for block_id, table_rows, pages in tables:
+                header = _compact(" ".join(str(c.get("text", "")) for r in table_rows[:4] for c in r))
+                if "평가" not in header or not ("배점" in header or "점수" in header):
+                    continue
+                for cells in table_rows:
+                    texts = [str(cell.get("text", "")) for cell in cells]
+                    if (any(title in _compact(value) for value in texts)
+                            and any(re.fullmatch(rf"\s*{score:g}\s*점?\s*", value) for value in texts)):
+                        item["source_page"], item["source_page_end"] = pages
+                        item["source_block_id"] = block_id
+                        break
+                if item.get("source_page") is not None:
+                    break
+        if item.get("source_page") is None and source == "generated_from_summary":
+            group = _compact(item.get("evaluation_division"))
+            if group:
+                for block_id, table_rows, pages in tables:
+                    header = _compact(" ".join(str(c.get("text", "")) for r in table_rows[:4] for c in r))
+                    if not ("요구사항" in header and ("구분" in header or "분류" in header or "유형" in header)):
+                        continue
+                    if any(any(group == _compact(c.get("text")) for c in cells) for cells in table_rows):
+                        item["source_page"], item["source_page_end"] = pages
+                        item["source_block_id"] = block_id
+                        break
         result.append(item)
     return result
 
 
 def scoring_rows_with_source_pages(db_path: Path, project_id: str,
-                                   rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+                                   rows: list[dict[str, Any]],
+                                   template_source: str | None = None) -> list[dict[str, Any]]:
     with connect(db_path) as db:
         binding = _binding(db, project_id)
-        return _rows_with_source_pages(db, binding, rows) if binding else split_scored_rows(rows)
+        return _rows_with_source_pages(db, binding, rows, template_source) if binding else split_scored_rows(rows)
 
 
 def _items_from_ai(rows: list[dict[str, Any]], page: int | None) -> list[dict[str, Any]]:
@@ -208,7 +264,8 @@ def _items_from_ai(rows: list[dict[str, Any]], page: int | None) -> list[dict[st
                       "title": row.get("evaluation_item") or "평가항목",
                       "description": description or None,
                       "max_score": float(row.get("score") or 0),
-                      "source_page": row.get("source_page")})
+                      "source_page": row.get("source_page"),
+                      "source_page_end": row.get("source_page_end")})
     return items
 
 
@@ -251,10 +308,21 @@ def validate_items(items: list[dict[str, Any]], total_points: float | None = Non
                 raise CriteriaApprovalError(f"{code}번 근거 쪽은 숫자여야 합니다.") from None
         else:
             page = None
+        end = item.get("source_page_end")
+        if end not in (None, ""):
+            try:
+                end = int(end)
+            except (TypeError, ValueError):
+                raise CriteriaApprovalError(f"{code}번 근거 쪽 범위는 숫자여야 합니다.") from None
+        else:
+            end = None
+        if page is not None and page < 1 or end is not None and (page is None or end <= page):
+            raise CriteriaApprovalError(f"{code}번 근거 쪽 범위를 확인해 주세요.")
         normalized.append({"code": code, "parent_code": parent, "title": title,
                            "description": (str(item.get("description")).strip() or None)
                            if item.get("description") not in (None, "") else None,
                            "max_score": round(points * SCALE), "source_page": page,
+                           "source_page_end": end,
                            "sort_order": order})
     parents = {i["parent_code"] for i in normalized if i["parent_code"]}
     for i in normalized:
@@ -275,11 +343,15 @@ def _write_items(db, version_id: str, project_id: str, items: list[dict[str, Any
         identity = str(uuid4())
         ids[item["code"]] = identity
         db.execute(
-            "INSERT INTO approved_criteria_items VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO approved_criteria_items "
+            "(id,created_at,updated_at,version,project_id,approved_criteria_version_id,parent_id,"
+            "code,title,description,is_scorable,max_score,score_step,sort_order,source_block_id,"
+            "source_page,source_page_end) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (identity, _now(), _now(), 1, project_id, version_id,
              ids.get(item["parent_code"]) if item["parent_code"] else None,
              item["code"], item["title"], item["description"], item["is_scorable"],
-             item["max_score"], SCALE, item["sort_order"], None, item["source_page"]))
+             item["max_score"], SCALE, item["sort_order"], None, item["source_page"],
+             item["source_page_end"]))
 
 
 def _read_items(db, version_id: str) -> list[dict[str, Any]]:
@@ -330,7 +402,8 @@ def open_draft(db_path: Path, *, project_id: str, source: str, ai_result: dict[s
         if source == "ai":
             if not ai_result or not ai_result.get("rows"):
                 raise CriteriaApprovalError("AI 초안이 아직 없습니다. 초안 생성을 먼저 실행해 주세요.")
-            items = _items_from_ai(_rows_with_source_pages(db, binding, ai_result["rows"]), page)
+            items = _items_from_ai(_rows_with_source_pages(
+                db, binding, ai_result["rows"], ai_result.get("template_source")), page)
             total = float(ai_result.get("total_score") or sum(r.get("score", 0) for r in ai_result["rows"]))
             draft_result_id = ai_result.get("_id")
         else:
@@ -359,6 +432,7 @@ def open_draft(db_path: Path, *, project_id: str, source: str, ai_result: dict[s
 def save_draft(db_path: Path, *, project_id: str, draft_id: str, version: int,
                items: list[dict[str, Any]], total_points: float | None) -> dict[str, Any]:
     """CRT-04: DRAFT의 항목·배점·근거를 통째로 바꾼다(낙관적 잠금)."""
+    initialize(db_path)
     with connect(db_path) as db:
         db.execute("BEGIN IMMEDIATE")
         row = db.execute("SELECT * FROM approved_criteria_versions WHERE id=? AND project_id=?",

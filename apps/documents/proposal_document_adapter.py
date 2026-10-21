@@ -2,7 +2,7 @@
 
 연결용 신규 파일 · 오대웅(DaeUng79) 문서 모듈 검토 대상.
 설계(인계서 v2 §15 PROPOSAL 모듈)의 `register_proposal`·`list_proposals`를 구현한다.
-파싱·저장은 기존 `hwpx_parser.parse_hwpx`/`parse_hwp`·`hwpx_storage.save_to_sqlite`를
+파싱·저장은 기존 `hwpx_parser.parse_hwpx`·`hwpx_storage.save_to_sqlite`를
 그대로 쓰고, PDF·PPTX는 같은 JSON 모양을 만드는 `pdf_parser`·`pptx_parser`를 부른다.
 표 `project_proposal_uploads`는 schema_v2.json의 열을 따른다. 문서 DB에는
 `ref_project_vendors`·`ref_admin_users` 사본이 없어 그 두 외래키는 선언하지 않고
@@ -11,17 +11,16 @@
 
 from __future__ import annotations
 
-import hashlib
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from .hwpx_parser import PARSER_VERSION, SCHEMA_VERSION, parse_hwp, parse_hwpx
+from .hwpx_parser import parse_hwpx
 from .hwpx_storage import SCHEMA, connect, save_to_sqlite
 
-FORMATS = {".hwpx": "HWPX", ".pdf": "PDF", ".hwp": "HWP", ".pptx": "PPTX"}
+FORMATS = {".hwpx": "HWPX", ".pdf": "PDF", ".pptx": "PPTX"}
 PROPOSAL_SCHEMA = """
 CREATE TABLE IF NOT EXISTS project_proposal_uploads (
     id TEXT NOT NULL PRIMARY KEY,
@@ -58,32 +57,8 @@ def initialize(db_path: Path) -> None:
 def format_of(filename: str) -> str:
     suffix = Path(filename).suffix.lower()
     if suffix not in FORMATS:
-        raise ValueError("HWPX·HWP·PDF·PPTX 파일만 올릴 수 있습니다.")
+        raise ValueError("HWPX·PDF·PPTX 파일만 올릴 수 있습니다. HWP 파일은 등록할 수 없습니다.")
     return FORMATS[suffix]
-
-
-def _normalize_hwp(document: dict[str, Any], path: Path) -> dict[str, Any]:
-    """`hwpx_parser.__main__`의 HWP 보정을 그대로 적용한다."""
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    document.update(document_id=digest, source_sha256=digest,
-                    parser_version=PARSER_VERSION, schema_version=SCHEMA_VERSION,
-                    assets=[], warnings=[{"code": "hwp_render_only",
-                    "detail": "HWP는 병합·음영·이미지 바이너리 추출을 지원하지 않습니다."}])
-    numbers: set[int] = set()
-    for index, block in enumerate(document["blocks"]):
-        block["order"] = index
-        block["physical_page_numbers"] = [block["physical_page_number"]]
-        block["page_numbers"] = [block["page_number"]]
-        block.setdefault("parent_block_id", None)
-        block.setdefault("parent_cell_id", None)
-        if block["type"] == "table":
-            block["table"].setdefault("image_path", None)
-            block.setdefault("image_path", None)
-        if isinstance(block["physical_page_number"], int):
-            numbers.add(block["physical_page_number"])
-    document["pages"] = [{"physical_page_number": n, "page_number": n} for n in sorted(numbers)]
-    document["pagination_source"] = "hwp_render"
-    return document
 
 
 def parse_proposal(path: Path, work_dir: Path) -> dict[str, Any]:
@@ -91,8 +66,6 @@ def parse_proposal(path: Path, work_dir: Path) -> dict[str, Any]:
     kind = format_of(path.name)
     if kind == "HWPX":
         return parse_hwpx(path, output_dir=work_dir / "assets", strict_pagination=False)
-    if kind == "HWP":
-        return _normalize_hwp(parse_hwp(path), path)
     if kind == "PDF":
         from .pdf_parser import parse_pdf
         return parse_pdf(path)

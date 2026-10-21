@@ -14,7 +14,7 @@ const versions=criteriaState?.versions||[];
 const approved=[...versions].reverse().find(v=>v.status==='APPROVED')||null;
 const approvedItems=approved?.items||[];
 const leafItems=approvedItems.filter(item=>item.is_scorable||!approvedItems.some(other=>other.parent_code===item.code));
-ITEMS.splice(0,ITEMS.length,...leafItems.map(item=>[item.code,item.title,item.points??item.max_score,(item.description||item.title)+(item.source_page!=null?' (제안요청서 '+item.source_page+'쪽)':'')]));
+ITEMS.splice(0,ITEMS.length,...leafItems.map(item=>[item.code,item.title,item.points??item.max_score,(item.description||item.title)+(item.source_page!=null?' (제안요청서 '+item.source_page+(item.source_page_end!=null?'~'+item.source_page_end:'')+'쪽)':'')]));
 // 업체: PRJ-05 업체 순서대로, 업체별 최신 READY 제안서 차수.
 const latestProposal={};
 for(const upload of proposalData.uploads||[]){if(upload.status!=='READY')continue;const current=latestProposal[upload.vendor_id];if(!current||upload.upload_revision>current.upload_revision)latestProposal[upload.vendor_id]=upload;}

@@ -111,10 +111,11 @@ def _set_job(db_path: Path, table: str, project_id: str, revision: int,
         )
 
 
-def _run_requirements(db_path: Path, project_id: str, revision: int, document_id: str) -> None:
+def _run_requirements(db_path: Path, project_id: str, revision: int, document_id: str,
+                      *, force: bool = False) -> None:
     try:
         _set_job(db_path, "requirement_jobs", project_id, revision, "running")
-        requirements.extract_and_save_requirements(db_path, document_id)
+        requirements.extract_and_save_requirements(db_path, document_id, force=force)
         _set_job(db_path, "requirement_jobs", project_id, revision, "done")
     except requirements.RequirementsError as error:
         _set_job(db_path, "requirement_jobs", project_id, revision, "failed", str(error))
@@ -150,10 +151,19 @@ def queue_requirements(db_path: Path, project_id: str, *, force: bool = False) -
     latest = latest_rfp(db_path, project_id)
     if latest is None:
         raise requirements.RequirementsError("등록된 제안요청서가 없습니다.")
+    with _open(db_path) as connection:
+        connection.executescript(JOB_SCHEMA)
+        running = connection.execute(
+            "SELECT 1 FROM requirement_jobs WHERE project_id=? AND revision=? "
+            "AND status IN ('queued', 'running')",
+            (project_id, latest["revision"]),
+        ).fetchone()
+    if running:
+        return requirement_status(db_path, project_id)
     if force:
         _set_job(db_path, "requirement_jobs", project_id, latest["revision"], "failed", None)
     _queue(db_path, "requirement_jobs", project_id, latest["revision"],
-           latest["document_id"], _run_requirements)
+           latest["document_id"], partial(_run_requirements, force=force))
     return requirement_status(db_path, project_id)
 
 

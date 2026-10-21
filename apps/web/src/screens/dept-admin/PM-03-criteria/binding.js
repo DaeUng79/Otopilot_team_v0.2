@@ -12,10 +12,10 @@ function sourcePage(blocks,title,score){
   const target=compact(title);if(!target||!Number.isFinite(Number(score)))return null;
   const points=new RegExp(`[（(]\\s*${Number(score)}\\s*점\\s*[)）]`);
   for(const block of blocks){
-    const page=block.pages?.[0];if(!Number.isInteger(page))continue;
+    const pages=(block.pages||[]).filter(Number.isInteger);if(!pages.length)continue;
     const texts=block.type==='table'?(block.rows||[]).flat().map(cell=>cell.text):[block.text];
     const fragments=texts.flatMap(text=>String(text||'').split(/(?=[∘○◦•∙●])/u));
-    if(fragments.some(text=>compact(text).includes(target)&&points.test(text)))return page;
+    if(fragments.some(text=>compact(text).includes(target)&&points.test(text)))return {source_page:pages[0],source_page_end:pages.at(-1)===pages[0]?null:pages.at(-1)};
   }
   return null;
 }
@@ -31,13 +31,17 @@ async function enrichSourcePages(state){
     try{parsedSource=await getJson('/api/v2/projects/'+encodeURIComponent(Live.pid)+'/rfp/'+encodeURIComponent(rfp.revision)+'/source');}
     catch(error){state.source_page_error=error.message;return;}
   }
-  for(const row of scoring)if(row.source_page==null)row.source_page=sourcePage(parsedSource.blocks,row.evaluation_item,row.score);
+  for(const row of scoring)if(row.source_page==null)Object.assign(row,sourcePage(parsedSource.blocks,row.evaluation_item,row.score)||{});
   for(const version of versions)if(version.status==='DRAFT')for(const item of version.items)
-    if(item.is_scorable&&item.source_page==null)item.source_page=sourcePage(parsedSource.blocks,item.title,item.points);
+    if(item.is_scorable&&item.source_page==null){
+      const matching=scoring.find(row=>row.evaluation_item===item.title&&Number(row.score)===Number(item.points)&&row.source_page!=null);
+      Object.assign(item,matching?{source_page:matching.source_page,source_page_end:matching.source_page_end}:sourcePage(parsedSource.blocks,item.title,item.points)||{});
+    }
 }
+function pageLabel(source){return source.source_page==null?null:String(source.source_page)+(source.source_page_end!=null?'~'+source.source_page_end:'');}
 function treeFromItems(items){
   uid=0;descriptionByCode={};const nodes={},roots=[];
-  for(const item of items){descriptionByCode[item.code]=item.description;const node=N(item.code,item.title,item.points,item.source_page,item.source_page!=null?'제안요청서':'',[]);nodes[item.code]=node;if(item.parent_code&&nodes[item.parent_code])nodes[item.parent_code].kids.push(node);else roots.push(node);}
+  for(const item of items){descriptionByCode[item.code]=item.description;const node=N(item.code,item.title,item.points,pageLabel(item),item.source_page!=null?'제안요청서':'',[]);nodes[item.code]=node;if(item.parent_code&&nodes[item.parent_code])nodes[item.parent_code].kids.push(node);else roots.push(node);}
   roots.forEach(r=>{if(r.kids.length)r.pt=0;});return roots;
 }
 function splitScoredRows(rows){
@@ -57,10 +61,10 @@ function splitScoredRows(rows){
 function treeFromAi(rows,page){
   uid=0;descriptionByCode={};const roots=[];
   for(const row of splitScoredRows(rows)){const division=row.evaluation_division||'평가부문';let parent=roots.find(r=>r.t===division);if(!parent){parent=N(String(roots.length+1),division,0,page,'',[]);roots.push(parent);}
-    const code=`${parent.code}.${parent.kids.length+1}`;descriptionByCode[code]=(row.evaluation_criteria||'')+((row.evaluation_elements||[]).map(e=>'\n- '+e).join(''));parent.kids.push(N(code,row.evaluation_item||'평가항목',Number(row.score||0),row.source_page??null,row.source_block_id?'파싱 원문':'',[]));}
+    const code=`${parent.code}.${parent.kids.length+1}`;descriptionByCode[code]=(row.evaluation_criteria||'')+((row.evaluation_elements||[]).map(e=>'\n- '+e).join(''));parent.kids.push(N(code,row.evaluation_item||'평가항목',Number(row.score||0),pageLabel(row),row.source_block_id?'파싱 원문':'',[]));}
   return roots;
 }
-function itemsFromTree(){return flat().map((r,i)=>({code:String(r.n.code).trim(),parent_code:r.par?String(r.par.code).trim():null,title:r.n.t,description:descriptionByCode[String(r.n.code).trim()]||null,max_score:r.n.kids.length?0:Number(r.n.pt||0),source_page:r.n.pg==null?null:Number(r.n.pg),sort_order:i}));}
+function itemsFromTree(){return flat().map((r,i)=>{const pages=String(r.n.pg||'').split('~').map(Number);return {code:String(r.n.code).trim(),parent_code:r.par?String(r.par.code).trim():null,title:r.n.t,description:descriptionByCode[String(r.n.code).trim()]||null,max_score:r.n.kids.length?0:Number(r.n.pt||0),source_page:r.n.pg==null?null:pages[0],source_page_end:pages.length>1?pages[1]:null,sort_order:i};});}
 function applyState(){
   const versions=criteriaState.versions||[],latest=versions[versions.length-1]||null,draft=criteriaState.draft||{};
   const keepEditing=criteriaView==='current'&&phase==='edit'&&currentVersion?.id===latest?.id&&currentVersion?.version===latest?.version;
@@ -71,7 +75,7 @@ function applyState(){
   else if(criteriaView==='current'&&latest&&latest.status==='DRAFT'){
     T=editedTree||treeFromItems(latest.items);LIMIT=latest.total_points;phase='edit';
     if(savedReview&&!keepEditing){descriptionByCode={...savedReview.descriptions};uid=savedReview.uid;}
-    const pages=new Map(latest.items.map(item=>[item.code,item.source_page]));
+    const pages=new Map(latest.items.map(item=>[item.code,pageLabel(item)]));
     for(const {n} of flat())if(!n.kids.length&&n.pg==null&&pages.get(n.code)!=null)n.pg=pages.get(n.code);
   }
   else if(!criteriaState.rfp){phase='none';T=[];}

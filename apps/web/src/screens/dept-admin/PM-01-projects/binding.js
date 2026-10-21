@@ -1,10 +1,14 @@
 // PM-01 · PRJ-01/02/05. Use the original renderer, row, drawer and inputs.
+// The design script renders prototype rows before this binding loads real data.
+// Clear them in the same task, before the first API await can paint the page.
+P=[];empty=false;render();
+$('#none').innerHTML='<div class="ico" aria-hidden="true">…</div><strong>사업 목록을 불러오는 중이에요</strong>';
 const liveProjectStatus=s=>({EVALUATING:'평가 중',COMPLETED:'완료',UNKNOWN:'미기록'}[s]||'준비');
 const liveProjectRows=async()=>{
   const first=await Live.api('PRJ-01',{page:1,page_size:100});let items=first.items;
   for(let page=2;items.length<first.total;page++){const next=await Live.api('PRJ-01',{page,page_size:100});if(!next.items.length)break;items=items.concat(next.items);}
   P=items.map(r=>({id:r.id,name:r.name,owner:r.contact_name,date:r.evaluation_date||'',step:r.workflow_step||1,s:liveProjectStatus(r.status),doc:'none',ev:r.status==='COMPLETED'?'ok':'none'}));
-  empty=false;render();
+  empty=items.length===0;render();
 };
 const liveDept=Live.boot.departments.find(d=>d.id===Live.boot.actor.department_id);
 if(liveDept){$('#n-org').value=liveDept.organization_name;$('#n-dept').value=liveDept.name;$('#f-dept').options[0].textContent=liveDept.name;document.querySelector('.side .role').textContent=liveDept.name;}

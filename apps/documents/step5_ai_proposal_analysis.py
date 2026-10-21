@@ -20,6 +20,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from .step3_ai_requirements_extract_to_SQLite import EXTRACTOR_VERSION, group_detail_items
+
 DEFAULT_DB = Path(__file__).resolve().parents[1] / "server/data/database/documents_parse.sqlite3"
 DEFAULT_MODEL = "gpt-4o"
 PROCESSOR_VERSION = "proposal-requirements-1.0"
@@ -103,10 +105,10 @@ def extract_requirements(result: dict) -> list[dict]:
     """3단계의 상세 표를 1 요구사항 = 1 항목으로 정규화한다."""
     section = result.get("details") or {}
     blocks = section.get("blocks") or []
-    lookup = {b["block_id"]: b for b in blocks}
     requirements = []
-    seen = set()
-    for table_id in section.get("block_ids", []):
+    for item_index, item in enumerate(group_detail_items({"blocks": blocks}, section)):
+        lookup = {b["block_id"]: b for b in item["blocks"]}
+        table_id = item["root_block_id"]
         table = lookup.get(table_id)
         if not table or table.get("type") != "table":
             continue
@@ -116,9 +118,6 @@ def extract_requirements(result: dict) -> list[dict]:
                      for text in row for match in CODE_RE.finditer(text)), None)
         if not code:
             continue
-        if code in seen:
-            raise ValueError(f"중복된 요구사항 코드: {code}")
-        seen.add(code)
         category = ""
         title = ""
         body = []
@@ -137,8 +136,43 @@ def extract_requirements(result: dict) -> list[dict]:
             raise ValueError(f"요구사항 분류 또는 명칭 누락: {code}")
         requirements.append({"code": code, "category": category, "title": title,
                              "rfp_detail": "\n".join(body), "rfp_block_id": table_id,
-                             "rfp_page": table.get("physical_page_number") or table.get("page_number")})
-    expected = set(result.get("validation", {}).get("list_codes", []))
+                             "rfp_page": table.get("physical_page_number") or table.get("page_number"),
+                             "_item_index": item_index})
+    by_code = defaultdict(list)
+    for requirement in requirements:
+        by_code[requirement["code"]].append(requirement)
+    decisions = {r["code"]: r for r in result.get("duplicate_code_resolutions", [])}
+    normalized = []
+    for code, copies in by_code.items():
+        if len(copies) == 1:
+            normalized.append(copies[0])
+            continue
+        decision = decisions.get(code)
+        indexes = {copy["_item_index"] for copy in copies}
+        if not decision or set(decision.get("item_indexes", [])) != indexes:
+            raise ValueError(f"중복된 요구사항 코드의 정리 결과가 없습니다: {code}")
+        retained = next((copy for copy in copies if copy["_item_index"] == decision.get("keep_index")), None)
+        if retained is None:
+            raise ValueError(f"중복된 요구사항 코드의 대표 항목이 없습니다: {code}")
+        retained = dict(retained)
+        if decision.get("action") == "merge":
+            lines = []
+            for copy in copies:
+                title_line = ([f"요구사항명칭: {copy['title']}"]
+                              if copy["title"] != retained["title"] else [])
+                for line in title_line + copy["rfp_detail"].splitlines():
+                    if line.strip() and line not in lines:
+                        lines.append(line)
+            retained["rfp_detail"] = "\n".join(lines)
+            retained["rfp_block_ids"] = list(dict.fromkeys(copy["rfp_block_id"] for copy in copies))
+        elif decision.get("action") != "remove_duplicate":
+            raise ValueError(f"중복된 요구사항 코드의 처리 방식이 올바르지 않습니다: {code}")
+        normalized.append(retained)
+    requirements = normalized
+    for requirement in requirements:
+        requirement.pop("_item_index", None)
+    validation = result.get("validation", {})
+    expected = set(validation.get("list_codes") or validation.get("detail_codes") or [])
     actual = {r["code"] for r in requirements}
     if not expected or actual != expected:
         raise ValueError(f"제안요청서 요구사항 목록 불일치: 누락={sorted(expected-actual)}, 초과={sorted(actual-expected)}")
@@ -155,6 +189,21 @@ def _latest_visible_rfp(conn: sqlite3.Connection) -> str:
             "LEFT JOIN rfp_upload_visibility v ON v.project_id=u.project_id "
             "AND v.upload_revision=u.revision "
             "WHERE u.project_id=? AND v.archived_at IS NULL ORDER BY u.revision DESC LIMIT 1")
+
+
+def _requirements_ready(conn: sqlite3.Connection, rfp: dict, result: dict) -> bool:
+    """Do not expose cached results while the current upload is being extracted."""
+    if result.get("extractor_version") not in (None, EXTRACTOR_VERSION):
+        return False
+    jobs_table = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='requirement_jobs'").fetchone()
+    if jobs_table:
+        job = conn.execute(
+            "SELECT status FROM requirement_jobs WHERE project_id=? AND revision=?",
+            (rfp["project_id"], rfp["revision"])).fetchone()
+        if job and job[0] != "done":
+            return False
+    return True
 
 
 def _tokens(text: str) -> set[str]:
@@ -313,13 +362,13 @@ def verify_summary(client, model: str, finding: dict) -> dict:
 
 
 def _source(conn: sqlite3.Connection, project_id: str, proposal_id: str | None) -> tuple[dict, list[dict]]:
-    rfp = conn.execute(f"""SELECT r.document_id, r.revision, q.result_id, q.result_json, q.source_revision
+    rfp = conn.execute(f"""SELECT r.project_id, r.document_id, r.revision, q.result_id, q.result_json, q.source_revision
       FROM ({_latest_visible_rfp(conn)}) r
       JOIN documents d ON d.document_id=r.document_id
       JOIN requirement_results q ON q.document_id=r.document_id AND q.source_revision=d.active_revision
       WHERE q.status='complete' ORDER BY q.created_at DESC LIMIT 1""",
                        (project_id,)).fetchone()
-    if not rfp:
+    if not rfp or not _requirements_ready(conn, dict(rfp), json.loads(rfp["result_json"])):
         raise ValueError("현재 프로젝트의 완료된 제안요청서 요구사항 추출 결과가 없습니다.")
     sql = """SELECT p.*, s.document_json FROM project_proposal_uploads p
       JOIN parse_snapshots s ON s.document_id=p.document_id AND s.revision=p.parse_revision
@@ -392,12 +441,12 @@ def load_latest_analysis(db: Path, project_id: str, proposal_upload_id: str) -> 
 def comparison_overview(db: Path, project_id: str, *, model: str = DEFAULT_MODEL) -> dict:
     """관리 화면의 요구사항 × 업체 비교 표. 미완료 항목은 완료로 표시하지 않는다."""
     with closing(_connect(db, readonly=True)) as conn:
-        rfp = conn.execute(f"""SELECT r.document_id,r.revision,q.result_id,q.result_json,q.source_revision
+        rfp = conn.execute(f"""SELECT r.project_id,r.document_id,r.revision,q.result_id,q.result_json,q.source_revision
           FROM ({_latest_visible_rfp(conn)}) r
           JOIN documents d ON d.document_id=r.document_id
           JOIN requirement_results q ON q.document_id=r.document_id AND q.source_revision=d.active_revision
           WHERE q.status='complete' ORDER BY q.created_at DESC LIMIT 1""", (project_id,)).fetchone()
-        if not rfp:
+        if not rfp or not _requirements_ready(conn, dict(rfp), json.loads(rfp["result_json"])):
             return {"status": "waiting_for_requirements", "categories": [], "proposals": []}
         rfp = dict(rfp)
         result = json.loads(rfp["result_json"])

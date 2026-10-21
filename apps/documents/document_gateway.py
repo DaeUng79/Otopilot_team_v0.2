@@ -10,6 +10,8 @@
 from __future__ import annotations
 
 import json
+import sqlite3
+from contextlib import nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -179,3 +181,148 @@ def archive_upload(db_path: Path, project_id: str, *, reason: str, actor_id: str
             (project_id, upload_revision, _now(), actor_id, reason.strip()))
         source_deleted = _delete_unused_source(db, upload[0])
         return {"upload_revision": upload_revision, "status": "ARCHIVED", "source_deleted": source_deleted}
+
+
+def delete_upload(db_path: Path, project_id: str, *, proposal_upload_id: str | None = None,
+                  upload_revision: int | None = None,
+                  connection: sqlite3.Connection | None = None,
+                  schema: str = "main") -> dict[str, Any]:
+    """Permanently remove one registration and its unshared source/analysis data."""
+    if schema not in {"main", "vendor_documents"}:
+        raise ValueError("문서 DB 이름이 올바르지 않습니다.")
+    with (connect(db_path) if connection is None else nullcontext(connection)) as db:
+        db.execute(f"PRAGMA {schema}.secure_delete=ON")
+        if connection is None:
+            db.execute("BEGIN IMMEDIATE")
+        tables = {row[0] for row in db.execute(
+            f"SELECT name FROM {schema}.sqlite_master WHERE type='table'")}
+
+        def remove_analyses(where: str, values: tuple) -> None:
+            if "proposal_analysis_results" not in tables:
+                return
+            run_ids = [row[0] for row in db.execute(
+                f"SELECT run_id FROM proposal_analysis_results WHERE {where}", values)]
+            if "proposal_analysis_items" in tables:
+                db.executemany("DELETE FROM proposal_analysis_items WHERE run_id=?",
+                               ((run_id,) for run_id in run_ids))
+            db.execute(f"DELETE FROM proposal_analysis_results WHERE {where}", values)
+
+        def remove_partial_runs(rfp_document_ids: list[str], proposal_rows: list) -> None:
+            if not {"requirement_results", "proposal_analysis_items"} <= tables:
+                return
+            from .step5_ai_proposal_analysis import DEFAULT_MODEL, _run_id
+            models = {DEFAULT_MODEL}
+            if "proposal_analysis_results" in tables:
+                models.update(row[0] for row in db.execute(
+                    "SELECT DISTINCT model FROM proposal_analysis_results WHERE project_id=?",
+                    (project_id,)))
+            for rfp_document_id in rfp_document_ids:
+                for rfp in db.execute(
+                    "SELECT result_id,result_json FROM requirement_results WHERE document_id=?",
+                    (rfp_document_id,)):
+                    for proposal in proposal_rows:
+                        for model in models:
+                            db.execute("DELETE FROM proposal_analysis_items WHERE run_id=?",
+                                       (_run_id(rfp, proposal, model),))
+
+        if proposal_upload_id is not None:
+            row = db.execute(
+                "SELECT document_id, vendor_id, upload_revision FROM project_proposal_uploads "
+                "WHERE id=? AND project_id=?", (proposal_upload_id, project_id)).fetchone()
+            if row is None:
+                raise LookupError("삭제할 제안서를 찾을 수 없습니다.")
+            document_id = row["document_id"]
+            if "project_rfp_uploads" in tables:
+                rfp_ids = [r[0] for r in db.execute(
+                    "SELECT DISTINCT document_id FROM project_rfp_uploads WHERE project_id=?",
+                    (project_id,))]
+                remove_partial_runs(rfp_ids, [{"id": proposal_upload_id,
+                    "document_id": document_id,
+                    "parse_revision": db.execute(
+                        "SELECT parse_revision FROM project_proposal_uploads WHERE id=?",
+                        (proposal_upload_id,)).fetchone()[0]}])
+            remove_analyses("proposal_upload_id=?", (proposal_upload_id,))
+            db.execute("DELETE FROM project_proposal_uploads WHERE id=?", (proposal_upload_id,))
+            result = {"id": proposal_upload_id, "status": "DELETED"}
+        else:
+            if upload_revision is None:
+                raise ValueError("삭제할 문서를 지정해 주세요.")
+            row = db.execute(
+                "SELECT document_id FROM project_rfp_uploads WHERE project_id=? AND revision=?",
+                (project_id, upload_revision)).fetchone()
+            if row is None:
+                raise LookupError("삭제할 제안요청서를 찾을 수 없습니다.")
+            document_id = row["document_id"]
+            if "project_proposal_uploads" in tables:
+                remove_partial_runs([document_id], list(db.execute(
+                    "SELECT id,document_id,parse_revision FROM project_proposal_uploads "
+                    "WHERE project_id=?", (project_id,))))
+            if "approved_criteria_versions" in tables:
+                versions = [r[0] for r in db.execute(
+                    "SELECT id FROM approved_criteria_versions WHERE project_id=? AND upload_revision=?",
+                    (project_id, upload_revision))]
+                if versions and "approved_criteria_items" in tables:
+                    for version in versions:
+                        while db.execute(
+                            "DELETE FROM approved_criteria_items WHERE approved_criteria_version_id=? "
+                            "AND id NOT IN (SELECT parent_id FROM approved_criteria_items "
+                            "WHERE parent_id IS NOT NULL)", (version,)).rowcount:
+                            pass
+                db.execute("DELETE FROM approved_criteria_versions WHERE project_id=? AND upload_revision=?",
+                           (project_id, upload_revision))
+            for table, revision_column in (("requirement_jobs", "revision"),
+                                           ("criteria_jobs", "revision"),
+                                           ("rfp_upload_visibility", "upload_revision"),
+                                           ("rfp_snapshot_bindings", "upload_revision")):
+                if table in tables:
+                    db.execute(f"DELETE FROM {table} WHERE project_id=? AND {revision_column}=?",
+                               (project_id, upload_revision))
+            db.execute("DELETE FROM project_rfp_uploads WHERE project_id=? AND revision=?",
+                       (project_id, upload_revision))
+            result = {"upload_revision": upload_revision, "status": "DELETED"}
+
+        still_used = any(
+            table in tables and db.execute(
+                f"SELECT 1 FROM {table} WHERE document_id=? LIMIT 1", (document_id,)).fetchone()
+            for table in ("project_rfp_uploads", "project_proposal_uploads"))
+        if "project_documents" in tables and not any(
+            table in tables and db.execute(
+                f"SELECT 1 FROM {table} WHERE project_id=? AND document_id=? LIMIT 1",
+                (project_id, document_id)).fetchone()
+            for table in ("project_rfp_uploads", "project_proposal_uploads")):
+            db.execute("DELETE FROM project_documents WHERE project_id=? AND document_id=?",
+                       (project_id, document_id))
+        if still_used:
+            return result | {"shared_source_retained": True}
+
+        if "requirement_results" in tables:
+            result_ids = [r[0] for r in db.execute(
+                "SELECT result_id FROM requirement_results WHERE document_id=?", (document_id,))]
+            for result_id in result_ids:
+                remove_analyses("rfp_result_id=?", (result_id,))
+            db.execute("DELETE FROM requirement_results WHERE document_id=?", (document_id,))
+        for table in ("criteria_results", "rfp_toc_snapshots"):
+            if table in tables:
+                db.execute(f"DELETE FROM {table} WHERE document_id=?", (document_id,))
+        asset_ids = ([r[0] for r in db.execute(
+            "SELECT DISTINCT sha256 FROM snapshot_assets WHERE document_id=?", (document_id,))]
+            if "snapshot_assets" in tables else [])
+        if "snapshot_assets" in tables:
+            db.execute("DELETE FROM snapshot_assets WHERE document_id=?", (document_id,))
+        for table in ("table_cells", "blocks", "pages", "parse_snapshots"):
+            if table in tables:
+                db.execute(f"DELETE FROM {table} WHERE document_id=?", (document_id,))
+        if "assets" in tables and "snapshot_assets" in tables:
+            db.executemany("DELETE FROM assets WHERE sha256=? AND NOT EXISTS "
+                           "(SELECT 1 FROM snapshot_assets WHERE sha256=?)",
+                           ((sha256, sha256) for sha256 in asset_ids))
+        sha = db.execute("SELECT source_sha256 FROM documents WHERE document_id=?",
+                         (document_id,)).fetchone()
+        if "project_documents" in tables:
+            db.execute("DELETE FROM project_documents WHERE document_id=?", (document_id,))
+        db.execute("DELETE FROM documents WHERE document_id=?", (document_id,))
+        if sha and "source_files" in tables and not (
+                "managed_result_files" in tables and db.execute(
+                    "SELECT 1 FROM managed_result_files WHERE source_sha256=?", (sha[0],)).fetchone()):
+            db.execute("DELETE FROM source_files WHERE sha256=?", (sha[0],))
+        return result | {"shared_source_retained": False}

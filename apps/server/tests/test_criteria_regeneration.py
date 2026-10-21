@@ -19,10 +19,10 @@ class CriteriaRegenerationTest(unittest.TestCase):
     def test_source_page_matches_each_scored_paragraph(self):
         db = sqlite3.connect(":memory:")
         db.row_factory = sqlite3.Row
-        db.execute("CREATE TABLE blocks (document_id TEXT,revision TEXT,type TEXT,block_id TEXT,text TEXT,physical_page_numbers_json TEXT,order_index INTEGER)")
+        db.execute("CREATE TABLE blocks (document_id TEXT,revision TEXT,type TEXT,block_id TEXT,text TEXT,physical_page_numbers_json TEXT,order_index INTEGER,block_json TEXT)")
         for order, (title, page) in enumerate((("대상사업의 이해도", 41), ("사업추진전략의 창의성, 타당성", 42))):
-            db.execute("INSERT INTO blocks VALUES (?,?,?,?,?,?,?)",
-                       ("rfp", "rev", "paragraph", f"p{order}", f"∘ {title} (5점)", json.dumps([page]), order))
+            db.execute("INSERT INTO blocks VALUES (?,?,?,?,?,?,?,?)",
+                       ("rfp", "rev", "paragraph", f"p{order}", f"∘ {title} (5점)", json.dumps([page]), order, "{}"))
         row = {"row_id": "R01", "evaluation_item":
                "∘ 대상사업의 이해도 (5점) ∘ 사업추진전략의 창의성, 타당성 (5점) ∘ 적용기술의 확장성, 실현가능성 (5점)", "score": 15}
         items = criteria_approval._rows_with_source_pages(
@@ -30,6 +30,68 @@ class CriteriaRegenerationTest(unittest.TestCase):
         self.assertEqual([item.get("source_page") for item in items], [41, 42, None])
         self.assertEqual([item.get("source_block_id") for item in items], ["p0", "p1", None])
         db.close()
+
+    def test_scored_table_with_separate_name_and_score_cells_uses_table_page_range(self):
+        db = sqlite3.connect(":memory:")
+        db.row_factory = sqlite3.Row
+        db.execute("CREATE TABLE blocks (document_id TEXT,revision TEXT,type TEXT,block_id TEXT,text TEXT,physical_page_numbers_json TEXT,order_index INTEGER,block_json TEXT)")
+        table = {"table": {"cells": [
+            [{"text": "평가항목"}, {"text": "배점"}],
+            [{"text": "사업 이해도"}, {"text": "5"}],
+        ]}}
+        db.execute("INSERT INTO blocks VALUES (?,?,?,?,?,?,?,?)",
+                   ("rfp", "rev", "table", "tbl", "", json.dumps([60, 61, 62, 63, 64]), 0, json.dumps(table)))
+        rows = criteria_approval._rows_with_source_pages(
+            db, {"document_id": "rfp", "parse_revision": "rev"},
+            [{"evaluation_item": "사업 이해도", "score": 5}], "request_document")
+        self.assertEqual((rows[0]["source_page"], rows[0]["source_page_end"], rows[0]["source_block_id"]),
+                         (60, 64, "tbl"))
+        db.close()
+
+    def test_generated_item_uses_matching_requirement_group_page(self):
+        db = sqlite3.connect(":memory:")
+        db.row_factory = sqlite3.Row
+        db.execute("CREATE TABLE blocks (document_id TEXT,revision TEXT,type TEXT,block_id TEXT,text TEXT,physical_page_numbers_json TEXT,order_index INTEGER,block_json TEXT)")
+        table = {"table": {"cells": [
+            [{"text": "요구사항 분류"}, {"text": "요구사항 번호"}],
+            [{"text": "보안 요구사항"}, {"text": "SER-001"}],
+        ]}}
+        db.execute("INSERT INTO blocks VALUES (?,?,?,?,?,?,?,?)",
+                   ("rfp", "rev", "table", "summary", "", json.dumps([12, 13]), 0, json.dumps(table)))
+        rows = criteria_approval._rows_with_source_pages(
+            db, {"document_id": "rfp", "parse_revision": "rev"},
+            [{"evaluation_division": "보안 요구사항", "evaluation_item": "보안 대응 방안", "score": 10}],
+            "generated_from_summary")
+        self.assertEqual((rows[0]["source_page"], rows[0]["source_page_end"]), (12, 13))
+        db.close()
+
+    def test_page_range_is_validated_and_persisted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "documents.sqlite3"
+            _initialize(database)
+            criteria_approval.initialize(database)
+            with connect(database) as db:
+                db.execute("INSERT INTO projects VALUES (?,?,?)", ("project", "시험 사업", "now"))
+                db.execute("INSERT INTO documents VALUES (?,?,?,?,?,?)",
+                           ("rfp", "rfp.hwpx", "hash", "rev", "now", "now"))
+                db.execute("INSERT INTO parse_snapshots VALUES (?,?,?,?,?,?)",
+                           ("rfp", "rev", "parser", "schema", "{}", "now"))
+                db.execute("INSERT INTO project_rfp_uploads VALUES (?,?,?,?,?,?,?,?,?)",
+                           ("project", 1, "rfp", "rfp.hwpx", 1, "now", 1, 0, 0))
+                db.execute("INSERT INTO rfp_snapshot_bindings VALUES (?,?,?,?,?,?)",
+                           ("project", 1, "rfp", "rev", "now", "upload"))
+            draft = criteria_approval.open_draft(
+                database, project_id="project", source="template", ai_result=None, actor_id="admin")
+            items = [{"code": item["code"], "parent_code": item["parent_code"],
+                      "title": item["title"], "description": item["description"],
+                      "max_score": item["points"], "source_page": 60,
+                      "source_page_end": 64} for item in draft["items"]]
+            saved = criteria_approval.save_draft(
+                database, project_id="project", draft_id=draft["id"], version=draft["version"],
+                items=items, total_points=draft["total_points"])
+            self.assertTrue(all(item["source_page_end"] == 64 for item in saved["items"]))
+            with self.assertRaisesRegex(criteria_approval.CriteriaApprovalError, "범위"):
+                criteria_approval.validate_items([items[0] | {"source_page_end": 59}])
 
     def test_scored_bullets_become_separate_review_items(self):
         row = {"row_id": "R01", "evaluation_division": "전략 및 방법론",

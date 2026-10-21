@@ -323,7 +323,7 @@ def install_project_document_routes(app, store, actor, sync, *, documents_db=Non
                 upload["revision"])
         try:
             upload["requirements"] = await asyncio.to_thread(
-                rfp_api.queue_requirements, database, project_id)
+                rfp_api.queue_requirements, database, project_id, force=True)
         except Exception:
             logging.getLogger(__name__).exception("Automatic requirements queue failed")
             upload["requirements"] = {"status": "failed",

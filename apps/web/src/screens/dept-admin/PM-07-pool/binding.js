@@ -1,4 +1,8 @@
 // PM-07 · COM-01..07. Only original table, drawer, Excel preview and buttons.
+// Remove prototype candidates before the first API await can paint them.
+const livePoolEmptyMarkup=$('#none').innerHTML;
+P=[];render();
+$('#none').innerHTML='<div class="ico" aria-hidden="true">…</div><strong>위원 풀을 불러오는 중이에요</strong>';
 const liveDeptId=Live.boot.actor.department_id||Live.boot.projects.find(p=>p.id===Live.pid)?.department_id;
 if(!liveDeptId)throw Error('사업 또는 소속 부서를 먼저 선택하세요.');
 const liveSpecialties=Live.boot.specialties,liveRows=new Map();let liveEdit=null,liveDelete=null,livePreview=null;
@@ -24,9 +28,10 @@ const liveReloadPool=async()=>{
     for(let page=2;items.length<first.total;page++){const next=await Live.api('COM-01',{...liveScope(sc),active:true,page,page_size:200});if(!next.items.length)break;items=items.concat(next.items);}
     for(const c of items){liveRows.set(c.id,c);result.push({id:c.id,scope:sc,name:c.name,org:c.organization_name,dept:c.department_name||'',pos:c.position||'',field:c.specialty_ids.map(id=>liveSpecialties.find(s=>s.id===id)?.name||'').join(', '),tel:c.phone,email:c.email||'',n:c.participation_count||0});}
   }
-  P=result;render();
+  P=result;render();$('#none').innerHTML=livePoolEmptyMarkup;
 };
-await liveReloadPool();
+try{await liveReloadPool();}
+catch(error){$('#none').innerHTML='<div class="ico" aria-hidden="true">!</div><strong>위원 풀을 불러오지 못했어요</strong><p>'+Live.escape(error.message)+'</p>';throw error;}
 document.querySelector('.side .role').textContent=Live.boot.departments.find(d=>d.id===liveDeptId)?.name||'';
 const liveFilter=document.querySelector('#f-field');
 liveFilter.innerHTML=['전체',...FIELDS].map((f,i)=>`<button class="chip" type="button" data-f="${i?h(f):''}" aria-pressed="${i===0}">${h(f)}</button>`).join('');

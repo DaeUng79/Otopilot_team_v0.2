@@ -3,10 +3,11 @@ if(!Live.pid)throw Error('사업 목록에서 사업을 선택하세요.');
 let vendorRows=[],vendorDelete=null;
 async function loadVendors(){const data=await Live.api('PRJ-05',{project_id:Live.pid});vendorRows=data.vendors;S=blankState();S.inUse=['EVALUATING','COMPLETED'].includes(data.project.status);S.v=vendorRows.map(v=>({code:v.display_code,name:v.legal_name,ord:v.sort_order,fx:S.inUse,s:'none',toc:'none',entries:[],err:'',revs:[]}));paint();}
 await loadVendors();
-Live.capture('#f-inl','submit',async()=>{const saved=await Live.api('PRJ-06',{project_id:Live.pid,display_code:nextCode(),legal_name:$('#i-name').value.trim(),sort_order:S.v.length+1});adding=false;await loadVendors();toast(saved.restored?`기존 업체를 ${saved.display_code}로 복원했어요. 새 제안서를 등록해 주세요.`:'업체를 등록했어요');});
-Live.capture('#f-add','submit',async()=>{const vendor=editV?vendorRows[S.v.indexOf(editV)]:null;const saved=await Live.api('PRJ-06',{project_id:Live.pid,...(vendor?{vendor_id:vendor.id,version:vendor.version}:{}),display_code:$('#a-code').value.trim(),legal_name:$('#a-name').value.trim(),sort_order:Number($('#a-ord').value)});closeLayer($('#add'));await loadVendors();toast(saved.restored?`기존 업체를 ${saved.display_code}로 복원했어요. 새 제안서를 등록해 주세요.`:'업체 정보를 저장했어요');});
-Live.capture('[data-vdel],#a-del','click',(_e,el)=>{vendorDelete=el.id==='a-del'?vendorRows[S.v.indexOf(editV)]:vendorRows[Number(el.dataset.vdel)];confirmDlg({title:'업체를 삭제할까요?',body:'평가에 사용 중인 업체는 삭제할 수 없습니다.',ok:'삭제',danger:true});});
-Live.capture('#dlg-ok','click',async()=>{if(!vendorDelete)return;await Live.api('PRJ-07',{project_id:Live.pid,vendor_id:vendorDelete.id,version:vendorDelete.version});vendorDelete=null;closeAll();await loadVendors();toast('업체를 삭제했어요');});
+Live.capture('#f-inl','submit',async()=>{const legalName=$('#i-name').value.trim();if(!legalName){addVal='';addErr='법인명을 입력해주세요';paint();$('#i-name').focus();return;}await Live.api('PRJ-06',{project_id:Live.pid,display_code:nextCode(),legal_name:legalName,sort_order:S.v.length+1});adding=false;await loadVendors();toast('업체를 등록했어요');});
+$('#a-name').addEventListener('input',()=>{$('#a-name-e').hidden=true;$('#a-name').removeAttribute('aria-invalid');});
+Live.capture('#f-add','submit',async()=>{const legalName=$('#a-name').value.trim();if(!legalName){$('#a-name-e').textContent='법인명을 입력해주세요';$('#a-name-e').hidden=false;$('#a-name').setAttribute('aria-invalid','true');$('#a-name').focus();return;}const vendor=editV?vendorRows[S.v.indexOf(editV)]:null;await Live.api('PRJ-06',{project_id:Live.pid,...(vendor?{vendor_id:vendor.id,version:vendor.version}:{}),display_code:$('#a-code').value.trim(),legal_name:legalName,sort_order:Number($('#a-ord').value)});closeLayer($('#add'));await loadVendors();toast('업체 정보를 저장했어요');});
+Live.capture('[data-vdel],#a-del','click',(_e,el)=>{vendorDelete=el.id==='a-del'?vendorRows[S.v.indexOf(editV)]:vendorRows[Number(el.dataset.vdel)];confirmDlg({title:'업체와 제안서를 삭제할까요?',body:'이 업체의 등록 정보, 제안서 파일과 분석 결과가 모두 영구 삭제됩니다. 평가가 시작된 사업에서는 삭제할 수 없습니다.',ok:'영구 삭제',danger:true});});
+Live.capture('#dlg-ok','click',async()=>{if(!vendorDelete)return;await Live.api('PRJ-07',{project_id:Live.pid,vendor_id:vendorDelete.id,version:vendorDelete.version});vendorDelete=null;closeAll();await loadVendors();toast('업체와 관련 자료를 삭제했어요');});
 // PM-02 · DOC-01/02/05: integrated HWPX parsing and SQLite storage.
 const projectUrl='/api/v2/projects/'+encodeURIComponent(Live.pid);
 const rfpUrl=projectUrl+'/rfp';
@@ -16,7 +17,7 @@ const proposalUploadState=new Map();
 const fmtSize=b=>(b/1048576).toFixed(1)+'MB',fmtAt=t=>new Date(t).toLocaleString('ko-KR');
 async function getJson(url,options){const response=await fetch(url,{credentials:'same-origin',headers:{'X-Simsa-Client':'v2-web',...(options?.json!==undefined?{'Content-Type':'application/json'}:{})},method:options?.method||'GET',body:options?.json!==undefined?JSON.stringify(options.json):options?.body});const body=await response.json().catch(()=>({}));if(!response.ok)throw Error(body.error?.message||'요청을 처리하지 못했습니다.');return body.data;}
 async function downloadUrl(url,filename){const response=await fetch(url,{credentials:'same-origin'});if(!response.ok)throw Error('파일을 내려받지 못했습니다.');const object=URL.createObjectURL(await response.blob());const link=document.createElement('a');link.href=object;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(object),1000);}
-const REQ={none:['','요약 전','제안요청서는 저장됐습니다. 요구사항 요약을 시작하지 못했습니다.'],queued:['info','대기','제안요청서는 저장됐습니다. 요구사항 요약을 기다리고 있습니다.'],running:['info','처리 중','제안요청서는 저장됐습니다. 요구사항을 요약하고 있습니다.'],failed:['danger','실패','제안요청서는 저장됐지만 요구사항 요약에 실패했습니다. API 키와 통신 상태를 확인한 뒤 다시 시도해 주세요.'],done:['success','완료','제안요청서 저장과 요구사항 요약이 끝났습니다.']};
+const REQ={none:['','요약 전','제안요청서는 저장됐습니다. 요구사항 요약을 시작하지 못했습니다.'],queued:['info','분석 대기','요구사항 분석을 기다리고 있습니다. 완료될 때까지 자동으로 확인합니다.'],running:['info','분석 중','요구사항을 분석 중입니다. 완료될 때까지 자동으로 확인합니다.'],failed:['danger','실패','제안요청서는 저장됐지만 요구사항 요약에 실패했습니다. API 키와 통신 상태를 확인한 뒤 다시 시도해 주세요.'],done:['success','완료','제안요청서 저장과 요구사항 요약이 끝났습니다.']};
 function extractionRows(){
   return sorted().map(view=>{
     const vendor=vendorRows[S.v.indexOf(view)];
@@ -75,7 +76,7 @@ paint=()=>{
   }
   const status=$('#m-xr');
   if(status&&S.rfp.revs.length){const st=REQ[requirementState?.status]||REQ.none;
-    status.innerHTML=`<div class="mrow extraction-row"><strong class="extraction-name">제안요청서</strong><span class="badge ${st[0]}">${st[1]}</span><span class="tx">${st[2]}${requirementState?.error?' · '+h(requirementState.error):''}</span>${['none','failed'].includes(requirementState?.status||'none')?'<button class="tl pri" type="button" data-retry="rfp">'+(requirementState?.status==='failed'?'다시 시도':'요구사항 요약')+'</button>':''}<button class="tl" type="button" data-refresh>새로고침</button></div>`+extractionRows();}
+    status.innerHTML=`<div class="mrow extraction-row"><strong class="extraction-name">제안요청서</strong><span class="badge ${st[0]}">${st[1]}</span><span class="tx ${['queued','running'].includes(requirementState?.status)?'analysis-progress':''}" role="status" aria-live="polite">${st[2]}${requirementState?.error?' · '+h(requirementState.error):''}</span>${['none','failed'].includes(requirementState?.status||'none')?'<button class="tl pri" type="button" data-retry="rfp">'+(requirementState?.status==='failed'?'다시 시도':'요구사항 요약')+'</button>':''}${requirementState?.status==='done'?'<button class="tl" type="button" data-reextract>요구사항 재 추출</button>':''}</div>`+extractionRows();}
   if(S.rfp.revs.length){
     const actions=$('#rfp .fa');
     if(actions){
@@ -121,7 +122,7 @@ const originalLoadVendors=loadVendors;
 loadVendors=async()=>{await originalLoadVendors();await loadRfp();await loadProposals();await loadComparison();};
 await loadRfp();await loadProposals();
 Live.capture('[data-up="rfp"]','click',()=>{target='rfp';$('#file').accept='.hwpx';$('#file').value='';$('#file').click();});
-Live.capture('[data-up]:not([data-up="rfp"])','click',(_e,el)=>{target=el.dataset.up;$('#file').accept='.hwpx,.hwp,.pdf,.pptx';$('#file').value='';$('#file').click();});
+Live.capture('[data-up]:not([data-up="rfp"])','click',(_e,el)=>{target=el.dataset.up;$('#file').accept='.hwpx,.pdf,.pptx';$('#file').value='';$('#file').click();});
 async function uploadRfp(file){
   if(!file)return;
   if(!file.name.toLowerCase().endsWith('.hwpx'))throw Error('HWPX 파일만 올릴 수 있습니다.');
@@ -141,7 +142,8 @@ async function uploadRfp(file){
 }
 async function uploadProposal(index,file){
   if(!file)return;const vendor=vendorRows[index],row=S.v[index];
-  if(!/\.(hwpx|hwp|pdf|pptx)$/i.test(file.name))throw Error('HWPX·HWP·PDF·PPTX 파일만 올릴 수 있습니다.');
+  if(/\.hwp$/i.test(file.name))throw Error('HWP 파일은 등록할 수 없습니다. HWPX·PDF·PPTX 파일을 선택해 주세요.');
+  if(!/\.(hwpx|pdf|pptx)$/i.test(file.name))throw Error('HWPX·PDF·PPTX 파일만 올릴 수 있습니다.');
   if(file.size>50*1024*1024)throw Error('50MB 이하의 파일을 올려 주세요.');
   if(proposalUploadState.has(vendor.id))throw Error(`${row.code} 제안서를 등록하고 있습니다. 완료된 뒤 다시 시도해 주세요.`);
   const form=new FormData();form.append('file',file);
@@ -231,28 +233,34 @@ function openRfpPreview(){
 Live.capture('[data-preview-rfp],[data-view="rfp"]','click',openRfpPreview);
 Live.capture('[data-toc]:not([data-toc="rfp"])','click',(_e,el)=>showParsedProposal(Number(el.dataset.toc)));
 Live.capture('[data-view]:not([data-view="rfp"])','click',(_e,el)=>openProposalPreview(Number(el.dataset.view)));
-// DOC-06·PRO-03: 등록 목록에서 제외하고 삭제 사유를 보존한다.
+// DOC-06·PRO-03: 선택한 등록과 연결된 파일·분석 데이터를 영구 삭제한다.
 function archiveDialog(key){
   const isRfp=key==='rfp',index=Number(key);
   if(!isRfp&&!proposalsOf(index).length)throw Error('등록된 제안서가 없습니다.');
-  askReason({title:isRfp?'제안요청서 등록을 삭제할까요?':`${S.v[index].code} 제안서를 삭제할까요?`,body:'목록에서 빠지고 이력은 감사 기록에 남아요. 이미 시작한 평가 자료는 바뀌지 않아요.',block:'',onOk:async()=>{
-    const reason=$('#rdlg-r').value.trim();
+  askReason({title:isRfp?'제안요청서를 영구 삭제할까요?':`${S.v[index].code} 제안서를 영구 삭제할까요?`,body:'파일과 연결된 분석 데이터가 삭제되며 복구할 수 없습니다. 평가가 시작된 사업의 문서는 삭제할 수 없습니다.',block:S.inUse?'평가가 시작된 사업의 문서는 삭제할 수 없습니다.':'',requireReason:false,onOk:async()=>{
     try{
-      if(isRfp)await getJson(rfpUrl+'/'+rfpUploads[0].revision,{method:'DELETE',json:{reason}});
-      else await getJson(projectUrl+'/proposals/'+encodeURIComponent(proposalsOf(index)[0].id),{method:'DELETE',json:{reason}});
+      if(isRfp)await getJson(rfpUrl+'/'+rfpUploads[0].revision,{method:'DELETE'});
+      else await getJson(projectUrl+'/proposals/'+encodeURIComponent(proposalsOf(index)[0].id),{method:'DELETE'});
       comparisonData=null;$('#comparison-tools').hidden=true;$('#comparison-wrap').hidden=true;
       $('#business-panel').hidden=true;
       comparisonStatus.textContent='자료를 다시 확인하고 있습니다.';
       closeLayer($('#hist'));await loadRfp();await loadProposals();
       await loadComparison();
-      toast('목록에서 삭제했어요. 삭제 사유는 기록에 남습니다.');
+      toast('파일과 연결된 데이터를 삭제했어요.');
     }catch(error){Live.message(error.message);}
   }});
 }
 Live.capture('[data-del]','click',(_e,el)=>archiveDialog(el.dataset.del));
 Live.capture('#hist-del','click',()=>archiveDialog(histObj===S.rfp?'rfp':String(S.v.indexOf(histObj))));
 // DOC-03·04: 요구사항 추출 상태·재시도. 추출은 AI(OpenAI) 설정이 있을 때 동작한다.
-Live.capture('[data-refresh]','click',async()=>{await loadRfp();toast(requirementState?.status==='done'?'최신 상태예요':'상태를 새로 읽었어요');});
+Live.capture('[data-reextract]','click',async()=>{
+  const previous=requirementState;
+  requirementState={status:'queued'};S.rfp.s='run';paint();
+  try{
+    requirementState=await getJson(projectUrl+'/requirements/jobs',{method:'POST',json:{force:true}});
+  }catch(error){requirementState=previous;S.rfp.s=previous?.status==='done'?'done':'fail';paint();throw error;}
+  await loadRfp();
+});
 Live.capture('[data-analyze-upload]','click',async(_event,button)=>{
   const uploadId=button.dataset.analyzeUpload;
   const job=await getJson(projectUrl+'/requirements/proposal-analysis/jobs',

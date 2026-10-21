@@ -640,22 +640,75 @@ def save_vendor(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
             (text(b, "vendor_id"), project["id"]),
         )
         return update(c, "project_vendors", row, b, values)
-    archived = c.execute(
-        "SELECT * FROM project_vendors WHERE project_id=? AND legal_name=? "
-        "AND active=0 AND deleted_at IS NOT NULL "
-        "ORDER BY deleted_at DESC,created_at DESC LIMIT 1",
-        (project["id"], values["legal_name"]),
-    ).fetchone()
-    if archived:
-        row = dict(archived)
-        restored = update(
-            c, "project_vendors", row, {"version": row["version"]},
-            values | {"display_code": row["display_code"], "deleted_at": None,
-                      "deleted_by": None},
-        )
-        return restored | {"restored": True}
+    # 이전 버전에서 삭제한 업체는 행과 자료가 남아 있었다. 같은 법인명이나
+    # 표시 코드를 다시 쓰기 전에 그 잔여 자료를 지우고 새 ID를 발급한다.
+    archived = rows(c,
+        "SELECT id FROM project_vendors WHERE project_id=? AND active=0 "
+        "AND deleted_at IS NOT NULL AND (legal_name=? OR display_code=?)",
+        (project["id"], values["legal_name"], values["display_code"]),
+    )
+    for old in archived:
+        _purge_vendor(c, s, project["id"], old["id"])
     identity = insert(c, "project_vendors", values)
     return one(c, "SELECT * FROM project_vendors WHERE id=?", (identity,))
+
+
+def _purge_vendor(c: sqlite3.Connection, s: Store, project_id: str, vendor_id: str) -> None:
+    """업체·제안서·분석·평가 참조를 관리 DB 거래와 함께 영구 삭제한다."""
+    from app.documents.document_gateway import delete_upload
+
+    attached = {row[1] for row in c.execute("PRAGMA database_list")}
+    if "vendor_evaluation" not in attached:
+        c.execute("ATTACH DATABASE ? AS vendor_evaluation", (str(s.evaluation_path),))
+        require(c.execute("PRAGMA vendor_evaluation.journal_mode").fetchone()[0].lower() == "delete",
+                "평가 DB의 트랜잭션 모드를 확인하세요.", "PURGE_DB_UNAVAILABLE", 503)
+    require(not c.execute(
+        "SELECT 1 FROM vendor_evaluation.evaluation_sessions WHERE project_id=? LIMIT 1",
+        (project_id,),
+    ).fetchone(), "평가가 시작된 사업의 업체는 삭제할 수 없습니다.", "PROJECT_LOCKED", 409)
+
+    document_path = s.documents_path or s.runtime.path.with_name("documents_parse.sqlite3")
+    if document_path.is_file():
+        if "vendor_documents" not in attached:
+            c.execute("ATTACH DATABASE ? AS vendor_documents", (str(document_path),))
+            require(c.execute("PRAGMA vendor_documents.journal_mode").fetchone()[0].lower() == "delete",
+                    "문서 DB의 트랜잭션 모드를 확인하세요.", "PURGE_DB_UNAVAILABLE", 503)
+        uploads = rows(c,
+            "SELECT id FROM vendor_documents.project_proposal_uploads "
+            "WHERE project_id=? AND vendor_id=?", (project_id, vendor_id))
+        for upload in uploads:
+            delete_upload(document_path, project_id, proposal_upload_id=upload["id"],
+                          connection=c, schema="vendor_documents")
+    else:
+        uploads = []
+
+    upload_ids = [upload["id"] for upload in uploads]
+    ref_ids = [row[0] for row in c.execute(
+        "SELECT id FROM vendor_evaluation.ref_proposal_uploads "
+        "WHERE project_id=? AND vendor_id=?", (project_id, vendor_id))]
+    all_ids = set(upload_ids + ref_ids + [vendor_id])
+    require(not c.execute(
+        "SELECT 1 FROM vendor_evaluation.session_proposals WHERE vendor_id=? LIMIT 1",
+        (vendor_id,),
+    ).fetchone(), "평가에 사용된 업체는 삭제할 수 없습니다.", "PROJECT_LOCKED", 409)
+    c.execute("DELETE FROM vendor_evaluation.ref_proposal_uploads WHERE project_id=? AND vendor_id=?",
+              (project_id, vendor_id))
+    c.execute("DELETE FROM vendor_evaluation.ref_project_vendors WHERE id=? AND project_id=?",
+              (vendor_id, project_id))
+    for identity in all_ids:
+        for schema in ("vendor_evaluation", "main"):
+            c.execute(f"DELETE FROM {schema}.audit_events WHERE project_id=? AND entity_id=?",
+                      (project_id, identity))
+            c.execute(f"DELETE FROM {schema}.sync_inbox WHERE aggregate_id=?",
+                      (identity,))
+            c.execute(f"DELETE FROM {schema}.sync_outbox WHERE aggregate_id=?",
+                      (identity,))
+    c.execute("DELETE FROM project_vendors WHERE id=? AND project_id=?", (vendor_id, project_id))
+    require(not c.execute("PRAGMA vendor_evaluation.foreign_key_check").fetchall(),
+            "평가 자료의 업체 연결을 확인하세요.", "PURGE_FK_INVALID", 503)
+    if document_path.is_file():
+        require(not c.execute("PRAGMA vendor_documents.foreign_key_check").fetchall(),
+                "문서 자료의 업체 연결을 확인하세요.", "PURGE_FK_INVALID", 503)
 
 
 def archive_vendor(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
@@ -665,10 +718,8 @@ def archive_vendor(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
         "SELECT * FROM project_vendors WHERE id=? AND project_id=?",
         (text(b, "vendor_id"), project["id"]),
     )
-    return update(
-        c,
-        "project_vendors",
-        row,
-        b,
-        {"active": 0, "deleted_at": now(), "deleted_by": a.id},
-    )
+    require(row["deleted_at"] is None, "이미 삭제된 업체입니다.", "NOT_FOUND", 404)
+    require(row["version"] == integer(b, "version", 1),
+            "업체 정보가 변경되었습니다. 다시 조회하세요.", "VERSION_CONFLICT", 409)
+    _purge_vendor(c, s, project["id"], row["id"])
+    return {"id": row["id"], "status": "DELETED"}

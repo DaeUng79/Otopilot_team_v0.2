@@ -168,6 +168,7 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
 /* 긴 오류 문단은 두 줄까지만, 경고색 대신 중립색 */
 .filebox .msg.bad{color:var(--text-2);font-weight:400;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 #m-xr .tx{display:none}
+#m-xr .tx.analysis-progress{display:block}
 /* [임시 CSS 문구 교체] 요구사항 요약 실패(배지 .danger) 때만, 카드 안 긴 오류 문단(API 키·.env 안내 포함)을 짧은 안내로 바꿔 보임.
    업로드 실패 문구(배지가 .danger가 아닐 때)는 그대로 보임. JS 담당자가 원 문구를 고치면 아래 두 규칙을 삭제하세요. */
 #rfp:has(.rfp-head .badge.danger) .filebox .msg.bad{font-size:0;line-height:0;display:block;-webkit-line-clamp:unset}
@@ -203,7 +204,7 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
       <div class="reg-b" id="rfp"></div>
     </section>
     <section class="card reg" aria-labelledby="h-pro">
-      <div class="reg-h"><h2 id="h-pro"><span class="no" aria-hidden="true">2</span>제안서 등록</h2><span class="hint">업체마다 1개 · HWPX·PDF</span></div>
+      <div class="reg-h"><h2 id="h-pro"><span class="no" aria-hidden="true">2</span>제안서 등록</h2><span class="hint">업체마다 1개 · HWPX·PDF·PPTX 파일만 등록 가능</span></div>
       <div class="reg-b"><div class="vlist" id="rows"></div></div>
     </section>
     <div class="morebar" id="morebar" hidden>
@@ -267,7 +268,7 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
 <aside class="drawer" id="add" role="dialog" aria-modal="true" aria-labelledby="add-t">
   <header><h2 id="add-t">업체 추가</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
   <form class="dbody form" id="f-add" novalidate>
-    <label class="field">업체명<input id="a-name" placeholder="예: 하늘정보" aria-describedby="a-name-e"><span class="err" id="a-name-e" hidden></span></label>
+    <label class="field">법인명<input id="a-name" placeholder="예: 하늘정보" aria-describedby="a-name-e"><span class="err" id="a-name-e" hidden></span></label>
     <label class="field">평가위원에게 보이는 이름<input id="a-code" placeholder="예: A사" aria-describedby="a-code-e"><span class="hint" id="a-code-h"></span><span class="err" id="a-code-e" hidden></span></label>
     <label class="field">표시 순서<input id="a-ord" inputmode="numeric" aria-describedby="a-ord-e"><span class="err" id="a-ord-e" hidden></span></label>
     <div class="note warn" id="a-lock">평가위원에게는 업체명 대신 이 이름(예: A사)이 보여요. 평가가 시작되면 바꿀 수 없어요.</div>
@@ -336,7 +337,7 @@ function paint(){
       <div class="fa">${r.s==='fail'?'<button class="btn" type="button" data-retry="rfp">다시 시도</button>':''}<button class="btn" type="button" data-up="rfp">파일 바꾸기</button></div></div>`;
   /* ② 제안서 (업체별 한 줄) */
   $('#rows').innerHTML=sorted().map(v=>{const i=S.v.indexOf(v),top=v.revs[0],ver=top?`<span class="vt">v${top.n}</span>`:'';
-    if(!top)return `<div class="vrow drop empty" data-drop="${i}"><div class="who"><span class="code">${h(v.code)}</span><small>${h(v.name.replace('(가상)',''))}</small></div><div class="vi"><b>파일 선택 또는 끌어 놓기</b><span>${v.err?`<span class="bad" style="display:inline">${h(v.err)}</span>`:'HWPX · PDF'}</span></div><div class="vs"><span class="badge">○ 제안서 대기</span></div><div class="va">${pb(String(i),'파일 선택',pk)}</div>${vx(i)}</div>`;
+    if(!top)return `<div class="vrow drop empty" data-drop="${i}"><div class="who"><span class="code">${h(v.code)}</span><small>${h(v.name.replace('(가상)',''))}</small></div><div class="vi"><b>파일 선택 또는 끌어 놓기</b><span>${v.err?`<span class="bad" style="display:inline">${h(v.err)}</span>`:'HWPX · PDF · PPTX'}</span></div><div class="vs"><span class="badge">○ 제안서 대기</span></div><div class="va">${pb(String(i),'파일 선택',pk)}</div>${vx(i)}</div>`;
     const sub=v.err?`<span class="bad">${h(v.err)}</span>`:v.s==='pdfchk'?'<span class="info">PDF 연결 확인 중 · 성공으로 표시하지 않아요</span>':v.s==='fail'?'<span class="bad">파일을 읽지 못했어요. 이전 버전은 그대로예요</span>':v.s==='wait'?'<span>처리를 기다리는 중이에요</span>':`<span title="${h(pathOf('제안서',top.file))}">${h(pathOf("제안서",top.file))}</span>`;
     const act=(v.s==='fail'?`<button class="btn" type="button" data-retry="${i}">다시 시도</button>`:'')+`<button class="btn" type="button" data-up="${i}">${v.s==='unsup'?'다시 올리기':'바꾸기'}</button>`;
     return `<div class="vrow" data-drop="${i}"><div class="who"><span class="code">${h(v.code)}</span><small>${h(v.name.replace('(가상)',''))}</small></div><div class="vi"><b>${h(top.file)}${ver}</b>${sub}</div><div class="vs">${bd(v.s)}</div><div class="va">${act}</div>${vx(i)}</div>`}).join('')+addArea(pk);
@@ -344,13 +345,13 @@ function paint(){
   const files=[['rfp','제안요청서','',r,'제안요청서'],...sorted().map(v=>[String(S.v.indexOf(v)),v.code,v.name,v,'제안서'])].filter(x=>x[3].revs.length);
   $('#m-files').innerHTML=files.length?files.map(([k,lab,nm,o,kind])=>`<div class="mrow"><span class="nm" title="${h(nm)}">${h(lab)}<small>v${o.revs[0].n}</small></span><span class="ls"><button class="tl" type="button" data-view="${k}">${kind==='제안서'?'제안서 보기':'원본 보기'}</button><button class="tl" type="button" data-dl="${k}">내려받기</button><button class="tl" type="button" data-hist="${k}">이력 ${o.revs.length}</button>${o.s==='done'?`<button class="tl" type="button" data-toc="${k}" title="보조 기능이에요">파싱 결과 확인</button>`:''}<button class="tl dng" type="button" data-del="${k}">삭제</button></span></div>`).join(''):'<p class="muted" style="margin:6px 0">아직 등록된 파일이 없어요</p>';
   const xr={wait:['','대기','기다리는 중이에요. 몇 초마다 자동으로 확인해요'],run:['info','처리 중','요구사항을 뽑는 중이에요'],fail:['danger','실패','못 뽑았어요. 원본은 그대로예요'],done:['success','완료','요구사항 추출이 끝났어요']}[r.s];
-  $('#m-xr').innerHTML=!f?'<p class="muted" style="margin:6px 0">제안요청서를 올리면 보여요</p>':`<div class="mrow"><span class="badge ${xr[0]}">${xr[1]}</span><span class="tx">${xr[2]}</span>${r.s==='fail'?'<button class="tl pri" type="button" data-retry="rfp">다시 시도</button>':''}<button class="tl" type="button" data-refresh>새로고침</button></div>`;
+  $('#m-xr').innerHTML=!f?'<p class="muted" style="margin:6px 0">제안요청서를 올리면 보여요</p>':`<div class="mrow"><span class="badge ${xr[0]}">${xr[1]}</span><span class="tx">${xr[2]}</span>${r.s==='fail'?'<button class="tl pri" type="button" data-retry="rfp">다시 시도</button>':''}${r.s==='done'?'<button class="tl" type="button" data-reextract>요구사항 재 추출</button>':''}</div>`;
   $('#morebar').hidden=!f;
   $('#more').hidden=!f;
   const ba=$('#b-add');if(ba)ba.onclick=()=>{adding=true;addErr='';addVal='';paint();$('#i-name').focus()};
   const fi=$('#f-inl');if(fi){$('#i-name').oninput=e=>e.target.removeAttribute('aria-invalid');$('#i-cancel').onclick=()=>{adding=false;addErr='';paint()};
     fi.onsubmit=e=>{e.preventDefault();const n=$('#i-name').value.trim();addVal=n;
-      addErr=!n?'법인명을 적어 주세요':S.v.some(v=>v.name===n)?'이미 있는 업체예요':'';
+      addErr=!n?'법인명을 입력해주세요':S.v.some(v=>v.name===n)?'이미 있는 업체예요':'';
       if(addErr){paint();$('#i-name').focus();return}
       const c=nextCode();S.v.push({code:c,name:n,ord:S.v.length+1,fx:false,s:'none',toc:'none',entries:[],err:'',revs:[]});adding=false;addVal='';paint();toast(c+'로 추가했어요 · 이제 제안서를 올려 주세요')}}
   $$('[data-vedit]').forEach(b=>b.onclick=()=>openVend(S.v[+b.dataset.vedit]));
@@ -362,7 +363,7 @@ function paint(){
   $$('[data-view]').forEach(b=>b.onclick=()=>toast('원본 파일을 새 창에서 열어요 (시안)'));
   $$('[data-dl]').forEach(b=>b.onclick=()=>{const o=b.dataset.dl==='rfp'?S.rfp:S.v[+b.dataset.dl];toast('내려받는 이름: '+pathOf(b.dataset.dl==='rfp'?'제안요청서':'제안서',fileOf(o)))});
   $$('[data-del]').forEach(b=>b.onclick=()=>b.dataset.del==='rfp'?delRfp():delVendorDoc(S.v[+b.dataset.del]));
-  $$('[data-refresh]').forEach(b=>b.onclick=()=>toast(S.rfp.s==='done'?'최신 상태예요':'아직 처리 중이에요. 자동으로 다시 확인해요'));
+  $$('[data-reextract]').forEach(b=>b.onclick=()=>toast('요구사항을 다시 추출해요 (시안)'));
   $$('[data-drop]').forEach(z=>{z.ondragover=e=>{e.preventDefault();z.classList.add('over')};z.ondragleave=()=>z.classList.remove('over');
     z.ondrop=e=>{e.preventDefault();z.classList.remove('over');const f=e.dataTransfer.files[0];if(f)handleFile(z.dataset.drop,f)}});
   const n=remainCount(),ready=n===0;
@@ -372,7 +373,7 @@ function paint(){
   $$('#demo [data-r]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.r===S.rfp.s));
   $('#demo [data-use]').setAttribute('aria-pressed',S.inUse);
 }
-function pick(key){target=key;$('#file').accept=key==='rfp'?'.hwpx':'.hwpx,.pdf';$('#file').value='';$('#file').click()}
+function pick(key){target=key;$('#file').accept=key==='rfp'?'.hwpx':'.hwpx,.pdf,.pptx';$('#file').value='';$('#file').click()}
 $('#b-next').addEventListener('click',e=>{if(remainCount()){e.preventDefault();toast('남은 일을 끝내면 열려요 · 남은 일 '+remainCount()+'가지')}});
 function flow(o){timers.push(setTimeout(()=>{if(o.s!=='wait')return;o.s='run';paint();
   timers.push(setTimeout(()=>{if(o.s!=='run')return;const f=fileOf(o);
@@ -382,8 +383,8 @@ function flow(o){timers.push(setTimeout(()=>{if(o.s!=='wait')return;o.s='run';pa
     paint()},1800))},1000))}
 function handleFile(key,f){
   const o=key==='rfp'?S.rfp:S.v[+key],ext=(f.name.split('.').pop()||'').toLowerCase();
-  const okExt=key==='rfp'?['hwpx']:['hwpx','pdf'];
-  if(!okExt.includes(ext)){o.err=key==='rfp'?'HWPX 파일만 올릴 수 있어요':'HWPX 또는 PDF만 올릴 수 있어요';paint();toast(o.err);return}
+  const okExt=key==='rfp'?['hwpx']:['hwpx','pdf','pptx'];
+  if(!okExt.includes(ext)){o.err=key==='rfp'?'HWPX 파일만 올릴 수 있어요':ext==='hwp'?'HWP 파일은 등록할 수 없어요. HWPX·PDF·PPTX 파일을 선택해 주세요.':'HWPX·PDF·PPTX 파일만 올릴 수 있어요';paint();toast(o.err);return}
   if(f.size>50*1024*1024){o.err='파일이 너무 커요. 50MB까지 올릴 수 있어요';paint();toast(o.err);return}
   const n=o.revs.length?o.revs[0].n+1:1;o.revs.unshift(rv(n,f.name,NOW,Math.max(f.size/1048576,0.1).toFixed(1)+'MB'));
   o.s='wait';o.toc='none';o.err='';o.entries=[];paint();flow(o);toast(`v${n}로 올렸어요 · ${pathOf(key==='rfp'?'제안요청서':'제안서',f.name)}`)}
@@ -403,18 +404,18 @@ function drawHist(){const q=$('#hist-q').value.trim().toLowerCase(),o=histObj;
    :'<li class="muted">찾는 이력이 없어요</li>';
   $$('[data-rv]').forEach(b=>b.onclick=()=>toast('이 버전의 원본을 열어요 (시안)'))}
 $('#hist-q').addEventListener('input',()=>histObj&&drawHist());
-function delVendorDoc(v){askReason({title:`${v.code} 제안서를 삭제할까요?`,body:'목록에서 빠져요. 서명 증빙은 보존돼요. 이미 시작한 평가 자료는 바뀌지 않아요.',block:'',onOk:()=>{closeLayer($('#hist'));v.revs=[];v.s='none';v.toc='none';v.err='';paint();toast(v.code+' 제안서를 삭제했어요 · 서명 증빙은 보존돼요')}})}
+function delVendorDoc(v){askReason({title:`${v.code} 제안서를 영구 삭제할까요?`,body:'파일과 연결된 데이터가 삭제되며 복구할 수 없습니다.',block:'',requireReason:false,onOk:()=>{closeLayer($('#hist'));v.revs=[];v.s='none';v.toc='none';v.err='';paint();toast(v.code+' 제안서를 삭제했어요')}})}
 $('#hist-del').onclick=()=>delVendorDoc(histObj);
 
 /* 사유 입력 삭제 창 */
-function askReason({title,body,block,onOk}){$('#rdlg-t').textContent=title;$('#rdlg-b').textContent=body;$('#rdlg-r').value='';$('#rdlg-r').removeAttribute('aria-invalid');$('#rdlg-e').hidden=true;
+function askReason({title,body,block,onOk,requireReason=true}){$('#rdlg-t').textContent=title;$('#rdlg-b').textContent=body;$('#rdlg-r').value='';$('#rdlg-r').removeAttribute('aria-invalid');$('#rdlg-e').hidden=true;$('#rdlg-r').closest('label').hidden=!requireReason;
   const bl=$('#rdlg-blk');bl.hidden=true;bl.textContent=block||'';$('#rdlg-ok').onclick=()=>{
     const r=$('#rdlg-r').value.trim();
-    if(!r){$('#rdlg-e').textContent='사유를 적어 주세요';$('#rdlg-e').hidden=false;$('#rdlg-r').setAttribute('aria-invalid','true');$('#rdlg-r').focus();return}
+    if(requireReason&&!r){$('#rdlg-e').textContent='사유를 적어 주세요';$('#rdlg-e').hidden=false;$('#rdlg-r').setAttribute('aria-invalid','true');$('#rdlg-r').focus();return}
     if(block){bl.hidden=false;return}
     closeLayer($('#rdlg'));onOk()};
-  openLayer($('#rdlg'),'#rdlg-r')}
-function delRfp(){askReason({title:'제안요청서 등록을 삭제할까요?',body:'삭제하면 목록에서 빠지고 이력은 감사 기록에 남아요.',block:S.inUse?'승인된 평가표·평가에서 쓰고 있어 지울 수 없어요. 평가 쪽 사용이 끝난 뒤에 지울 수 있어요.':'',
+  openLayer($('#rdlg'),requireReason?'#rdlg-r':'#rdlg-ok')}
+function delRfp(){askReason({title:'제안요청서를 영구 삭제할까요?',body:'파일과 연결된 데이터가 삭제되며 복구할 수 없습니다.',requireReason:false,block:S.inUse?'평가에 사용 중인 문서는 삭제할 수 없습니다.':'',
   onOk:()=>{timers.forEach(clearTimeout);S.rfp.revs=[];S.rfp.s='none';S.rfp.toc='none';S.rfp.err='';paint();toast('제안요청서 등록을 삭제했어요')}})}
 
 /* 목차 칸 (보조) */
@@ -440,13 +441,13 @@ function openVend(v){editV=v||null;const fixed=!!(v&&S.inUse&&v.fx);
   $('#a-del').hidden=!v;$('#a-block').hidden=true;$('#a-lock').hidden=fixed;openLayer($('#add'),'#a-name')}
 function delVendor(v){
   if(S.inUse&&v.fx){toast('평가에 고정된 업체라 지울 수 없어요');return}
-  confirmDlg({title:`${v.code} 업체를 삭제할까요?`,body:'목록에서 빠지고 올린 제안서 이력은 감사 기록에 남아요.',ok:'삭제',danger:true,onOk:()=>{S.v.splice(S.v.indexOf(v),1);paint();toast(v.code+' 업체를 삭제했어요')}})}
+  confirmDlg({title:`${v.code} 업체를 삭제할까요?`,body:'업체 정보와 제안서·분석 자료가 영구 삭제됩니다.',ok:'영구 삭제',danger:true,onOk:()=>{S.v.splice(S.v.indexOf(v),1);paint();toast(v.code+' 업체를 삭제했어요')}})}
 $('#a-del').onclick=()=>{const v=editV;
   if(S.inUse&&v.fx){$('#a-block').hidden=false;toast('평가에 고정된 업체는 지울 수 없어요');return}
-  closeLayer($('#add'));confirmDlg({title:`${v.code} 업체를 삭제할까요?`,body:'목록에서 빠지고 올린 제안서 이력은 감사 기록에 남아요.',ok:'삭제',danger:true,onOk:()=>{S.v.splice(S.v.indexOf(v),1);paint();toast(v.code+' 업체를 삭제했어요')}})};
+  closeLayer($('#add'));confirmDlg({title:`${v.code} 업체를 삭제할까요?`,body:'업체 정보와 제안서·분석 자료가 영구 삭제됩니다.',ok:'영구 삭제',danger:true,onOk:()=>{S.v.splice(S.v.indexOf(v),1);paint();toast(v.code+' 업체를 삭제했어요')}})};
 $('#f-add').addEventListener('submit',e=>{e.preventDefault();
   const n=$('#a-name').value.trim(),c=$('#a-code').value.trim(),o=$('#a-ord').value.trim(),others=S.v.filter(v=>v!==editV);
-  const m={'a-name':!n?'법인명을 적어 주세요':others.some(v=>v.name===n)?'이미 있는 업체예요':'','a-code':!c?'표시 코드를 적어 주세요':others.some(v=>v.code===c)?'이미 쓰는 표시 코드예요':'','a-ord':!/^\d+$/.test(o)||+o<1?'순서는 1 이상의 숫자로 적어 주세요':''};
+  const m={'a-name':!n?'법인명을 입력해주세요':others.some(v=>v.name===n)?'이미 있는 업체예요':'','a-code':!c?'표시 코드를 적어 주세요':others.some(v=>v.code===c)?'이미 쓰는 표시 코드예요':'','a-ord':!/^\d+$/.test(o)||+o<1?'순서는 1 이상의 숫자로 적어 주세요':''};
   let bad=null;for(const id in m){const el=$('#'+id),er=$('#'+id+'-e');er.hidden=!m[id];if(m[id]){er.textContent=m[id];el.setAttribute('aria-invalid','true');bad=bad||el}else el.removeAttribute('aria-invalid')}
   if(bad){bad.focus();return}
   if(editV){Object.assign(editV,{name:n,code:c,ord:+o});toast('저장했어요')}

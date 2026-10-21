@@ -37,7 +37,7 @@ from app.evaluation.documents.rfp_adapter import DocumentReader
 from app.documents.hwpx_storage import connect
 
 MAX_FILE_SIZE = 50 * 1024 * 1024
-PROPOSAL_TYPES = (".hwpx", ".hwp", ".pdf", ".pptx")
+PROPOSAL_TYPES = (".hwpx", ".pdf", ".pptx")
 MATERIAL_TYPES = (".pdf", ".hwpx", ".hwp", ".xlsx", ".docx", ".pptx", ".png", ".jpg", ".jpeg", ".zip", ".html")
 log = logging.getLogger(__name__)
 
@@ -134,6 +134,7 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
                     "business_status": result.get("business_status") or {},
                     "requirement_list": result.get("requirement_list") or {},
                     "details": result.get("details") or {},
+                    "duplicate_code_resolutions": result.get("duplicate_code_resolutions") or [],
                     "warnings": result.get("warnings") or []}
 
         return {"data": await asyncio.to_thread(run, read_saved)}
@@ -172,7 +173,8 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
         draft = rfp_api.criteria_status(database, project_id)
         if draft.get("result"):
             draft["result"]["scoring_rows"] = criteria_approval.scoring_rows_with_source_pages(
-                database, project_id, draft["result"]["rows"])
+                database, project_id, draft["result"]["rows"],
+                draft["result"].get("template_source"))
         with store.connect() as db:
             acked = {r["id"] for r in rows(
                 db, "SELECT id FROM ref_approved_criteria_versions WHERE project_id=? AND status='APPROVED' AND is_deleted=0",
@@ -383,34 +385,54 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
     @app.delete("/api/v2/projects/{project_id}/proposals/{upload_id}")
     async def proposal_archive(project_id: str, upload_id: str, request: Request):
         await project(request, project_id, edit=True)
-        person = await actor(request)
-        body = await json_body(request)
-        result = await asyncio.to_thread(run, document_gateway.archive_upload, database, project_id,
-                                         reason=str(body.get("reason", "")), actor_id=person.id,
+        with store.connect() as db:
+            require(not db.execute(
+                "SELECT 1 FROM evaluation_sessions WHERE project_id=? LIMIT 1",
+                (project_id,)).fetchone(),
+                "평가 회차가 연결된 문서는 삭제할 수 없습니다.", "DOCUMENT_IN_USE", 409)
+        result = await asyncio.to_thread(run, document_gateway.delete_upload, database, project_id,
                                          proposal_upload_id=upload_id)
-        upload = await asyncio.to_thread(run, proposal_document_adapter.get_proposal,
-                                         database, project_id, upload_id)
-        await sync()
-        ack = await asyncio.to_thread(
-            apply_event, store,
-            event_envelope("proposal.archived", upload_id, proposal_document_adapter.ready_event(upload),
-                           version=upload["version"]), "documents")
-        return {"data": result | {"ack": ack}}
+        with store.connect(write=True) as db:
+            db.execute("DELETE FROM ref_proposal_uploads WHERE id=? AND project_id=?",
+                       (upload_id, project_id))
+            db.execute("DELETE FROM sync_inbox WHERE aggregate_id=? AND source='documents'",
+                       (upload_id,))
+            db.execute("DELETE FROM audit_events WHERE project_id=? AND entity_id=?",
+                       (project_id, upload_id))
+        return {"data": result}
 
     @app.delete("/api/v2/projects/{project_id}/rfp/{revision}")
     async def rfp_archive(project_id: str, revision: int, request: Request):
         await project(request, project_id, edit=True)
-        person = await actor(request)
-        body = await json_body(request)
         with store.connect() as db:
             require(not db.execute(
-                "SELECT 1 FROM ref_approved_criteria_versions v JOIN ref_rfp_bindings b ON b.id=v.rfp_binding_id "
-                "WHERE b.project_id=? AND b.upload_revision=? AND v.status='APPROVED' AND v.is_deleted=0",
-                (project_id, revision)).fetchone(),
-                "승인된 평가표가 쓰는 제안요청서는 지울 수 없습니다.", "DOCUMENT_IN_USE", 409)
-        result = await asyncio.to_thread(run, document_gateway.archive_upload, database, project_id,
-                                         reason=str(body.get("reason", "")), actor_id=person.id,
+                "SELECT 1 FROM evaluation_sessions WHERE project_id=? LIMIT 1",
+                (project_id,)).fetchone(),
+                "평가 회차가 연결된 문서는 삭제할 수 없습니다.", "DOCUMENT_IN_USE", 409)
+        result = await asyncio.to_thread(run, document_gateway.delete_upload, database, project_id,
                                          upload_revision=revision)
+        with store.connect(write=True) as db:
+            bindings = [row[0] for row in db.execute(
+                "SELECT id FROM ref_rfp_bindings WHERE project_id=? AND upload_revision=?",
+                (project_id, revision))]
+            for binding_id in bindings:
+                versions = [row[0] for row in db.execute(
+                    "SELECT id FROM ref_approved_criteria_versions WHERE rfp_binding_id=?",
+                    (binding_id,))]
+                for version_id in versions:
+                    while db.execute(
+                        "DELETE FROM ref_approved_criteria_items WHERE approved_criteria_version_id=? "
+                        "AND id NOT IN (SELECT parent_id FROM ref_approved_criteria_items "
+                        "WHERE parent_id IS NOT NULL)", (version_id,)).rowcount:
+                        pass
+                    db.execute("DELETE FROM ref_approved_criteria_versions WHERE id=?", (version_id,))
+                    db.execute("DELETE FROM sync_inbox WHERE aggregate_id=? AND source='documents'",
+                               (version_id,))
+                    db.execute("DELETE FROM audit_events WHERE project_id=? AND entity_id=?",
+                               (project_id, version_id))
+                db.execute("DELETE FROM ref_rfp_bindings WHERE id=?", (binding_id,))
+                db.execute("DELETE FROM audit_events WHERE project_id=? AND entity_id=?",
+                           (project_id, binding_id))
         return {"data": result}
 
     # ---- MAT-01~03 결과 자료 ----

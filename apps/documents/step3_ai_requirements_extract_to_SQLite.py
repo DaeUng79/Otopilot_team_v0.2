@@ -330,7 +330,7 @@ def group_detail_items(document, details):
                     found.update(CODE_PATTERN.findall(text))
                 row_codes.append(sorted(found))
             distinct_codes = {code for codes in row_codes for code in codes}
-            if len(distinct_codes) >= 2 and sum(bool(codes) for codes in row_codes) >= 2:
+            if distinct_codes and sum(bool(codes) for codes in row_codes) >= 2:
                 first_item_row = next(i for i, codes in enumerate(row_codes) if codes)
                 header_rows = copy.deepcopy(rows[:first_item_row])
                 current = None
@@ -412,7 +412,7 @@ def group_detail_items(document, details):
 
 
 DATABASE = Path(__file__).resolve().parents[1] / "server/data/database/documents_parse.sqlite3"
-EXTRACTOR_VERSION = "requirements-sqlite-v5"
+EXTRACTOR_VERSION = "requirements-sqlite-v6"
 BUSINESS_CATEGORIES = {
     "current_status": "사업 관련 현황",
     "background_and_need": "추진 배경 및 필요성",
@@ -451,6 +451,51 @@ BUSINESS_STATUS_SCHEMA = {
         for key in BUSINESS_CATEGORIES
     }, "required": list(BUSINESS_CATEGORIES), "additionalProperties": False,
 }
+DUPLICATE_SCHEMA = {
+    "type": "object", "properties": {
+        "action": {"type": "string", "enum": ["merge", "remove_duplicate"]},
+        "keep_index": {"type": "integer"},
+        "reason": {"type": "string"},
+    }, "required": ["action", "keep_index", "reason"], "additionalProperties": False,
+}
+
+
+def _duplicate_groups(document: dict, details: dict) -> dict[str, list[tuple[int, dict]]]:
+    groups = {}
+    for index, item in enumerate(group_detail_items(document, details)):
+        if len(item["codes"]) == 1:
+            groups.setdefault(item["codes"][0], []).append((index, item))
+    return {code: items for code, items in groups.items() if len(items) > 1}
+
+
+def _resolve_duplicate_codes(client, document: dict, details: dict, model: str):
+    """Only duplicated codes need an extra AI decision; keep the source blocks intact."""
+    resolutions = []
+    usage = {key: 0 for key in ("prompt_tokens", "completion_tokens", "total_tokens")}
+    for code, items in sorted(_duplicate_groups(document, details).items()):
+        candidates = [{"index": index, "blocks": compact_blocks({"blocks": item["blocks"]})}
+                      for index, item in items]
+        if len(json.dumps(candidates, ensure_ascii=False)) > 100_000:
+            raise RequirementsError(f"중복 코드 {code}의 원문이 너무 길어 안전하게 정리할 수 없습니다.")
+        answer, consumed = _response(
+            client, model=model,
+            prompt=("같은 요구사항 코드의 원문 항목을 비교하세요. 의미 있는 내용이 서로 다르면 "
+                    "merge를 선택해 모든 항목을 통합하세요. 내용이 실질적으로 동일하면 "
+                    "remove_duplicate를 선택하고 가장 완전한 항목의 index를 keep_index에 넣으세요. "
+                    "merge일 때 keep_index는 첫 항목의 index입니다. 원문에 없는 내용은 만들지 마세요."),
+            payload={"code": code, "items": candidates}, schema=DUPLICATE_SCHEMA,
+            name="duplicate_requirement_code_decision")
+        indexes = {index for index, _ in items}
+        if (answer.get("action") not in {"merge", "remove_duplicate"}
+                or answer.get("keep_index") not in indexes
+                or not isinstance(answer.get("reason"), str) or not answer["reason"].strip()):
+            raise RequirementsError(f"중복 코드 {code}에 대한 AI 정리 결과가 올바르지 않습니다.")
+        resolutions.append({"code": code, "item_indexes": sorted(indexes),
+                            "action": answer["action"], "keep_index": answer["keep_index"],
+                            "reason": answer["reason"].strip()})
+        for key in usage:
+            usage[key] += consumed[key]
+    return resolutions, usage
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS requirement_results (
@@ -619,6 +664,20 @@ def validate_result(document: dict, result: dict) -> None:
         if included & scope:
             raise RequirementsError("요구사항 총괄표와 세부 내역의 원문 범위가 겹칩니다.")
         included.update(scope)
+    groups = _duplicate_groups(document, result["details"])
+    resolutions = result.get("duplicate_code_resolutions")
+    if not isinstance(resolutions, list) or {r.get("code") for r in resolutions if isinstance(r, dict)} != set(groups):
+        raise RequirementsError("중복 요구사항 코드 정리 결과가 원문과 일치하지 않습니다.")
+    if len(resolutions) != len(groups):
+        raise RequirementsError("중복 요구사항 코드 정리 결과가 중복되었습니다.")
+    for resolution in resolutions:
+        indexes = {index for index, _ in groups[resolution["code"]]}
+        if (resolution.get("item_indexes") != sorted(indexes)
+                or resolution.get("keep_index") not in indexes
+                or resolution.get("action") not in {"merge", "remove_duplicate"}
+                or not isinstance(resolution.get("reason"), str)
+                or not resolution["reason"].strip()):
+            raise RequirementsError("중복 요구사항 코드 정리 결과가 올바르지 않습니다.")
 
 
 def extract_requirements(document: dict, *, client=None, env_path=ENV_PATH,
@@ -642,6 +701,14 @@ def extract_requirements(document: dict, *, client=None, env_path=ENV_PATH,
                 usage[key] += consumed[key]
         business = _section(document, selected["business_block_ids"])
         business_status, consumed = _summarize_business(client, business, model)
+        for key in usage:
+            usage[key] += consumed[key]
+        preliminary_details, _ = _selected_section(document, selected["detail_block_ids"])
+        preliminary_list, _ = _summary_tables(document, selected["list_block_ids"])
+        _, duplicate_details, _ = _disjoint_sections(
+            document, preliminary_list["block_ids"], preliminary_details["block_ids"])
+        duplicate_code_resolutions, consumed = _resolve_duplicate_codes(
+            client, document, duplicate_details, model)
         for key in usage:
             usage[key] += consumed[key]
     finally:
@@ -679,7 +746,8 @@ def extract_requirements(document: dict, *, client=None, env_path=ENV_PATH,
         "business_source_block_ids": business["block_ids"],
         "business_status": business_status,
         "requirement_list": requirement_list,
-        "details": details, "usage": usage, "validation": {
+        "details": details, "duplicate_code_resolutions": duplicate_code_resolutions,
+        "usage": usage, "validation": {
             "verbatim_requirements": True, "list_codes": list_codes,
             "detail_codes": detail_codes, "missing_detail_codes": missing,
             "excluded_short_fragments": excluded_details,

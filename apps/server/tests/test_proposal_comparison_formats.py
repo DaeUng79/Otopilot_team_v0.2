@@ -30,7 +30,7 @@ class ProposalComparisonFormatsTest(unittest.TestCase):
                 ("label-title", "요구사항 명칭"), ("value-title", "업무 분석"))]
             result = {"business_status": status,
                       "details": {"block_ids": ["table"], "blocks": blocks},
-                      "validation": {"list_codes": ["FUN-1"]}}
+                      "validation": {"list_codes": [], "detail_codes": ["FUN-1"]}}
             with sqlite3.connect(database) as connection:
                 connection.executescript("""
                     CREATE TABLE project_rfp_uploads
@@ -51,6 +51,18 @@ class ProposalComparisonFormatsTest(unittest.TestCase):
             overview = comparison_overview(database, "project")
             self.assertEqual(overview["status"], "ready")
             self.assertEqual(overview["business_status"], status)
+            with sqlite3.connect(database) as connection:
+                connection.execute("CREATE TABLE requirement_jobs "
+                                   "(project_id TEXT, revision INTEGER, status TEXT)")
+                connection.execute("INSERT INTO requirement_jobs VALUES ('project',1,'running')")
+            self.assertEqual(comparison_overview(database, "project")["status"],
+                             "waiting_for_requirements")
+            with sqlite3.connect(database) as connection:
+                connection.execute("UPDATE requirement_jobs SET status='done'")
+                connection.execute("UPDATE requirement_results SET result_json=?",
+                                   (json.dumps(result | {"extractor_version": "requirements-sqlite-v5"}),))
+            self.assertEqual(comparison_overview(database, "project")["status"],
+                             "waiting_for_requirements")
 
     def test_requirement_number_with_short_code(self):
         pairs = [("요구사항 분류", "기능 요구사항"), ("요구사항 번호", "FUN-1"),

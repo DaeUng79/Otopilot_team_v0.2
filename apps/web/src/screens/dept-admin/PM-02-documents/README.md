@@ -17,7 +17,7 @@
 이 화면은 최신 업로드의 고정 파싱 버전을 `/rfp/preview`와
 `/rfp/preview/pages/{n}`에서 읽고, `/rfp/preview/pages/{n}/svg`로 원본 쪽을 렌더링한다. 렌더링할 수 없으면 저장된 파싱 내용을 보여준다. 평가위원 EV-03은 별도 로그인과
 참석 확인을 요구한다.
-업체별 제안서 등록·이력·원본·보관 처리(PRO-01~03)는 `POST /api/v2/projects/{id}/vendors/{vendor_id}/proposals`, `GET .../proposals`, `.../proposals/{id}/download|source`, `DELETE .../proposals/{id}`로 연결했다(HWPX·HWP·PDF·PPTX, 2026-10-18). 요구사항 추출 상태·재시도(DOC-03·04)는 `.../requirements`, `.../requirements/jobs`. 목차 수정은 아직 연결되지 않았다.
+업체별 제안서 등록·이력·원본·영구 삭제(PRO-01~03)는 `POST /api/v2/projects/{id}/vendors/{vendor_id}/proposals`, `GET .../proposals`, `.../proposals/{id}/download|source`, `DELETE .../proposals/{id}`로 연결했다. 새 등록은 HWPX·PDF·PPTX만 허용하며 HWP는 화면과 서버에서 거부한다. 제안요청서와 제안서의 삭제는 평가 시작 전 사업에서만 허용하며, 선택한 등록과 전용 분석 데이터를 제거한다. 다른 등록 건이 공유하는 원본은 보존한다. 업체 삭제(PRJ-07)는 같은 제한 아래 업체 ID의 모든 제안서 차수·분석·평가 참조를 영구 삭제한다. 같은 법인명을 다시 등록하면 새 업체 ID가 부여된다. 요구사항 추출 상태·재시도(DOC-03·04)는 `.../requirements`, `.../requirements/jobs`. 목차 수정은 아직 연결되지 않았다.
 
 제안서의 `제안서 보기`는 `/app/dept-admin/PM-02/design/proposal-preview.html?project_id={id}&upload_id={id}`로 이동한다. 제안요청서와 같은 쪽 넘김 화면에서 PDF는 원본을 쪽별 PNG로 렌더링하고, HWPX·HWP는 원본 SVG를 표시한다. 원본 렌더링에 실패하면 저장된 파싱 내용을 표시한다. PPTX는 현재 파싱 내용만 표시한다. PDF 렌더링에는 `PyMuPDF`가 필요하다.
 
