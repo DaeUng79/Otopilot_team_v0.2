@@ -34,6 +34,10 @@ td input.cell,td select.cell{min-height:40px;font-size:var(--t-base)}
 
 .lockc{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:32px}
 .lockc .ico{width:72px;height:72px;border-radius:50%;background:var(--gray-10);display:grid;place-items:center;font-size:30px}
+.pending{margin-top:10px;text-align:left;width:min(420px,100%);border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px 18px;background:var(--gray-0)}
+.lockc .pending strong{font-size:var(--t-base)}
+.pending ul{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0;padding:0;list-style:none}
+.pending li{padding:5px 12px;border-radius:var(--radius-full);background:var(--warning-5);color:var(--text-1);font-weight:700}
 .lockc strong{font-size:var(--t-2xl)}
 .prog{width:min(420px,100%);height:12px;border-radius:var(--radius-full);background:var(--gray-10);overflow:hidden}
 .prog i{display:block;height:100%;background:var(--primary-50);border-radius:var(--radius-full)}
@@ -115,12 +119,13 @@ p.legend{display:none}
 <script>
 /* 가상 데이터 */
 const CO=[['(가상) 가나다시스템',[88,92,85,90,94,79,91]],['(가상) 라마바소프트',[84,87,90,82,86,88,95]],['(가상) 사아자테크',[78,85,80,88,76,83,81]]];
-const N=7;let st='before',SUB=5,tab=0,dlLog=[];   /* before: 제출 중 · preview: 전원 제출, 위원장 확정 전 · final: 위원장 최종 제출 */
+let N=7,st='before',SUB=5,tab=0,dlLog=[],pendingMembers=['위원 6','위원 7'];   /* before: 제출 중 · preview: 전원 제출, 위원장 확정 전 · final: 위원장 최종 제출 */
+function reportName(ext){const name=($('.pj-title h1')?.textContent||'사업').trim().replace(/[\\/:*?"<>|]/g,'_');const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(part=>[part.type,part.value]));return `${name}_정성평가_${parts.year}${parts.month}${parts.day}.${ext}`}
 function calc(){return CO.map(([name,s])=>{const mx=Math.max(...s),mn=Math.min(...s);const imx=s.indexOf(mx),imn=s.indexOf(mn);
   const keep=s.filter((v,i)=>i!==imx&&i!==imn);return {name,s,imx,imn,avg:keep.reduce((a,b)=>a+b,0)/keep.length}}).sort((a,b)=>b.avg-a.avg)}
 const f1=x=>x.toFixed(1);
 function report(){const R=calc();const rows=[['순위','업체','최종 점수(최고·최저 제외 평균)',...Array.from({length:N},(_,i)=>'위원 '+(i+1))],...R.map((r,i)=>[i+1,r.name,f1(r.avg),...r.s])];
-  const t='﻿'+rows.map(r=>r.join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download='평가결과_보고서.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);
+  const t='﻿'+rows.map(r=>r.join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download=reportName('csv');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);
   dlLog.push('2026-10-28 17:05');render();toast('다운로드했어요. 누가 언제 받았는지 기록돼요')}
 function render(){
   const fin=st==='final';
@@ -131,7 +136,12 @@ function render(){
   if(st==='before'){
     card.innerHTML=`<div class="lockc"><div class="ico" aria-hidden="true">🔒</div><strong>모든 위원이 제출하면 열려요</strong><p class="muted">점수 제출 <b class="tnum" style="color:var(--text-1)">${SUB}/${N}</b>명</p>
     <div class="prog" role="progressbar" aria-valuemin="0" aria-valuemax="${N}" aria-valuenow="${SUB}" aria-label="점수 제출 ${SUB}/${N}"><i style="width:${SUB/N*100}%"></i></div>
-    <p class="muted">사업담당자(관리자)에게는 위원별 점수가 공개되지 않아요. 제출한 사람 수만 보여요.</p></div>`;return}
+    <div class="pending"><strong>미제출 위원현황 · ${pendingMembers.length}명</strong><ul>${pendingMembers.map(name=>`<li>${h(name)}</li>`).join('')}</ul></div>
+    <p class="muted">제출 여부를 확인해 위원에게 안내할 수 있어요. 개별 점수는 공개되지 않아요.</p></div>`;return}
+  if(st==='preview'){
+    card.innerHTML='<div class="lockc"><div class="ico" aria-hidden="true">✓</div><strong>모든 위원이 평가를 제출했어요</strong><p class="muted">제출 '+SUB+'/'+N+'명 · 이제 위원장이 결과를 취합하고 서명한 뒤 최종 제출합니다.</p></div>';
+    return;
+  }
   const R=calc();
   card.innerHTML=`<div class="facts">${fin?'<span class="badge success">✓ 위원장 최종 제출 2026-10-28 16:42</span>':'<span class="badge warning">미확정</span><span class="badge success">✓ 제출 7/7</span><span class="muted">위원장이 서명하고 최종 제출하면 확정돼요</span>'}<span class="formula">업체 점수 = 위원 ${N}명 점수에서 가장 높은 점수와 가장 낮은 점수를 뺀 ${N-2}명의 평균</span></div>
   ${fin?`<div class="tabs" role="tablist"><button class="tab" role="tab" id="t0" aria-selected="${tab===0}" type="button">업체 순위</button><button class="tab" role="tab" id="t1" aria-selected="${tab===1}" type="button">위원별 점수</button></div>`:''}

@@ -46,7 +46,7 @@ class ProposalItemSummaryTest(unittest.TestCase):
         client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **_: response)))
         with patch.object(summary, "_client", return_value=client):
             result = summary.summarize_item("항목", "기준", [{"id": "p1", "evidence": [{"page": 1, "text": "근거"}]}])
-        self.assertEqual(result["p1"], "관련 제안 내용을 확인하기 어렵습니다.")
+        self.assertEqual(result["p1"], "아래 페이지를 참고 하시기 바랍니다")
 
 
 if __name__ == "__main__":

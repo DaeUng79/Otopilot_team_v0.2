@@ -35,11 +35,11 @@ save=async function(){
 };
 Live.capture('[data-a="save"],[data-g="save"]','click',async()=>{try{await save();if(layer)stepCheck();}catch(e){S.failed=true;refresh();throw e;}});
 document.addEventListener('keydown',async e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();e.stopImmediatePropagation();if(S.submitted)return;try{await save();}catch(error){S.failed=true;refresh();Live.message(error.message);}}},true);
-Live.capture('[data-a="submit"]','click',async()=>{liveReview=await Live.api('SCO-03',{session_id:sessionId});stepCheck();});
+Live.capture('[data-a="submit"]','click',async()=>{if(liveSignature&&S.signed===hash()&&!dirtyN()&&!invalidN()&&!empties().length){stepConfirm();return;}if(dirtyN()||invalidN()||empties().length){stepCheck();return;}liveReview=await Live.api('SCO-03',{session_id:sessionId});stepCheck();});
 Live.capture('.ev-modal [data-g="next"]','click',async()=>{
  if(layer?.querySelector('#pad')){
   if(!pad?.hasInk())throw Error('서명을 입력해 주세요.');
-  liveSignature=await Live.api('SCO-04',{session_id:sessionId,purpose:'EVALUATION',payload_sha256:liveReview.payload_sha256,image:layer.querySelector('#pad').toDataURL('image/png'),consent:true,consent_text_version:'signature-v2'});S.signed=hash();stepConfirm();
+  liveSignature=await Live.api('SCO-04',{session_id:sessionId,purpose:'EVALUATION',payload_sha256:liveReview.payload_sha256,image:layer.querySelector('#pad').toDataURL('image/png'),consent:true,consent_text_version:'signature-v2'});S.signed=hash();closeLayer(true);renderBar();toast('서명을 저장했어요. 제출 하기를 눌러 주세요');
  }else{if(dirtyN()||invalidN()||empties().length)throw Error('모든 점수를 저장하고 확인하세요.');liveReview=await Live.api('SCO-03',{session_id:sessionId});stepSign();}
 });
 Live.capture('.ev-modal [data-g="go"]','click',async()=>{if(!liveSignature)throw Error('서명이 필요합니다.');await Live.api('SCO-05',{session_id:sessionId,signature_id:liveSignature.id,payload_sha256:liveReview.payload_sha256});closeLayer(true);await loadScores();toast('평가를 제출했어요');});

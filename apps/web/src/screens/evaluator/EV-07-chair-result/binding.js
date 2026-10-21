@@ -29,4 +29,9 @@ applyChairData();
 Live.capture('#agg','click',async()=>{await Live.api('RES-02',{session_id:chairSession.id});chairData=await Live.api('RES-01',{session_id:chairSession.id});applyChairData();});
 Live.capture('#sg','click',async()=>{if(!checked||!pad?.hasInk())throw Error('결과를 확인하고 서명하세요.');chairSignature=await Live.api('RES-03',{session_id:chairSession.id,result_run_id:chairData.run.id,purpose:'CHAIR_RESULT',payload_sha256:chairData.payload_sha256,image:$('#pad').toDataURL('image/png'),consent:true,consent_text_version:'signature-v2'});signed=true;render();});
 Live.capture('.ev-modal [data-g="go"]','click',async()=>{if(!chairSignature||!checked)throw Error('확인과 서명이 필요합니다.');await Live.api('RES-04',{session_id:chairSession.id,result_run_id:chairData.run.id,signature_id:chairSignature.id,payload_sha256:chairData.payload_sha256});closeConfirm(true);chairData=await Live.api('RES-01',{session_id:chairSession.id});applyChairData();});
-Live.capture('#dl','click',()=>Live.api('RES-05',{session_id:chairSession.id},'평가결과_보고서.html'));
+function chairReportName(){
+ const name=(Live.boot.projects[0]?.name||'사업').trim().replace(/[\\/:*?"<>|]/g,'_');
+ const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(part=>[part.type,part.value]));
+ return `${name}_정성평가_${parts.year}${parts.month}${parts.day}.html`;
+}
+Live.capture('#dl','click',()=>Live.api('RES-05',{session_id:chairSession.id},chairReportName()));

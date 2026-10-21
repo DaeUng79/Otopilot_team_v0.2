@@ -66,7 +66,7 @@ async function renderCols() {
       if (!items.length) return `<article class="cp-col cp-none"><h3>${esc(p.display_name)}</h3><p>관련 내용을 찾지 못했어요</p><button type="button" class="cp-link" data-open="${esc(p.session_proposal_id)}" data-p="1" data-toc="1">목차에서 직접 보기</button></article>`;
       const pages = [...new Set(items.map((it) => Number(it.page)).filter((n) => Number.isInteger(n) && n > 0))].sort((a, b) => a - b);
       const result = summary?.summaries?.[p.session_proposal_id];
-      const text = result || (summary?.error ? 'AI 정리를 불러오지 못했어요. 아래 원문 쪽을 확인해 주세요.' : summary ? '관련 제안 내용을 확인하기 어렵습니다.' : '제안 내용을 정리하는 중…');
+      const text = result === '관련 제안 내용을 확인하기 어렵습니다.' ? '아래 페이지를 참고 하시기 바랍니다' : result || (summary?.error ? 'AI 정리를 불러오지 못했어요. 아래 원문 쪽을 확인해 주세요.' : summary ? '아래 페이지를 참고 하시기 바랍니다' : '제안 내용을 정리하는 중…');
       return `<article class="cp-col"><h3>${esc(p.display_name)}</h3><p class="cp-summary">${esc(text)}</p>${summary?.error ? `<button type="button" class="cp-retry" data-retry="${esc(c.id)}">다시 정리하기</button>` : ''}<div class="cp-pages" role="group" aria-label="${esc(p.display_name)} 관련 쪽">${pages.map((n) => `<button type="button" class="ev-btn ghost sm" data-open="${esc(p.session_proposal_id)}" data-p="${n}">${n}쪽 열기</button>`).join('') || '<span>쪽 정보 없음</span>'}</div></article>`;
     }).join('')}</div>`;
   try { history.replaceState(null, '', `?project=${encodeURIComponent(me.project.id)}&c=${encodeURIComponent(sel)}`); } catch { /* */ }

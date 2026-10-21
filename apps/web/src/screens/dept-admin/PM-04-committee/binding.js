@@ -38,6 +38,11 @@ function simplifyRoster(){
  // 점검표 첫 항목(본위원 수)을 선택 방식에 맞게 다시 쓴다.
  const first=$('#stage .chk li');
  if(first&&S.mode==='DIRECT'){const ok=primaries>=CAP_MIN&&primaries<=CAP_MAX;first.className=ok?'okc':'badc';first.querySelector('.ic').textContent=ok?'✓':'!';first.querySelector('b').textContent='본위원 수 (5~9명)';first.querySelector('.muted').textContent=ok?`${primaries}명 · 이 인원이 정원이 돼요`:`${primaries}명 · 5~9명을 체크해 주세요`;}
+ const fieldCheck=$$('#stage .chk li')[1];
+ if(fieldCheck){
+  const remaining=FIELDS.map((f,i)=>({name:f,count:S.q[i]-acc.filter(c=>S.pick[c.id]==='본'&&c.f===i).length})).filter(f=>f.count!==0);
+  fieldCheck.querySelector('.muted').textContent=remaining.length?remaining.map(f=>`${f.name} ${f.count>0?`${f.count}명 더 선택`:`${-f.count}명 초과`}`).join(' · '):'필요한 분야별 본위원을 모두 선택했어요';
+ }
  // 확정 버튼 활성화는 점검표 결과로 다시 정한다(원본은 고정 정원 기준).
  const blockers=$$('#stage .chk li.badc').map(li=>`${li.querySelector('b')?.textContent||''} — ${li.querySelector('.muted')?.textContent||''}`);
  const cf=$('#cf');if(cf)cf.disabled=blockers.length>0;

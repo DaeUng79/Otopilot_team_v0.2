@@ -224,7 +224,7 @@
   }
   function render() {
     var h = '<div class="sc-ctx">(가상) ○○ 사업 · 정보화추진팀 · 평가기준 v1</div><ol class="sc-steps2" id="steps2" aria-label="진행 단계">' + stepsHtml2() + '</ol>' +
-      '<h1>평가표 작성</h1><p class="sc-guide">항목마다 0점 이상 배점 이하로 입력하고 저장하세요. 모든 칸을 작성한 뒤 본인 확인에 동의하면 제출됩니다. 제출 후에는 수정할 수 없습니다.</p>' +
+      '<h1>평가표 작성</h1><p class="sc-guide">점수를 저장한 뒤 서명을 저장하고 평가를 제출하세요. 제출 후에는 점수를 수정할 수 없습니다.</p>' +
       '<div class="sc-card"><div class="sc-card-hd"><h2>기술평가표</h2><span id="chipw">' + chipHtml() + '</span></div>' +
       '<table class="sc-tbl"><caption class="ev-sr">기술평가표 · 평가항목별 업체 점수 입력</caption><colgroup><col><col class="cp">' + V.map(function () { return '<col class="cv">'; }).join('') + '</colgroup>' +
       '<thead><tr><th scope="col" class="l">평가항목</th><th scope="col">배점</th>' + V.map(function (v) { return '<th scope="col">' + D.NAME[v] + '</th>'; }).join('') + '</tr></thead><tbody>';
@@ -244,9 +244,9 @@
     var dn = dirtyN(), h;
     if (S.submitted) h = '<span class="tx sc-done-note">✓ 제출 완료 ' + S.submittedAt + ' · 점수는 바꿀 수 없어요</span>';
     else {
-      var saveBtn = '<button type="button" class="ev-btn ' + (dn || S.failed ? '' : 'ghost') + '" data-a="save"' + (dn || S.failed ? '' : ' disabled') + '>' + (S.failed ? '다시 시도' : '임시 저장') + '</button>';
-      var checkBtn = '<button type="button" class="ev-btn ' + (dn || S.failed ? 'ghost' : '') + '" data-a="submit">점수 확인</button>';
-      h = '<span class="tx">다른 위원 점수는 위원장도 진행 중에 볼 수 없어요 · 0점은 점수이고 빈칸은 점수가 아니에요</span>' + (dn || S.failed ? checkBtn + saveBtn : saveBtn + checkBtn);
+      var saveBtn = '<button type="button" class="ev-btn ghost" data-a="save"' + (dn || S.failed ? '' : ' disabled') + '>' + (S.failed ? '점수 저장 다시 시도' : '점수 저장') + '</button>';
+      var nextBtn = '<button type="button" class="ev-btn" data-a="submit">' + (S.signed === hash() ? '제출 하기' : '서명 저장') + '</button>';
+      h = '<span class="tx">' + (S.signed === hash() ? '서명 저장 완료 · 제출 하기를 눌러 최종 확인하세요' : '점수 저장 → 서명 저장 → 제출 하기 → 평가 제출') + '</span>' + saveBtn + nextBtn;
     }
     bar.innerHTML = '<div class="sc-bar-in">' + h + '</div>';
     if (act) { var f = bar.querySelector('[data-a="' + act + '"]:not([disabled])') || bar.querySelector('[data-a]:not([disabled])'); f && f.focus(); }
@@ -286,7 +286,7 @@
     if (invalidN()) { toast('점수를 확인해 주세요. 범위를 벗어난 칸이 있어요'); return false; }
     if (S.conflict) { S.conflict = false; document.querySelector('[data-d="conflict"]').setAttribute('aria-pressed', 'false'); openLayer('<h2 id="dlg-t">다른 곳에서 먼저 저장됐어요</h2><p style="font-size:17px;color:var(--text-2)">다른 기기나 창에서 이 평가표가 먼저 저장됐어요(409). 최신 내용을 불러온 뒤 다시 확인해 주세요. 지금 쓴 내용은 그대로 남아 있어요.</p><div class="ev-modal-actions"><button type="button" class="ev-btn" data-g="x">확인</button></div>').onclick = function (e) { if (e.target.dataset.g) closeLayer(); }; return false; }
     if (S.fail) { S.failed = true; refresh(); toast('저장하지 못했어요. 다시 시도해 주세요'); return false; }
-    S.failed = false; S.saved = Object.assign({}, S.vals); S.savedOps = Object.assign({}, S.ops); S.savedAt = now(); refresh(); toast('임시 저장했어요'); return true;
+    S.failed = false; S.saved = Object.assign({}, S.vals); S.savedOps = Object.assign({}, S.ops); S.savedAt = now(); S.signed=null; refresh(); toast('점수를 저장했어요'); return true;
   }
 
   /* ── 항목별 요약 패널 (아래에서 올라옴) ── */
@@ -364,7 +364,8 @@
 
   function openSubmit() {
     if (S.signed && S.signed !== hash()) { S.signed = null; }
-    stepCheck();
+    if (S.signed === hash() && !dirtyN() && !invalidN() && !empties().length) stepConfirm();
+    else stepCheck();
   }
   function stepCheck() {
     var em = empties(), dn = dirtyN(), bad = invalidN();
@@ -373,7 +374,7 @@
     var emTxt = em.slice(0, 3).map(function (x) { return D.NAME[x.v] + ' ' + x.c.name; }).join(', ') + (em.length > 3 ? ' 외 ' + (em.length - 3) + '곳' : '');
     var l = openLayer(stepsHtml(1) + '<h2 id="dlg-t">점수 확인</h2><ul class="sc-chk">' +
       li(!em.length && !bad, em.length ? '비어 있는 점수 칸이 ' + em.length + '개 있어요' : (bad ? '범위를 벗어난 점수가 ' + bad + '개 있어요' : '모든 업체·항목에 점수를 썼어요'), em.length ? emTxt : '', em.length || bad ? '<button type="button" data-g="empty">빈 칸으로 가기</button>' : '') +
-      li(!dn, dn ? '저장 안 된 변경이 ' + dn + '개 있어요' : '저장 안 된 변경이 없어요', dn ? '서버에 저장된 점수로 계산해요. 먼저 임시 저장해 주세요' : '', dn ? '<button type="button" data-g="save">임시 저장</button>' : '') +
+      li(!dn, dn ? '저장 안 된 변경이 ' + dn + '개 있어요' : '점수를 저장했어요', dn ? '서버에 저장된 점수로 계산해요. 먼저 점수를 저장해 주세요' : '', dn ? '<button type="button" data-g="save">점수 저장</button>' : '') +
       '</ul><table class="sc-sum" aria-label="업체별 합계 (서버 계산)"><tbody>' + V.map(function (v) { return '<tr><td>' + D.NAME[v] + ' <small>' + savedFilled(v) + '/' + CRIT.length + '개 항목</small></td><td>' + fmt(savedTotal(v)) + '점</td></tr>'; }).join('') + '</tbody></table><div class="ev-note">합계는 서버가 저장된 점수로 다시 계산한 값이에요. 의견은 비워도 돼요.</div>' +
       '<div class="ev-modal-actions"><button type="button" class="ev-btn" data-g="next"' + (ok ? '' : ' disabled') + '>다음: 서명 저장</button><button type="button" class="ev-btn text" data-g="close">닫기</button></div>');
     l.onclick = function (e) {
@@ -395,7 +396,7 @@
       var g = e.target.dataset.g; if (!g) return;
       if (g === 'clear') pad.clear();
       else if (g === 'back') stepCheck();
-      else if (g === 'next') { S.signed = hash(); stepConfirm(); }
+      else if (g === 'next') { S.signed = hash(); closeLayer(true); renderBar(); toast('서명을 저장했어요. 제출 하기를 눌러 주세요'); }
     };
   }
   function stepConfirm() {

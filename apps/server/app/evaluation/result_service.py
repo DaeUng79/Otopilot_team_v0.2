@@ -49,6 +49,18 @@ def get_results(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
             participant and participant["id"] == session["chair_participant_id"]
         ),
     }
+    if admin:
+        result["pending_members"] = rows(
+            c,
+            """SELECT a.name_snapshot AS name
+               FROM session_participants p
+               JOIN ref_committee_assignments a ON a.id=p.assignment_id
+               LEFT JOIN evaluation_submissions su
+                 ON su.session_id=p.session_id AND su.participant_id=p.id
+               WHERE p.session_id=? AND su.id IS NULL
+               ORDER BY a.name_snapshot,p.id""",
+            (session["id"],),
+        )
     can_view = (admin and session["status"] == "FINALIZED") or (
         participant is not None and participant["id"] == session["chair_participant_id"]
     )
