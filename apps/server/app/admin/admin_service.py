@@ -103,6 +103,10 @@ def create_admin(c: sqlite3.Connection, s: Store, a: Actor, b: DTO) -> DTO:
             "password_changed_at": now(),
         },
     )
+    c.execute(
+        "INSERT INTO admin_password_requirements(admin_id,must_change) VALUES(?,1)",
+        (identity,),
+    )
     for permission in sorted(DEFAULT_DEPARTMENT_PERMISSIONS):
         insert(
             c,

@@ -61,7 +61,7 @@ label.field:has(#de-code){display:none}
       <div class="pn" id="pn-dept" role="tabpanel" aria-labelledby="t-dept">
         <div class="toolbar"><span class="count" style="margin-left:0" id="d-count"></span><span class="spec-note"></span></div>
         <div class="tbl-wrap"><table>
-          <thead><tr><th>부서 코드</th><th>소속 기관</th><th>부서명</th><th class="num">계정 수</th><th class="num">사업 수</th><th>상태</th></tr></thead>
+          <thead><tr><th>부서 코드</th><th>소속 기관</th><th>부서명</th><th class="num">활성 계정 수</th><th class="num">사업 수</th><th>상태</th></tr></thead>
           <tbody id="d-rows"></tbody></table></div>
       </div>
       <div class="pn" id="pn-acc" role="tabpanel" aria-labelledby="t-acc" hidden>
@@ -110,7 +110,7 @@ label.field:has(#de-code){display:none}
     <label class="field">부서 코드 <span class="hint">코드는 바꿀 수 없어요</span><input id="de-code" disabled></label>
     <label class="field">소속 기관<input id="de-org" autocomplete="off" aria-describedby="de-org-e"><span class="err" id="de-org-e" hidden></span></label>
     <label class="field">부서명<input id="de-name" autocomplete="off" aria-describedby="de-name-e"><span class="err" id="de-name-e" hidden></span></label>
-    <dl class="kv"><dt>계정 수</dt><dd id="de-acc"></dd><dt>사업 수</dt><dd id="de-cnt"></dd></dl>
+    <dl class="kv"><dt>활성 계정 수</dt><dd id="de-acc"></dd><dt>사업 수</dt><dd id="de-cnt"></dd></dl>
     <div class="zone">
       <h3 class="sec-h" style="margin:0">부서 관리</h3>
       <div id="de-zone" class="row-btns" style="flex-direction:column;align-items:flex-start"></div>
@@ -129,11 +129,11 @@ label.field:has(#de-code){display:none}
       <input id="an-name" autocomplete="off" placeholder="예) 김하늘" aria-describedby="an-name-e"><span class="err" id="an-name-e" hidden></span></label>
     <label class="field">부서
       <select id="an-dept" aria-describedby="an-dept-h an-dept-e"></select>
-      <span class="hint" id="an-dept-h">부서마다 계정은 하나예요. 계정이 있는 부서는 고를 수 없어요.</span>
+      <span class="hint" id="an-dept-h">부서마다 활성 계정은 하나예요. 활성 계정이 있는 부서는 고를 수 없어요.</span>
       <span class="err" id="an-dept-e" hidden></span></label>
     <div class="field"><label for="an-pw">초기 비밀번호</label>
-      <div class="with-btn"><input id="an-pw" autocomplete="off" aria-describedby="an-pw-e an-pw-h"><button class="btn" type="button" id="an-gen">생성</button></div>
-      <span class="hint" id="an-pw-h">처음 로그인할 때 바꿔요. 등록하면 다시 볼 수 없어요.</span>
+      <div class="with-btn"><input id="an-pw" autocomplete="off" aria-describedby="an-pw-e an-pw-h"><button class="btn" type="button" id="an-copy">복사</button></div>
+      <span class="hint" id="an-pw-h">초기 비밀번호를 부서관리자에게 전달하세요.<br>부서관리자는 첫 로그인 후 새 비밀번호로 설정할 수 있습니다.</span>
       <span class="err" id="an-pw-e" hidden></span></div>
   </form>
   <footer><button class="btn" type="button" data-close>취소</button><button class="btn primary" type="submit" form="f-anew">등록</button></footer>
@@ -238,7 +238,8 @@ let accts=[
 ];
 const dOf=c=>depts.find(d=>d.code===c);
 const dLabel=c=>{const d=dOf(c);return d?d.org+' '+d.name:'전체 (부서 없음)'};
-const accCount=c=>accts.filter(a=>a.dept===c).length;
+const accCount=c=>accts.filter(a=>a.dept===c&&a.on).length;
+const allAccCount=c=>accts.filter(a=>a.dept===c).length;
 const roleBadge=r=>r==='admin'?'<span class="badge primary">총괄</span>':'<span class="badge">부서관리자</span>';
 const stBadge=on=>on?'<span class="badge success">✓ 사용</span>':'<span class="badge">― 비활성</span>';
 const isLastAdmin=a=>a.role==='admin'&&a.on&&accts.filter(x=>x.role==='admin'&&x.on).length===1;
@@ -298,8 +299,8 @@ $('#f-dnew').addEventListener('submit',e=>{e.preventDefault();
 
 /* 부서 수정 */
 let curD=null;
-function openDEdit(i){curD=depts[i];const d=curD,k=accCount(d.code),P=$('#p-dedit');
-  $('#de-code').value=d.code;$('#de-org').value=d.org;$('#de-name').value=d.name;$('#de-acc').textContent=k+'개';$('#de-cnt').textContent=d.n+'건';show('de-org-e','');show('de-name-e','');
+function openDEdit(i){curD=depts[i];const d=curD,k=allAccCount(d.code),P=$('#p-dedit');
+  $('#de-code').value=d.code;$('#de-org').value=d.org;$('#de-name').value=d.name;$('#de-acc').textContent=accCount(d.code)+'개';$('#de-cnt').textContent=d.n+'건';show('de-org-e','');show('de-name-e','');
   $('#p-dedit-t').textContent=d.org+' '+d.name;
   $('#de-status').innerHTML=d.on?'<span class="badge success">✓ 사용 중</span>':'<span class="badge">― 비활성 · 이 부서 계정은 로그인할 수 없어요</span>';
   const z=$('#de-zone');
@@ -316,16 +317,17 @@ $('#de-save').onclick=()=>{const a=need($('#de-org').value,'de-org-e','소속을
 
 /* 계정 등록 */
 function fillDeptSel(){const s=$('#an-dept');
-  s.innerHTML='<option value="">부서를 골라 주세요</option>'+depts.filter(d=>d.on).map(d=>{const has=accCount(d.code)>0;return `<option value="${h(d.code)}"${has?' disabled':''}>${h(d.org+' '+d.name)}${has?' · 계정 있음':''}</option>`}).join('')}
+  s.innerHTML='<option value="">부서를 골라 주세요</option>'+depts.filter(d=>d.on).map(d=>{const has=accCount(d.code)>0;return `<option value="${h(d.code)}"${has?' disabled':''}>${h(d.org+' '+d.name)}${has?' · 활성 계정 있음':''}</option>`}).join('')}
 const vDept=()=>show('an-dept-e',$('#an-dept').value?'':'부서를 골라 주세요');
 const vAid=v=>{v=v.trim();let m='';if(!v)m='아이디를 입력해 주세요';else if(!/^[a-z0-9]{4,16}$/.test(v))m='영문 소문자와 숫자로 4~16자로 적어 주세요';else if(accts.some(a=>a.id===v))m='이미 있는 아이디예요';return show('an-id-e',m)};
-const vPw=v=>show('an-pw-e',!v?'초기 비밀번호를 만들어 주세요. [생성]을 누르면 만들어 드려요':(v.length<8?'8자 이상으로 만들어 주세요':''));
+const vPw=v=>show('an-pw-e',!v?'초기 비밀번호를 입력해 주세요':(v.length<10?'10자 이상으로 만들어 주세요':''));
 $('#an-id').addEventListener('blur',e=>vAid(e.target.value));
 $('#an-pw').addEventListener('blur',e=>e.target.value&&vPw(e.target.value));
 $('#an-dept').addEventListener('change',vDept);
-const gen=()=>{const c='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';let p='';for(let i=0;i<10;i++)p+=c[Math.floor(Math.random()*c.length)];return p};
-$('#an-gen').onclick=()=>{const p=gen();$('#an-pw').value=p;vPw(p)};
-function openANew(){$('#f-anew').reset();fillDeptSel();['an-dept-e','an-id-e','an-name-e','an-pw-e'].forEach(x=>show(x,''));openLayer($('#p-anew'),'#an-id')}
+const gen=()=>{const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789',random=crypto.getRandomValues(new Uint8Array(12));return Array.from(random,v=>chars[v%chars.length]).join('')+'7!'};
+async function copyInitialPassword(){const input=$('#an-pw');try{await navigator.clipboard.writeText(input.value);toast('초기 비밀번호를 복사했어요')}catch{input.select();toast('자동 복사에 실패했어요. 선택된 비밀번호를 직접 복사해 주세요')}}
+$('#an-copy').onclick=copyInitialPassword;
+function openANew(){$('#f-anew').reset();$('#an-pw').value=gen();fillDeptSel();['an-dept-e','an-id-e','an-name-e','an-pw-e'].forEach(x=>show(x,''));openLayer($('#p-anew'),'#an-id')}
 $('#f-anew').addEventListener('submit',e=>{e.preventDefault();
   const a=vAid($('#an-id').value),n=need($('#an-name').value,'an-name-e','이름을 입력해 주세요'),d=vDept(),c=vPw($('#an-pw').value);
   if(!(a&&n&&d&&c)){const f=$$('#f-anew select,#f-anew input').find(i=>i.getAttribute('aria-invalid')==='true');f&&f.focus();return}

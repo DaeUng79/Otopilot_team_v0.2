@@ -71,10 +71,11 @@ body{display:flex;flex-direction:column;background:var(--gray-0)}
   <p class="mark">심사임당</p>
   <div class="who"><h1 class="nm">새 비밀번호를 정해 주세요</h1><p class="sub">임시 비밀번호로 로그인했어요.</p></div>
   <form class="box" id="f-first" novalidate>
+    <label class="field">초기 비밀번호<input id="first-current" type="password" autocomplete="current-password" required></label>
     <label class="field">새 비밀번호<input id="np1" type="password" autocomplete="new-password" aria-describedby="np1-r"></label>
     <ul class="rules" id="np1-r"><li data-r="len">10자 이상</li><li data-r="mix">글자와 숫자를 함께</li></ul>
     <label class="field">새 비밀번호 한 번 더<input id="np2" type="password" autocomplete="new-password" aria-describedby="np2-e"><span class="err" id="np2-e" hidden></span></label>
-    <button class="btn primary go" type="submit">비밀번호 바꾸고 시작</button>
+    <button class="btn primary go" type="submit">비밀번호 변경</button>
   </form>
 </section>
 
@@ -161,7 +162,7 @@ $('#f-login').addEventListener('submit',e=>{e.preventDefault();if(locked)return;
   if(!u||!p){msg('wrong','아이디와 비밀번호를 모두 입력해 주세요','');return}
   if(u==='sa-admin'){if(p===pw){msg();tries=0;if(!firstDone)view('first');else location.href='../../SA-01/design/dashboard.html';sync('first')}else fail()}
   else fail()});
-const rule=(v)=>({len:v.length>=8,mix:/[A-Za-z가-힣]/.test(v)&&/\d/.test(v)});
+const rule=(v)=>({len:v.length>=10,mix:/[A-Za-z가-힣]/.test(v)&&/\d/.test(v)});
 $('#np1').addEventListener('input',e=>{const r=rule(e.target.value);$$('#np1-r li').forEach(li=>li.classList.toggle('ok',r[li.dataset.r]))});
 const sh=(id,m)=>{const e=$('#'+id);e.textContent=m||'';e.hidden=!m;const i=e.previousElementSibling;i&&i.tagName==='INPUT'&&(m?i.setAttribute('aria-invalid','true'):i.removeAttribute('aria-invalid'));return !m};
 $('#f-first').addEventListener('submit',e=>{e.preventDefault();const a=$('#np1').value,r=rule(a);
@@ -173,7 +174,7 @@ $$('[data-account]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault(
 $$('[data-logout]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();logout()}));
 $('#f-acct').addEventListener('submit',e=>{e.preventDefault();
   const o=$('#a0').value===pw,r=rule($('#a1').value),same=$('#a1').value===$('#a2').value;
-  sh('a0-e',o?'':'지금 비밀번호가 맞지 않아요');sh('a1-e',(r.len&&r.mix)?'':'8자 이상으로, 글자와 숫자를 함께 적어 주세요');sh('a2-e',same?'':'두 비밀번호가 달라요');
+  sh('a0-e',o?'':'지금 비밀번호가 맞지 않아요');sh('a1-e',(r.len&&r.mix)?'':'10자 이상으로, 글자와 숫자를 함께 적어 주세요');sh('a2-e',same?'':'두 비밀번호가 달라요');
   if(!(o&&r.len&&r.mix&&same)){const f=$$('#f-acct input').find(i=>i.getAttribute('aria-invalid')==='true');f&&f.focus();return}
   pw=$('#a1').value;closeLayer($('#acct'));toast('비밀번호를 바꿨어요')});
 function reset(){unlock();msg();$('#uid').value=$('#upw').value='';view('login')}
