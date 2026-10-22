@@ -398,9 +398,11 @@ function renderComparison(){
     return {view:v,column:data.proposals.find(p=>p.vendor_id===row?.id)};
   });
   const total=data.categories.reduce((n,c)=>n+c.requirements.length,0);
-  comparisonStatus.textContent=`${total}개 요구사항 · `+vendors.map(({view,column})=>
-    `${view.code} ${column?column.status==='complete'?`확인 ${column.confirmed} · 미확인 ${column.unconfirmed}`:column.status==='partial'?`${column.processed}/${column.total}건 처리`:'2차 분석 전':'제안서 미등록'}`).join(' · ')
-    +' · 확인됨은 관련 제안 문구를 찾았다는 뜻이며 요구사항 충족 판정은 아닙니다. 확인되지 않음도 내용 부재 판정이 아닙니다.';
+  const vendorStatus=vendors.map(({view,column})=>
+    `${view.code} ${column?column.status==='complete'?`확인 ${column.confirmed} · 미확인 ${column.unconfirmed}`:column.status==='partial'?`${column.processed}/${column.total}건 처리`:'2차 분석 전':'제안서 미등록'}`).join(' · ');
+  comparisonStatus.textContent=`${total}개 요구사항`+(vendorStatus?' · '+vendorStatus:'')
+    +' · 확인됨은 관련 제안 문구를 찾았다는 뜻이며 요구사항 충족 판정은 아닙니다. 확인되지 않음도 내용 부재 판정이 아닙니다.'
+    +(data.review_warnings?.length?' · 검토 필요: '+data.review_warnings.join(' / '):'');
   $('#comparison-tools').hidden=false;$('#comparison-wrap').hidden=false;
   const selected=comparisonCategory.value;
   comparisonCategory.innerHTML='<option value="">모든 요구사항 구분</option>'+data.categories.map(c=>
@@ -417,11 +419,9 @@ function renderComparison(){
       +requirements.map(req=>{
         const detail=String(req.rfp_detail||'');
         const short=detail.slice(0,180);
-        const rfpUrl='/app/dept-admin/PM-02/design/rfp-preview.html?project_id='
-          +encodeURIComponent(Live.pid)+(req.rfp_page?'&page='+encodeURIComponent(req.rfp_page):'');
         const rfpCell=`<span class="req-title">${h(req.title)}</span><span class="detail-preview">${h(short)}${detail.length>180?'…':''}</span>`
           +(detail.length>180?`<details><summary>요구사항 전체 보기</summary><div class="detail-preview">${h(detail)}</div></details>`:'')
-          +(req.rfp_page?`<span class="citation"><a href="${rfpUrl}" target="_blank" rel="noopener">제안요청서 ${req.rfp_page}쪽</a></span>`:'');
+          +(req.rfp_page?`<span class="citation"><button type="button" data-rfp-page="${h(req.rfp_page)}">제안요청서 ${h(req.rfp_page)}쪽</button></span>`:'');
         return `<tr><th scope="row">${h(req.code)}</th><td>${rfpCell}</td>`
           +vendors.map(({view,column})=>`<td>${findingHtml(req.findings[providerId(view)]||null,column)}</td>`).join('')+'</tr>';
       }).join('');
@@ -429,7 +429,9 @@ function renderComparison(){
   const labels=vendors.map(({view,column})=>`<th scope="col">${h(view.code)}${column?`<small> · ${h(view.name)}</small>`:''}</th>`).join('');
   const table=$('#comparison-table');
   table.style.minWidth=`${Math.max(980,440+vendors.length*300)}px`;
-  table.innerHTML=`<thead><tr><th scope="col">ID</th><th scope="col">제안요청서</th>${labels}</tr></thead><tbody>`
+  const columns=`<colgroup><col style="width:90px"><col style="width:${vendors.length?'34%':'calc(100% - 90px)'}">`
+    +vendors.map(()=>'<col>').join('')+'</colgroup>';
+  table.innerHTML=columns+`<thead><tr><th scope="col">ID</th><th scope="col">제안요청서</th>${labels}</tr></thead><tbody>`
     +(rows||`<tr><td colspan="${2+vendors.length}">검색 결과가 없습니다.</td></tr>`)
     +'</tbody>';
   comparisonStatus.textContent+=` · 표시 ${visible}건`;
@@ -454,5 +456,33 @@ async function loadComparison(){
 $('#comparison-refresh').onclick=loadComparison;
 comparisonCategory.onchange=renderComparison;
 comparisonSearch.oninput=renderComparison;
+const rfpSide=$('#rfp-side');
+const rfpSideFrame=$('#rfp-side-frame');
+let rfpSideTrigger=null;
+function closeRfpSide(){
+  if(rfpSide.hidden)return;
+  rfpSide.hidden=true;
+  $('#rfp-side-scrim').hidden=true;
+  rfpSideFrame.src='about:blank';
+  rfpSideTrigger?.focus();
+  rfpSideTrigger=null;
+}
+$('#comparison-table').addEventListener('click',event=>{
+  const button=event.target.closest('button[data-rfp-page]');
+  if(!button)return;
+  rfpSideTrigger=button;
+  $('#rfp-side-title').textContent=`제안요청서 ${button.dataset.rfpPage}쪽`;
+  rfpSideFrame.src='/app/dept-admin/PM-02/design/rfp-preview.html?project_id='
+    +encodeURIComponent(Live.pid)+'&page='+encodeURIComponent(button.dataset.rfpPage)+'&embedded=1';
+  $('#rfp-side-scrim').hidden=false;
+  rfpSide.hidden=false;
+  $('#rfp-side-close').focus();
+});
+$('#rfp-side-close').addEventListener('click',closeRfpSide);
+$('#rfp-side-scrim').addEventListener('click',closeRfpSide);
+document.addEventListener('keydown',event=>{if(event.key==='Escape')closeRfpSide();});
+window.addEventListener('message',event=>{
+  if(event.origin===location.origin&&event.source===rfpSideFrame.contentWindow&&event.data?.type==='rfp-preview-close')closeRfpSide();
+});
 comparisonInitialized=true;
 loadComparison().then(flushAutoAnalysis);

@@ -126,7 +126,7 @@ def extract_requirements(result: dict) -> list[dict]:
             values = " ".join(x for x in row[1:] if x).strip()
             if label == "요구사항분류":
                 category = values
-            elif label == "요구사항명칭":
+            elif label in ("요구사항명칭", "요구사항명"):
                 title = values
             elif label in ("요구사항상세설명", "세부내용", "정의", "산출정보", "산출물"):
                 body.append(f"{label}: {values}")
@@ -195,6 +195,10 @@ def _requirements_ready(conn: sqlite3.Connection, rfp: dict, result: dict) -> bo
     """Do not expose cached results while the current upload is being extracted."""
     if result.get("extractor_version") not in (None, EXTRACTOR_VERSION):
         return False
+    if result.get("status") == "needs_review":
+        validation = result.get("validation") or {}
+        if validation.get("missing_detail_codes") or not validation.get("detail_codes"):
+            return False
     jobs_table = conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='requirement_jobs'").fetchone()
     if jobs_table:
@@ -366,7 +370,7 @@ def _source(conn: sqlite3.Connection, project_id: str, proposal_id: str | None) 
       FROM ({_latest_visible_rfp(conn)}) r
       JOIN documents d ON d.document_id=r.document_id
       JOIN requirement_results q ON q.document_id=r.document_id AND q.source_revision=d.active_revision
-      WHERE q.status='complete' ORDER BY q.created_at DESC LIMIT 1""",
+      WHERE q.status IN ('complete', 'needs_review') ORDER BY q.created_at DESC LIMIT 1""",
                        (project_id,)).fetchone()
     if not rfp or not _requirements_ready(conn, dict(rfp), json.loads(rfp["result_json"])):
         raise ValueError("현재 프로젝트의 완료된 제안요청서 요구사항 추출 결과가 없습니다.")
@@ -445,7 +449,7 @@ def comparison_overview(db: Path, project_id: str, *, model: str = DEFAULT_MODEL
           FROM ({_latest_visible_rfp(conn)}) r
           JOIN documents d ON d.document_id=r.document_id
           JOIN requirement_results q ON q.document_id=r.document_id AND q.source_revision=d.active_revision
-          WHERE q.status='complete' ORDER BY q.created_at DESC LIMIT 1""", (project_id,)).fetchone()
+          WHERE q.status IN ('complete', 'needs_review') ORDER BY q.created_at DESC LIMIT 1""", (project_id,)).fetchone()
         if not rfp or not _requirements_ready(conn, dict(rfp), json.loads(rfp["result_json"])):
             return {"status": "waiting_for_requirements", "categories": [], "proposals": []}
         rfp = dict(rfp)
@@ -493,6 +497,7 @@ def comparison_overview(db: Path, project_id: str, *, model: str = DEFAULT_MODEL
         grouped[req["category"]].append(item)
     return {"status": "ready", "rfp_result_id": rfp["result_id"],
             "business_status": result.get("business_status") or {},
+            "review_warnings": result.get("warnings") or [],
             "categories": [{"name": name, "requirements": items} for name, items in grouped.items()],
             "proposals": columns}
 

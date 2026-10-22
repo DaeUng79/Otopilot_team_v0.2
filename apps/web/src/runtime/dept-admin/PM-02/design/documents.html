@@ -97,7 +97,6 @@
 .comparison-table{border-collapse:collapse;width:100%;min-width:980px;table-layout:fixed;font-size:var(--t-sm)}
 .comparison-table th,.comparison-table td{border:1px solid var(--line);padding:10px 12px;vertical-align:top;text-align:left;line-height:1.55;overflow-wrap:anywhere}
 .comparison-table thead th{position:sticky;top:0;z-index:2;background:var(--gray-5)}
-.comparison-table th:first-child{width:90px}.comparison-table th:nth-child(2){width:34%}
 .comparison-table .group-row th{background:var(--primary-5);color:var(--primary-60);font-weight:700}
 .comparison-table .req-title{display:block;font-weight:700;margin-bottom:4px}
 .comparison-table .detail-preview{white-space:pre-wrap;color:var(--text-2)}
@@ -106,7 +105,8 @@
 .comparison-table .finding-status.ok{color:var(--success-60)}
 .comparison-table .finding-status.wait{color:var(--text-3)}
 .comparison-table .citation{display:block;margin-top:6px;color:var(--text-3);font-size:12px}
-.comparison-table .citation a{color:var(--primary-60);font-weight:700;text-decoration:underline}
+.comparison-table .citation a,.comparison-table .citation button{color:var(--primary-60);font-weight:700;text-decoration:underline}
+.comparison-table .citation button{border:0;background:none;padding:0;cursor:pointer;font:inherit}
 .mrow{display:flex;align-items:center;gap:8px;min-height:32px;border-top:1px solid var(--line)}
 .mrow:first-of-type{border-top:0}
 .extraction-row{flex-wrap:wrap;padding:5px 0}
@@ -172,6 +172,13 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
 .filebox .msg.bad{color:var(--text-2);font-weight:400;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 #m-xr .tx{display:none}
 #m-xr .tx.analysis-progress{display:block}
+.rfp-side-scrim{position:fixed;inset:0;z-index:50;background:rgb(19 20 22/.3)}
+.rfp-side{position:fixed;top:0;right:0;bottom:0;z-index:51;width:50vw;display:flex;flex-direction:column;background:var(--gray-0);box-shadow:var(--shadow-5)}
+.rfp-side[hidden],.rfp-side-scrim[hidden]{display:none}
+.rfp-side header{height:56px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 20px;border-bottom:1px solid var(--line)}
+.rfp-side header strong{font-size:var(--t-lg)}
+.rfp-side iframe{display:block;flex:1;min-height:0;width:100%;border:0;background:var(--gray-5)}
+@media (max-width:900px){.rfp-side{width:100vw}}
 /* [임시 CSS 문구 교체] 요구사항 요약 실패(배지 .danger) 때만, 카드 안 긴 오류 문단(API 키·.env 안내 포함)을 짧은 안내로 바꿔 보임.
    업로드 실패 문구(배지가 .danger가 아닐 때)는 그대로 보임. JS 담당자가 원 문구를 고치면 아래 두 규칙을 삭제하세요. */
 #rfp:has(.rfp-head .badge.danger) .filebox .msg.bad{font-size:0;line-height:0;display:block;-webkit-line-clamp:unset}
@@ -242,6 +249,12 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
 </div>
 </div>
 <input type="file" id="file" hidden>
+
+<div class="rfp-side-scrim" id="rfp-side-scrim" hidden></div>
+<aside class="rfp-side" id="rfp-side" role="dialog" aria-modal="true" aria-labelledby="rfp-side-title" hidden>
+  <header><strong id="rfp-side-title">제안요청서 원문</strong><button class="btn" type="button" id="rfp-side-close">닫기</button></header>
+  <iframe id="rfp-side-frame" title="제안요청서 원문"></iframe>
+</aside>
 
 <div class="scrim" id="scrim"></div><div class="scrim top" id="scrim2"></div>
 

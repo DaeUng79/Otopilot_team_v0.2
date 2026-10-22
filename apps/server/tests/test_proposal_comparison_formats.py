@@ -51,6 +51,23 @@ class ProposalComparisonFormatsTest(unittest.TestCase):
             overview = comparison_overview(database, "project")
             self.assertEqual(overview["status"], "ready")
             self.assertEqual(overview["business_status"], status)
+            review_result = result | {"status": "needs_review", "warnings": ["사업 배경 확인 필요"]}
+            with sqlite3.connect(database) as connection:
+                connection.execute("UPDATE requirement_results SET status=?, result_json=?",
+                                   ("needs_review", json.dumps(review_result)))
+            overview = comparison_overview(database, "project")
+            self.assertEqual(overview["status"], "ready")
+            self.assertEqual(overview["review_warnings"], ["사업 배경 확인 필요"])
+            with sqlite3.connect(database) as connection:
+                incomplete = review_result | {"validation": {"detail_codes": ["FUN-1"],
+                                                             "missing_detail_codes": ["FUN-2"]}}
+                connection.execute("UPDATE requirement_results SET result_json=?",
+                                   (json.dumps(incomplete),))
+            self.assertEqual(comparison_overview(database, "project")["status"],
+                             "waiting_for_requirements")
+            with sqlite3.connect(database) as connection:
+                connection.execute("UPDATE requirement_results SET status=?, result_json=?",
+                                   ("complete", json.dumps(result)))
             with sqlite3.connect(database) as connection:
                 connection.execute("CREATE TABLE requirement_jobs "
                                    "(project_id TEXT, revision INTEGER, status TEXT)")
@@ -84,6 +101,26 @@ class ProposalComparisonFormatsTest(unittest.TestCase):
         self.assertEqual(requirements[0]["code"], "FUN-1")
         self.assertIn("요구사항상세설명: 분석 범위", requirements[0]["rfp_detail"])
         self.assertIn("세부내용: 세부 작업", requirements[0]["rfp_detail"])
+
+    def test_requirement_name_variant_used_by_record_management_rfp(self):
+        pairs = [("요구사항번호", "MAR-001"),
+                 ("요구사항 명", "사업관리 방안"),
+                 ("요구사항 분류", "유지관리 수행 요구사항"),
+                 ("세부 내용", "사업수행계획서 제출")]
+        blocks = [{"block_id": "table", "type": "table", "table": {"cells": []}}]
+        for index, (label, value) in enumerate(pairs):
+            label_id, value_id = f"label-{index}", f"value-{index}"
+            blocks[0]["table"]["cells"].append(
+                [{"child_block_ids": [label_id]}, {"child_block_ids": [value_id]}])
+            blocks.extend([{"block_id": label_id, "text": label},
+                           {"block_id": value_id, "text": value}])
+        result = {"details": {"block_ids": ["table"], "blocks": blocks},
+                  "validation": {"list_codes": ["MAR-001"]}}
+
+        requirements = extract_requirements(result)
+
+        self.assertEqual(len(requirements), 1)
+        self.assertEqual(requirements[0]["title"], "사업관리 방안")
 
 
 if __name__ == "__main__":

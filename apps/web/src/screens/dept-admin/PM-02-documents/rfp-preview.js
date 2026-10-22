@@ -5,6 +5,13 @@ const reader = document.getElementById('reader');
 const query = new URLSearchParams(location.search);
 const projectId = query.get('project_id');
 const startPage = Number(query.get('page'));
+const embedded = query.get('embedded') === '1';
+if (embedded) {
+  document.documentElement.classList.add('embedded');
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') window.parent.postMessage({ type: 'rfp-preview-close' }, location.origin);
+  });
+}
 const back = document.getElementById('back');
 if (projectId) back.href += '?project_id=' + encodeURIComponent(projectId);
 
@@ -37,6 +44,7 @@ async function main() {
     svgUrl: (n) => base + '/preview/pages/' + n + '/svg?revision=' + data.upload_revision,
     download: () => fetchPreview(base + '/' + data.upload_revision + '/download', true),
   }, { note: '담당자가 등록한 제안요청서 · 원본 쪽 렌더링',
+       single: embedded,
        startPage: Number.isInteger(startPage) && startPage > 0 ? startPage : 1 });
 }
 
