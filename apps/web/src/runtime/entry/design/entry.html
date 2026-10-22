@@ -1289,6 +1289,13 @@ footer{align-items:baseline}
 </script>
 <script>
 (function(){
+  if('scrollRestoration' in history) history.scrollRestoration='manual';
+  window.addEventListener('pageshow',function(){
+    requestAnimationFrame(function(){
+      window.scrollTo(0,0);
+      document.getElementById('intro').scrollTop=0;
+    });
+  });
   // 부드러운 등장(스크롤)
   document.documentElement.classList.add('js');
   var rvs=document.querySelectorAll('.sec-head,.flow,.detail,.end');
@@ -1356,7 +1363,7 @@ footer{align-items:baseline}
   function toIntro(){body.classList.remove('s-pick','picked');body.classList.add('s-intro');picks.forEach(function(p){p.classList.remove('on')});stage.inert=true;document.getElementById('intro').inert=false;document.getElementById('start').focus()}
   document.getElementById('start').addEventListener('click',toPick);
   document.getElementById('home').addEventListener('click',toIntro);
-  document.getElementById('start').focus();
+  document.getElementById('start').focus({preventScroll:true});
   var tilt=document.getElementById('tilt'),rm=matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(!rm)document.getElementById('intro').addEventListener('pointermove',function(e){tilt.style.transform='rotateX('+(-(e.clientY/innerHeight-.5)*12).toFixed(2)+'deg) rotateY('+((e.clientX/innerWidth-.5)*12).toFixed(2)+'deg)'});
   function back(){
