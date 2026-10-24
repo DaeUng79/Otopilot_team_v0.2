@@ -1,5 +1,6 @@
 """Chat answers keep usable page links even when the model omits its citation format."""
 
+import json
 import sqlite3
 import sys
 import tempfile
@@ -9,10 +10,30 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.evaluation.documents.chat_adapter import answer_one, pages_from_text, stream_answers
+from app.evaluation.documents.chat_adapter import _prepare_one, answer_one, load_chatbot, pages_from_text, stream_answers
 
 
 class ChatPageReferencesTest(unittest.TestCase):
+    def test_chat_uses_session_pinned_snapshot_after_reparse(self):
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "documents.sqlite3"
+            with sqlite3.connect(database) as conn:
+                conn.execute("CREATE TABLE documents (document_id TEXT, filename TEXT, active_revision TEXT)")
+                conn.execute("CREATE TABLE parse_snapshots (document_id TEXT, revision TEXT, document_json TEXT)")
+                conn.execute("INSERT INTO documents VALUES ('doc', 'proposal.pdf', 'new')")
+                for revision, content in (("old", "평가 당시 보안 대책"), ("new", "수정된 보안 대책")):
+                    source = {"blocks": [{"block_id": "p1", "type": "paragraph", "text": content,
+                                          "physical_page_numbers": [7]}]}
+                    conn.execute("INSERT INTO parse_snapshots VALUES (?,?,?)",
+                                 ("doc", revision, json.dumps(source, ensure_ascii=False)))
+            chatbot = load_chatbot()
+            self.assertEqual(chatbot.load_context(database, ["doc"])["documents"][0]["revision"], "new")
+            context, *_ = _prepare_one(chatbot, database,
+                                       {"document_id": "doc", "parse_revision": "old"}, "보안 대책", [])
+            self.assertEqual(context["documents"][0]["revision"], "old")
+            self.assertIn("평가 당시 보안 대책", context["content"])
+            self.assertNotIn("수정된 보안 대책", context["content"])
+
     def test_common_page_formats(self):
         self.assertEqual(pages_from_text("[페이지번호 12쪽], 14~15페이지, p.18"), [12, 14, 15, 18])
 
@@ -26,7 +47,7 @@ class ChatPageReferencesTest(unittest.TestCase):
                              ("doc", "rev", "block-1", "paragraph", "보안 대책과 접근 통제 방안", "[7]", 1))
             chatbot = SimpleNamespace(
                 ChatbotError=ValueError,
-                load_context=lambda *_: {"documents": [{"revision": "rev", "blocks": [
+                load_context=lambda *_, **__: {"documents": [{"revision": "rev", "blocks": [
                     {"pages": [7], "type": "paragraph", "text": "보안 대책과 접근 통제 방안"}]}],
                     "content": "context", "source_tables": {}},
                 build_messages=lambda *_: ([], 0, 1),

@@ -1,7 +1,7 @@
 """문서 도우미(CHAT-01·02) 어댑터. 오대웅 모듈 `apps/chatbot/chatbot.py` 를 경로 import 로 재사용한다(chatbot 무수정).
 
 - 업체마다 회차에 고정된 제안서(document_id)의 활성 파싱 본문 전체를 문맥으로 보내고(임베딩 없음), 답변을 업체별로 돌려준다.
-- 고정 parse_revision 과 문서 DB 의 활성 버전이 다르면 답하지 않는다(STALE_SOURCE, EV-03 과 같은 규칙).
+- 평가 회차의 고정 parse_revision 스냅샷을 읽는다. 이후 재파싱된 활성 버전은 답변 근거로 섞지 않는다.
 - 질문·답변은 저장하지 않는다. 감사 기록에는 업체·글자 수·토큰 수만 남긴다.
 - OPENAI_API_KEY 는 chatbot.get_client 가 환경변수 → 저장소 루트 .env 순으로 읽는다. 없으면 503 으로 "준비 중" 상태를 알린다.
 """
@@ -118,7 +118,10 @@ def _history_messages(history: list[str]) -> list[dict[str, str]]:
 
 
 def _prepare_one(chatbot: ModuleType, docs_db: Path, proposal: dict[str, Any], question: str, history: list[str]):
-    context = chatbot.load_context(docs_db, [proposal["document_id"]])
+    context = chatbot.load_context(
+        docs_db, [proposal["document_id"]],
+        revisions={proposal["document_id"]: proposal["parse_revision"]},
+    )
     document = context["documents"][0]
     if document["revision"] != proposal["parse_revision"]:
         raise ApiError("STALE_SOURCE", "평가 시작 때 고정한 제안서와 현재 문서 버전이 달라요. 담당자에게 알려 주세요.", 409)

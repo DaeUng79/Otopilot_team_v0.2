@@ -6,6 +6,13 @@ const query = new URLSearchParams(location.search);
 const projectId = query.get('project_id');
 const uploadId = query.get('upload_id');
 const startPage = Number(query.get('page'));
+const embedded = query.get('embedded') === '1';
+if (embedded) {
+  document.documentElement.classList.add('embedded');
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') window.parent.postMessage({ type: 'proposal-preview-close' }, location.origin);
+  });
+}
 const back = document.getElementById('back');
 if (projectId) back.href += '?id=' + encodeURIComponent(projectId);
 
@@ -41,6 +48,7 @@ async function main() {
       : originalPages ? (n) => base + '/preview/pages/' + n + '/svg' : null,
     download: () => fetchPreview(base + '/download', true),
   }, { note: originalPages ? '등록된 제안서 · 원본 쪽 렌더링' : '원본 쪽 렌더링을 지원하지 않아 파싱된 내용을 표시합니다.',
+       single: embedded,
        startPage: Number.isInteger(startPage) && startPage > 0 ? startPage : 1 });
 }
 

@@ -113,8 +113,8 @@ def compact_payload(documents):
     }
 
 
-def load_context(db_path, document_ids):
-    """한 읽기 트랜잭션에서 활성 버전만 읽는다. 원본 JSON/DB는 변경하지 않는다."""
+def load_context(db_path, document_ids, *, revisions=None):
+    """한 읽기 트랜잭션에서 요청한 고정 버전(없으면 활성 버전)을 읽는다."""
     if not document_ids:
         raise ChatbotError("질문할 문서를 하나 이상 선택해 주세요.")
     documents, image_count = [], 0
@@ -122,13 +122,15 @@ def load_context(db_path, document_ids):
     with closing(connect(db_path)) as connection:
         connection.execute("BEGIN")
         for document_id in sorted(set(document_ids)):
+            revision = revisions.get(document_id) if revisions else None
             row = connection.execute(
-                "SELECT d.filename, d.active_revision, s.document_json FROM documents d "
-                "JOIN parse_snapshots s ON s.document_id=d.document_id AND s.revision=d.active_revision "
-                "WHERE d.document_id=?", (document_id,),
+                "SELECT d.filename, s.revision, s.document_json FROM documents d "
+                "JOIN parse_snapshots s ON s.document_id=d.document_id "
+                "AND s.revision=COALESCE(?,d.active_revision) "
+                "WHERE d.document_id=?", (revision, document_id),
             ).fetchone()
             if row is None:
-                raise ChatbotError("선택한 문서의 활성 파싱 결과가 없습니다. 문서 목록을 새로고침해 주세요.")
+                raise ChatbotError("선택한 문서의 파싱 결과가 없습니다. 담당자에게 확인해 주세요.")
             source = json.loads(row["document_json"])
             blocks = source.get("blocks", [])
             image_count += sum(block.get("type") == "image" for block in blocks)
@@ -146,7 +148,7 @@ def load_context(db_path, document_ids):
                     unit["table_ref"] = ref
                     source_tables[ref] = {
                         "filename": row["filename"], "document_id": document_id,
-                        "revision": row["active_revision"],
+                        "revision": row["revision"],
                         "block": source_by_id[unit["block_id"]],
                     }
                 if not unit["pages"]:
@@ -154,7 +156,7 @@ def load_context(db_path, document_ids):
                     page = original.get("physical_page_number")
                     unit["pages"] = [page] if isinstance(page, int) and page > 0 else []
             documents.append({"document_id": document_id, "filename": row["filename"],
-                              "revision": row["active_revision"], "blocks": units,
+                              "revision": row["revision"], "blocks": units,
                               "text_available": has_text})
     if not any(document["text_available"] for document in documents):
         raise ChatbotError("분석할 추출 텍스트가 없습니다. 이미지 문서는 먼저 OCR이 필요합니다.")

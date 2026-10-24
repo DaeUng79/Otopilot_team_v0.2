@@ -369,18 +369,13 @@ function renderBusinessStatus(data){
     `<div class="business-card"><h4>${title}</h4>${points.length?'<ul>'+points.map(point=>`<li>${h(point.text)}</li>`).join('')+'</ul>':'<p>추출된 내용이 없습니다.</p>'}</div>`
   ).join('');
 }
-function previewLink(uploadId,page){
-  return '/app/dept-admin/PM-02/design/proposal-preview.html?project_id='
-    +encodeURIComponent(Live.pid)+'&upload_id='+encodeURIComponent(uploadId)
-    +(page?'&page='+encodeURIComponent(page):'');
-}
 function findingHtml(finding,column){
   if(!column)return '<span class="finding-status wait">제안서 미등록</span>';
   if(!finding)return `<span class="finding-status wait">${column.status==='not_started'?'2차 분석 전':column.status==='partial'?'분석 대기':'정리 결과 없음'}</span>`;
   if(finding.status!=='확인됨')return '<span class="finding-status wait">확인되지 않음</span>';
   const citations=(finding.evidence||[]).map(e=>{
     const page=Number(e.page)||0;
-    return `<li><a href="${previewLink(column.proposal_upload_id,page)}" target="_blank" rel="noopener">${page?page+'쪽':'제안서 보기'}</a> · ${h(String(e.quote||'').slice(0,280))}${String(e.quote||'').length>280?'…':''}</li>`;
+    return `<li><button type="button" data-proposal-upload="${h(column.proposal_upload_id)}" data-proposal-page="${page>0?page:1}">${page?page+'쪽':'제안서 보기'}</button> · ${h(String(e.quote||'').slice(0,280))}${String(e.quote||'').length>280?'…':''}</li>`;
   }).join('');
   return `<span class="finding-status ok">확인됨</span><span>${h(finding.proposal_summary||'')}</span>`
     +(citations?`<details class="citation"><summary>제안서 원문 근거 ${finding.evidence.length}건</summary><ul>${citations}</ul></details>`:'');
@@ -456,33 +451,46 @@ async function loadComparison(){
 $('#comparison-refresh').onclick=loadComparison;
 comparisonCategory.onchange=renderComparison;
 comparisonSearch.oninput=renderComparison;
-const rfpSide=$('#rfp-side');
-const rfpSideFrame=$('#rfp-side-frame');
-let rfpSideTrigger=null;
-function closeRfpSide(){
-  if(rfpSide.hidden)return;
-  rfpSide.hidden=true;
+const documentSide=$('#rfp-side');
+const documentSideFrame=$('#rfp-side-frame');
+let documentSideTrigger=null;
+function closeDocumentSide(){
+  if(documentSide.hidden)return;
+  documentSide.hidden=true;
   $('#rfp-side-scrim').hidden=true;
-  rfpSideFrame.src='about:blank';
-  rfpSideTrigger?.focus();
-  rfpSideTrigger=null;
+  documentSideFrame.src='about:blank';
+  documentSideTrigger?.focus();
+  documentSideTrigger=null;
+}
+function openDocumentSide(button,title,url){
+  documentSideTrigger=button;
+  $('#rfp-side-title').textContent=title;
+  documentSideFrame.title=title;
+  documentSideFrame.src=url;
+  $('#rfp-side-scrim').hidden=false;
+  documentSide.hidden=false;
+  $('#rfp-side-close').focus();
 }
 $('#comparison-table').addEventListener('click',event=>{
-  const button=event.target.closest('button[data-rfp-page]');
+  const button=event.target.closest('button[data-rfp-page],button[data-proposal-upload]');
   if(!button)return;
-  rfpSideTrigger=button;
-  $('#rfp-side-title').textContent=`제안요청서 ${button.dataset.rfpPage}쪽`;
-  rfpSideFrame.src='/app/dept-admin/PM-02/design/rfp-preview.html?project_id='
-    +encodeURIComponent(Live.pid)+'&page='+encodeURIComponent(button.dataset.rfpPage)+'&embedded=1';
-  $('#rfp-side-scrim').hidden=false;
-  rfpSide.hidden=false;
-  $('#rfp-side-close').focus();
+  if(button.dataset.rfpPage){
+    openDocumentSide(button,`제안요청서 ${button.dataset.rfpPage}쪽`,
+      '/app/dept-admin/PM-02/design/rfp-preview.html?project_id='
+      +encodeURIComponent(Live.pid)+'&page='+encodeURIComponent(button.dataset.rfpPage)+'&embedded=1');
+  }else{
+    openDocumentSide(button,`제안서 ${button.dataset.proposalPage}쪽`,
+      '/app/dept-admin/PM-02/design/proposal-preview.html?project_id='
+      +encodeURIComponent(Live.pid)+'&upload_id='+encodeURIComponent(button.dataset.proposalUpload)
+      +'&page='+encodeURIComponent(button.dataset.proposalPage)+'&embedded=1');
+  }
 });
-$('#rfp-side-close').addEventListener('click',closeRfpSide);
-$('#rfp-side-scrim').addEventListener('click',closeRfpSide);
-document.addEventListener('keydown',event=>{if(event.key==='Escape')closeRfpSide();});
+$('#rfp-side-close').addEventListener('click',closeDocumentSide);
+$('#rfp-side-scrim').addEventListener('click',closeDocumentSide);
+document.addEventListener('keydown',event=>{if(event.key==='Escape')closeDocumentSide();});
 window.addEventListener('message',event=>{
-  if(event.origin===location.origin&&event.source===rfpSideFrame.contentWindow&&event.data?.type==='rfp-preview-close')closeRfpSide();
+  if(event.origin===location.origin&&event.source===documentSideFrame.contentWindow
+    &&['rfp-preview-close','proposal-preview-close'].includes(event.data?.type))closeDocumentSide();
 });
 comparisonInitialized=true;
 loadComparison().then(flushAutoAnalysis);
