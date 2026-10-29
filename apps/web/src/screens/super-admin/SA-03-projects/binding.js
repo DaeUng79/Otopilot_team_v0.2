@@ -38,7 +38,14 @@ Live.capture('[data-dl]','click',async(_e,el)=>{
   link.href=objectUrl;link.download=cur.rfp.filename;link.click();
   setTimeout(()=>URL.revokeObjectURL(objectUrl),1000);return;
  }
- if(el.dataset.dl.includes('결과')){const states=(await Live.get('/api/v2/result-sessions/'+encodeURIComponent(cur.id))).sessions,s=states.find(s=>s.status==='FINALIZED');if(s)return Live.api('RES-05',{session_id:s.id,format:'xlsx'},'제안서평가_집계표.xlsx');throw Error('위원장이 최종 제출한 결과가 아직 없습니다.');}
+ if(el.dataset.dl.startsWith('결과/')){
+  const states=(await Live.get('/api/v2/result-sessions/'+encodeURIComponent(cur.id))).sessions;
+  const session=states.find(s=>s.status==='FINALIZED');
+  if(!session)throw Error('위원장이 최종 제출한 결과가 아직 없습니다.');
+  const name=cur.name.replace(/[\\/:*?"<>|]/g,'_').trim();
+  if(el.dataset.dl.endsWith('.xlsx'))return Live.api('RES-05',{session_id:session.id,format:'xlsx'},name+'_제안서평가_집계표.xlsx');
+  return Live.api('RES-05',{session_id:session.id},name+'_평가결과_보고서.html');
+ }
  if(el.dataset.dl.startsWith('제안서/')){
   // PRO-02: 업체별 최신 READY 제안서 원본
   const uploads=(await Live.get('/api/v2/projects/'+encodeURIComponent(cur.id)+'/proposals')).uploads.filter(u=>u.status==='READY');

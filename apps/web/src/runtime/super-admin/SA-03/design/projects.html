@@ -219,7 +219,7 @@ function body(r,edit){
   const H=(hist[r.id]||defHist(r)).map(x=>`<li><time>${x[0]}</time><div><b>${h(x[2])}</b><span>${h(x[1])}</span></div></li>`).join('');
   const lk=(t,ok)=>ok?`<a href="#" onclick="return false">${t}</a>`:`<span class="off">${t}</span>`;
   const resOk=r.ev==='ok'&&r.s==='완료',propOk=r.doc==='ok',rfpOk=!!r.rfp;
-  const F=[['제안요청서',rfpOk,'제안요청서/'+(r.rfp?.filename||'rfp_v2.hwpx'),'제안요청서 (RFP)'],['업체별 제안서',propOk,'제안서/A사_제안서.pdf','A사 제안서'],['업체별 제안서',propOk,'제안서/B사_제안서.pdf','B사 제안서'],['업체별 제안서',propOk,'제안서/C사_제안서.pdf','C사 제안서'],['결과 보고서',resOk,'결과/결과보고서.pdf','결과 보고서']];
+  const F=[['제안요청서',rfpOk,'제안요청서/'+(r.rfp?.filename||'rfp_v2.hwpx'),'제안요청서 (RFP)'],['업체별 제안서',propOk,'제안서/A사_제안서.pdf','A사 제안서'],['업체별 제안서',propOk,'제안서/B사_제안서.pdf','B사 제안서'],['업체별 제안서',propOk,'제안서/C사_제안서.pdf','C사 제안서'],['결과 보고서',resOk,'결과/평가결과_보고서.html','위원회 평가결과 보고서 (HTML)'],['결과 집계표',resOk,'결과/제안서평가_집계표.xlsx','제안서평가 집계표 (Excel)']];
   const nOk=F.filter(f=>f[1]).length,zip=r.name+'_자료.zip';
   const mats=edit?'':`<section class="dsec"><h3 class="sec-h"><span class="ic" aria-hidden="true">▤</span>자료 <span class="muted" style="font-weight:400;font-size:var(--t-base)">받을 수 있는 파일 ${nOk}개</span></h3>
    <div class="badges">${bd(DOCB,r.doc)}${bd(EVB,r.ev)}</div>
