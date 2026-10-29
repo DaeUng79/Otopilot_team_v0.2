@@ -1,8 +1,8 @@
 """연결용 신규 파서 · 오대웅(DaeUng79) 문서 모듈 검토 대상.
 
-PDF 제안서를 hwpx_parser와 같은 문서 JSON 모양으로 바꾼다. 결과는 그대로
-`hwpx_storage.save_to_sqlite`에 넣을 수 있고, 평가 화면의 DocumentReader와
-step3 요구사항 추출(compact_blocks)이 그대로 읽는다.
+PDF 제안서를 parser_hwpx와 같은 문서 JSON 모양으로 바꾼다. 결과는 그대로
+`storage_documents.save_to_sqlite`에 넣을 수 있고, 평가 화면의 DocumentReader와
+요구사항 추출 모듈(compact_blocks)이 그대로 읽는다.
 
 - 물리 페이지 1장 = PDF 페이지 1장. 인쇄 쪽번호는 읽지 않으므로 page_number도 물리 번호다.
 - 글자만 뽑는다(pypdf, 없으면 PyMuPDF). 표·그림은 추출하지 않고 warnings에 한 번 남긴다.
@@ -11,9 +11,9 @@ step3 요구사항 추출(compact_blocks)이 그대로 읽는다.
   `숫자. 제목` 꼴의 짧은 문단에서 뽑기 때문이다(rfp_adapter.DocumentReader.overview).
 
 이 모듈은 import 시점에 서드파티를 불러오지 않는다. PDF 라이브러리는 parse_pdf 안에서만 쓴다.
-pptx_parser는 여기의 문서 뼈대·블록 생성 함수를 같이 쓴다.
+parser_pptx는 여기의 문서 뼈대·블록 생성 함수를 같이 쓴다.
 
-예: python apps/documents/pdf_parser.py 제안서.pdf
+예: python apps/documents/parser_pdf.py 제안서.pdf
 """
 
 from __future__ import annotations
@@ -25,9 +25,9 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from .hwpx_parser import SCHEMA_VERSION, add_table_context
+    from .parser_hwpx import SCHEMA_VERSION, add_table_context
 except ImportError:  # 단독 실행 (apps/documents가 sys.path에 있을 때)
-    from hwpx_parser import SCHEMA_VERSION, add_table_context
+    from parser_hwpx import SCHEMA_VERSION, add_table_context
 
 PDF_PARSER_VERSION = "pdf-text-1.0"
 MAX_PDF_PAGES = 2000
@@ -49,11 +49,11 @@ _SPACE = re.compile(r"[ \t 　\v\f\r]+")
 
 
 # ---------------------------------------------------------------------------
-# 문서 뼈대·블록 생성 (pdf_parser·pptx_parser 공용)
+# 문서 뼈대·블록 생성 (parser_pdf·parser_pptx 공용)
 # ---------------------------------------------------------------------------
 
 def document_skeleton(path: Path, data: bytes, parser_version: str, pagination_source: str) -> dict[str, Any]:
-    """hwpx_parser.parse_hwpx와 같은 최상위 키를 가진 빈 문서를 만든다."""
+    """parser_hwpx.parse_hwpx와 같은 최상위 키를 가진 빈 문서를 만든다."""
     digest = hashlib.sha256(data).hexdigest()
     return {
         "document_id": digest, "source_sha256": digest,
@@ -277,7 +277,7 @@ def _extract_pdf_pages(document: dict[str, Any], page_count: int, read_page) -> 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        sys.exit("사용법: python pdf_parser.py <제안서.pdf>")
+        sys.exit("사용법: python parser_pdf.py <제안서.pdf>")
     result = parse_pdf(sys.argv[1])
     print("파싱 완료:", result["filename"])
     print("페이지:", len(result["pages"]), "블록:", len(result["blocks"]),

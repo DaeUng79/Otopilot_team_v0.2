@@ -9,7 +9,7 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
-from apps.documents.step3_ai_requirements_extract_to_SQLite import compact_blocks
+from apps.documents.requirements_extract import compact_blocks
 
 MODEL = "gpt-4o-mini"
 CONTEXT_WINDOW = 128_000
@@ -203,14 +203,14 @@ def build_messages(context, history, prompt):
     return messages, removed, message_tokens(messages)
 
 
-def get_client(secret_key=None):
+def get_client():
     from dotenv import dotenv_values
     from openai import OpenAI
 
-    key = os.environ.get("OPENAI_API_KEY") or secret_key or dotenv_values(
+    key = os.environ.get("OPENAI_API_KEY") or dotenv_values(
         ROOT / ".env", interpolate=False).get("OPENAI_API_KEY")
     if not key or not key.strip():
-        raise ChatbotError("환경변수, Streamlit secrets 또는 프로젝트 루트 .env에 OPENAI_API_KEY를 설정해 주세요.")
+        raise ChatbotError("환경변수 또는 프로젝트 루트 .env에 OPENAI_API_KEY를 설정해 주세요.")
     return OpenAI(api_key=key.strip(), base_url="https://api.openai.com/v1",
                   timeout=120.0, max_retries=2)
 

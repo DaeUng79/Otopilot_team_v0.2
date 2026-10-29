@@ -2,8 +2,8 @@
 
 연결용 신규 파일 · 오대웅(DaeUng79) 문서 모듈 검토 대상.
 설계(인계서 v2 §15 PROPOSAL 모듈)의 `register_proposal`·`list_proposals`를 구현한다.
-파싱·저장은 기존 `hwpx_parser.parse_hwpx`·`hwpx_storage.save_to_sqlite`를
-그대로 쓰고, PDF·PPTX는 같은 JSON 모양을 만드는 `pdf_parser`·`pptx_parser`를 부른다.
+파싱·저장은 기존 `parser_hwpx.parse_hwpx`·`storage_documents.save_to_sqlite`를
+그대로 쓰고, PDF·PPTX는 같은 JSON 모양을 만드는 `parser_pdf`·`parser_pptx`를 부른다.
 표 `project_proposal_uploads`는 schema_v2.json의 열을 따른다. 문서 DB에는
 `ref_project_vendors`·`ref_admin_users` 사본이 없어 그 두 외래키는 선언하지 않고
 서버(`app/api/project_documents.py`)가 관리 DB로 업체·관리자를 확인한다.
@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from .hwpx_parser import parse_hwpx
-from .hwpx_storage import SCHEMA, connect, save_to_sqlite
+from .parser_hwpx import parse_hwpx
+from .storage_documents import SCHEMA, connect, save_to_sqlite
 
 FORMATS = {".hwpx": "HWPX", ".pdf": "PDF", ".pptx": "PPTX"}
 PROPOSAL_SCHEMA = """
@@ -67,9 +67,9 @@ def parse_proposal(path: Path, work_dir: Path) -> dict[str, Any]:
     if kind == "HWPX":
         return parse_hwpx(path, output_dir=work_dir / "assets", strict_pagination=False)
     if kind == "PDF":
-        from .pdf_parser import parse_pdf
+        from .parser_pdf import parse_pdf
         return parse_pdf(path)
-    from .pptx_parser import parse_pptx
+    from .parser_pptx import parse_pptx
     return parse_pptx(path)
 
 

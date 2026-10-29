@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 /tests/
 /scripts/
+/apps/server/tests/
 
 .env
 .env.*
@@ -14,3 +15,7 @@ __pycache__/
 *.db-*
 keys.bin
 access-code.txt
+
+# 로컬 발표 자료 (대용량)
+/심사임당_15분_최종발표_(최최종).html
+/docs/심사임당_15분_최종발표_(최최종).html

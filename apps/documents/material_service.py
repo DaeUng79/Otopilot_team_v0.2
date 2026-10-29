@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from .hwpx_storage import SCHEMA, connect
+from .storage_documents import SCHEMA, connect
 
 MATERIAL_SCHEMA = """
 CREATE TABLE IF NOT EXISTS managed_result_files (
@@ -176,7 +176,7 @@ def list_result_files(db_path: Path, project_id: str | None = None) -> list[dict
 def list_materials(db_path: Path, project_ids: list[str]) -> list[dict[str, Any]]:
     """MAT-01: 사업별 제안요청서(최신)·제안서(업체별 최신 READY)·결과 자료를 한 목록으로."""
     from .document_gateway import list_uploads
-    from .proposal_document_adapter import latest_ready
+    from .proposal_uploads import latest_ready
 
     items: list[dict[str, Any]] = []
     for pid in project_ids:

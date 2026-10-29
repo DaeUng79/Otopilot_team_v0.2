@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .hwpx_storage import connect
+from .storage_documents import connect
 
 VISIBILITY_SCHEMA = """
 CREATE TABLE IF NOT EXISTS rfp_upload_visibility (
@@ -210,7 +210,7 @@ def delete_upload(db_path: Path, project_id: str, *, proposal_upload_id: str | N
         def remove_partial_runs(rfp_document_ids: list[str], proposal_rows: list) -> None:
             if not {"requirement_results", "proposal_analysis_items"} <= tables:
                 return
-            from .step5_ai_proposal_analysis import DEFAULT_MODEL, _run_id
+            from .proposal_analysis import DEFAULT_MODEL, _run_id
             models = {DEFAULT_MODEL}
             if "proposal_analysis_results" in tables:
                 models.update(row[0] for row in db.execute(
@@ -270,7 +270,8 @@ def delete_upload(db_path: Path, project_id: str, *, proposal_upload_id: str | N
                             pass
                 db.execute("DELETE FROM approved_criteria_versions WHERE project_id=? AND upload_revision=?",
                            (project_id, upload_revision))
-            for table, revision_column in (("requirement_jobs", "revision"),
+            for table, revision_column in (("requirement_spec_versions", "upload_revision"),
+                                           ("requirement_jobs", "revision"),
                                            ("criteria_jobs", "revision"),
                                            ("rfp_upload_visibility", "upload_revision"),
                                            ("rfp_snapshot_bindings", "upload_revision")):

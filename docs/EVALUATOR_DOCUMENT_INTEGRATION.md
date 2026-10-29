@@ -52,7 +52,7 @@ python start_service.py --documents-db "path/to/documents_parse.sqlite3"
 
 외부 변경파일 폴더, v2 시안 폴더, 독립 평가위원 서버는 필요하지 않다. 본문 열람·비교는 현재 서버 의존성으로 동작한다. SVG 원본 렌더링은 선택 패키지 `pyhwpxlib`가 필요하며 없으면 파싱된 본문·표·그림을 표시한다. 제목 기반 목차는 원본의 인쇄 목차를 완전히 복원하지 않는다.
 
-AI 답변은 기존 `apps/chatbot/chatbot.py`와 `apps/documents/step3_ai_requirements_extract_to_SQLite.py`, 해당 모듈의 `openai`·`tiktoken`·`python-dotenv`, `OPENAI_API_KEY` 설정이 필요하다. 이번 작업에서 패키지·버전을 추가하지 않았고 실제 AI 요청도 보내지 않았다. 미준비 상태는 화면 안내와 503 응답으로 처리한다. 채팅 질문·답변을 DB에 저장하지 않으며 감사 기록에는 업체와 글자 수 등만 기록한다.
+AI 답변은 기존 `apps/chatbot/chatbot.py`와 `apps/documents/requirements_extract.py`, 해당 모듈의 `openai`·`tiktoken`·`python-dotenv`, `OPENAI_API_KEY` 설정이 필요하다. 이번 작업에서 패키지·버전을 추가하지 않았고 실제 AI 요청도 보내지 않았다. 미준비 상태는 화면 안내와 503 응답으로 처리한다. 채팅 질문·답변을 DB에 저장하지 않으며 감사 기록에는 업체와 글자 수 등만 기록한다.
 
 ## 데이터 연결 상태와 접근 제한
 

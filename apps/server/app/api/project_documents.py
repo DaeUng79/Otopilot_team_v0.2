@@ -20,11 +20,11 @@ from starlette.datastructures import UploadFile
 
 from app.api.document_module_routes import install_document_module_routes
 from app.committee.committee_app.v2_core import digest, now
-from app.documents import document_gateway, material_service, rfp_api
-from app.documents.hwpx_storage import SCHEMA, connect
+from app.documents import document_gateway, material_service, rfp_workflow
+from app.documents.storage_documents import SCHEMA, connect
 from app.documents.rfp_toc import save_toc
-from app.documents.step1_hwpx_parse_to_JSON import parse_document
-from app.documents.step2_hwpx_save_to_SQLite import save_document
+from app.documents.rfp_parse import parse_document
+from app.documents.rfp_store import save_document
 from app.evaluation.documents.envelope import ApiError
 from app.evaluation.documents.rfp_adapter import RfpReader
 from app.shared.db import require
@@ -323,7 +323,7 @@ def install_project_document_routes(app, store, actor, sync, *, documents_db=Non
                 upload["revision"])
         try:
             upload["requirements"] = await asyncio.to_thread(
-                rfp_api.queue_requirements, database, project_id, force=True)
+                rfp_workflow.queue_requirements, database, project_id, force=True)
         except Exception:
             logging.getLogger(__name__).exception("Automatic requirements queue failed")
             upload["requirements"] = {"status": "failed",

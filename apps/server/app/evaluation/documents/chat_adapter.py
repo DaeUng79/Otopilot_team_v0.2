@@ -24,9 +24,9 @@ from .envelope import ApiError, upstream_unavailable
 from .settings import PM01_DIR, REPO_ROOT
 
 CHATBOT_PATH = REPO_ROOT / "apps" / "chatbot" / "chatbot.py"
-STEP3_NAME = "apps.documents.step3_ai_requirements_extract_to_SQLite"
+STEP3_NAME = "apps.documents.requirements_extract"
 STEP3_CANDIDATES = (
-    PM01_DIR / "step3_ai_requirements_extract_to_SQLite.py",
+    PM01_DIR / "requirements_extract.py",
 )
 MAX_VENDORS = 3
 MAX_HISTORY = 6

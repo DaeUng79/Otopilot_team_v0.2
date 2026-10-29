@@ -1,8 +1,8 @@
 """DOC-03·04·06, CRT-01~05, PRO-01~03, MAT-01~03 연결 라우트 (2026-10-18).
 
 설계도(인계서 v2 §11)의 `/document-api/...` 경로를 기존 제안요청서 라우트와 같은
-`/api/v2/...` 아래에 둔다. 업무 처리는 apps/documents의 rfp_api·criteria_approval·
-proposal_document_adapter·document_gateway·material_service가 맡고, 여기서는
+`/api/v2/...` 아래에 둔다. 업무 처리는 apps/documents의 rfp_workflow·criteria_review·
+proposal_uploads·document_gateway·material_service가 맡고, 여기서는
 권한·사업 상태 확인과 평가 DB 계약 전달(`criteria.approved`, `proposal.ready`,
 `proposal.archived`)만 한다.
 """
@@ -25,16 +25,17 @@ from fastapi.responses import JSONResponse, Response
 from starlette.datastructures import UploadFile
 
 from app.committee.committee_app.v2_core import digest
-from app.documents import (criteria_approval, document_gateway, material_service, proposal_analysis_jobs,
-                           proposal_document_adapter, rfp_api)
-from app.documents import step3_ai_requirements_extract_to_SQLite as step3
-from app.documents import step4_ai_criteria as step4
-from app.documents import step5_ai_proposal_analysis as step5
+from app.documents import (criteria_review, document_gateway, material_service, proposal_analysis_jobs,
+                           proposal_uploads, rfp_workflow)
+from app.documents import requirements_extract as step3
+from app.documents import criteria_generate as step4
+from app.documents import proposal_analysis as step5
+from app.documents import requirements_review as specs
 from app.shared.db import require, rows
 from app.shared.integration_contracts import apply_event
 from app.evaluation.documents.envelope import ApiError
 from app.evaluation.documents.rfp_adapter import DocumentReader
-from app.documents.hwpx_storage import connect
+from app.documents.storage_documents import connect
 
 MAX_FILE_SIZE = 50 * 1024 * 1024
 PROPOSAL_TYPES = (".hwpx", ".pdf", ".pptx")
@@ -68,7 +69,7 @@ def run(fn, *args, **kwargs):
         require(False, str(exc), "NOT_FOUND", 404)
     except RuntimeError as exc:
         require(False, str(exc), "UPSTREAM_UNAVAILABLE", 503)
-    except (step3.RequirementsError, step4.CriteriaError, criteria_approval.CriteriaApprovalError,
+    except (step3.RequirementsError, step4.CriteriaError, criteria_review.CriteriaApprovalError,
             ValueError) as exc:
         require(False, str(exc) or "입력 형식과 필수 항목을 확인하세요.", "INPUT_INVALID", 422)
 
@@ -83,7 +84,7 @@ async def json_body(request: Request) -> dict:
 
 def install_document_module_routes(app, store, actor, sync, project, database: Path) -> None:
     try:
-        rfp_api.initialize_jobs(database)
+        rfp_workflow.initialize_jobs(database)
     except Exception:  # 문서 DB가 아직 없으면 첫 업로드 때 만들어진다.
         log.info("document DB not initialized yet: %s", database)
 
@@ -116,20 +117,26 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
     @app.get("/api/v2/projects/{project_id}/requirements")
     async def requirements_status(project_id: str, request: Request):
         await project(request, project_id)
-        return {"data": await asyncio.to_thread(run, rfp_api.requirement_status, database, project_id)}
+        return {"data": await asyncio.to_thread(run, rfp_workflow.requirement_status, database, project_id)}
 
     @app.get("/api/v2/projects/{project_id}/requirements/preview")
     async def requirements_preview(project_id: str, request: Request):
         await project(request, project_id)
 
         def read_saved():
-            state = rfp_api.requirement_status(database, project_id)
-            require(state["status"] == "done", "완료된 요구사항 추출 결과가 없습니다.", "NOT_FOUND", 404)
-            upload = rfp_api.latest_rfp(database, project_id)
+            state = rfp_workflow.requirement_status(database, project_id)
+            require(state["status"] in {"done", "needs_review"}, "완료된 요구사항 추출 결과가 없습니다.", "NOT_FOUND", 404)
+            upload = rfp_workflow.latest_rfp(database, project_id)
             require(upload is not None, "제안요청서를 찾을 수 없습니다.", "NOT_FOUND", 404)
             result = step3.load_saved_requirements(database, upload["document_id"])
             require(result is not None, "저장된 요구사항 결과가 없습니다.", "NOT_FOUND", 404)
-            return {"filename": upload["filename"], "revision": upload["revision"],
+            with connect(database) as db:
+                spec = specs.latest(db, project_id, upload["revision"], result)
+                approved = specs.latest(db, project_id, upload["revision"], result, approved=True)
+                history = ([dict(r) for r in db.execute("SELECT id,status,version,created_at,approved_at FROM requirement_spec_versions WHERE project_id=? AND upload_revision=? ORDER BY created_at DESC", (project_id, upload["revision"]))] if specs._exists(db) else [])
+            return {"specification": spec, "approved_specification": approved, "specification_history": history,
+                    "ready": state.get("ready", False),
+                    "filename": upload["filename"], "revision": upload["revision"],
                     "created_at": result.get("created_at"), "status": result.get("status"),
                     "business_status": result.get("business_status") or {},
                     "requirement_list": result.get("requirement_list") or {},
@@ -138,6 +145,28 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
                     "warnings": result.get("warnings") or []}
 
         return {"data": await asyncio.to_thread(run, read_saved)}
+
+    @app.put("/api/v2/projects/{project_id}/requirements/specifications/{spec_id}")
+    async def specification_review(project_id: str, spec_id: str, request: Request):
+        await project(request, project_id, edit=True)
+        person = await actor(request)
+        body = await json_body(request)
+        require(type(body.get("version")) is int, "명세서 버전을 확인하세요.", "INPUT_INVALID", 422)
+        require(type(body.get("approve", False)) is bool, "확정 여부를 확인하세요.", "INPUT_INVALID", 422)
+        require(not body.get("approve") or body.get("confirmed") is True,
+                "원문 근거와 추가 의무 여부를 검토한 후 확정해 주세요.", "INPUT_INVALID", 422)
+        def save():
+            upload = rfp_workflow.latest_rfp(database, project_id)
+            require(upload is not None, "제안요청서가 없습니다.", "NOT_FOUND", 404)
+            with connect(database) as db:
+                busy = db.execute("SELECT 1 FROM requirement_jobs WHERE project_id=? AND revision=? AND status IN ('queued','running')",
+                                  (project_id, upload["revision"])).fetchone()
+            require(not busy, "요구사항 분석 중에는 명세서를 변경할 수 없습니다.", "CONFLICT", 409)
+            result = step3.load_saved_requirements(database, upload["document_id"])
+            require(result is not None, "요구사항을 먼저 분석해 주세요.", "NOT_FOUND", 404)
+            return specs.review(database, project_id, upload, result, spec_id, body["version"],
+                                items=body.get("items"), approve=body.get("approve", False), actor_id=person.id)
+        return {"data": await asyncio.to_thread(run, save)}
 
     @app.get("/api/v2/projects/{project_id}/requirements/proposal-comparison")
     async def requirements_proposal_comparison(project_id: str, request: Request):
@@ -164,15 +193,15 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
     async def requirements_job(project_id: str, request: Request):
         await project(request, project_id, edit=True)
         body = await json_body(request)
-        return {"data": await asyncio.to_thread(run, rfp_api.queue_requirements, database, project_id,
-                                                force=bool(body.get("force")))}
+        return {"data": await asyncio.to_thread(run, rfp_workflow.queue_requirements, database, project_id,
+                                                force=bool(body.get("force")), mode=body.get("mode", "auto"))}
 
     # ---- CRT-01·02 AI 초안, CRT-03~05 사람 승인 ----
     def criteria_state(project_id: str) -> dict:
-        versions = criteria_approval.list_versions(database, project_id)
-        draft = rfp_api.criteria_status(database, project_id)
+        versions = criteria_review.list_versions(database, project_id)
+        draft = rfp_workflow.criteria_status(database, project_id)
         if draft.get("result"):
-            draft["result"]["scoring_rows"] = criteria_approval.scoring_rows_with_source_pages(
+            draft["result"]["scoring_rows"] = criteria_review.scoring_rows_with_source_pages(
                 database, project_id, draft["result"]["rows"],
                 draft["result"].get("template_source"))
         with store.connect() as db:
@@ -185,8 +214,8 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
         for v in versions:
             v["ack"] = v["id"] in acked
             v["frozen"] = v["id"] in frozen
-        return {"rfp": rfp_api.latest_rfp(database, project_id),
-                "requirements": rfp_api.requirement_status(database, project_id),
+        return {"rfp": rfp_workflow.latest_rfp(database, project_id),
+                "requirements": rfp_workflow.requirement_status(database, project_id),
                 "draft": draft,
                 "versions": versions,
                 "ai_ready": ai_ready()}
@@ -200,7 +229,7 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
     async def criteria_job(project_id: str, request: Request):
         await project(request, project_id, edit=True)
         body = await json_body(request)
-        await asyncio.to_thread(run, rfp_api.queue_pipeline, database, project_id, force=bool(body.get("force")))
+        await asyncio.to_thread(run, rfp_workflow.queue_pipeline, database, project_id, force=bool(body.get("force")))
         return {"data": await asyncio.to_thread(run, criteria_state, project_id)}
 
     @app.post("/api/v2/projects/{project_id}/criteria-drafts")
@@ -211,8 +240,8 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
         source = body.get("source", "ai")
         require(source in {"ai", "template"}, "초안 출처를 확인하세요.", "INPUT_INVALID", 422)
         require(type(body.get("restart", False)) is bool, "새 검토 여부를 확인하세요.", "INPUT_INVALID", 422)
-        ai_result = rfp_api.criteria_status(database, project_id).get("result") if source == "ai" else None
-        draft = await asyncio.to_thread(run, criteria_approval.open_draft, database, project_id=project_id,
+        ai_result = rfp_workflow.criteria_status(database, project_id).get("result") if source == "ai" else None
+        draft = await asyncio.to_thread(run, criteria_review.open_draft, database, project_id=project_id,
                                         source=source, ai_result=ai_result, actor_id=person.id,
                                         restart=body.get("restart", False))
         return JSONResponse({"data": draft}, status_code=201)
@@ -224,7 +253,7 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
         require(type(body.get("version")) is int, "version을 확인하세요.", "INPUT_INVALID", 422)
         total = body.get("total_points")
         require(total is None or isinstance(total, (int, float)), "기술 배점을 확인하세요.", "INPUT_INVALID", 422)
-        draft = await asyncio.to_thread(run, criteria_approval.save_draft, database, project_id=project_id,
+        draft = await asyncio.to_thread(run, criteria_review.save_draft, database, project_id=project_id,
                                         draft_id=draft_id, version=body["version"], items=body.get("items"),
                                         total_points=total)
         return {"data": draft}
@@ -236,7 +265,7 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
         body = await json_body(request)
         require(type(body.get("version")) is int, "version을 확인하세요.", "INPUT_INVALID", 422)
         saved, payload = await asyncio.to_thread(
-            run, criteria_approval.approve_criteria, database, project_id=project_id, draft_id=draft_id,
+            run, criteria_review.approve_criteria, database, project_id=project_id, draft_id=draft_id,
             version=body["version"], actor_id=person.id, confirmed=body.get("confirmed"))
         await sync()
         # 평가 DB로 criteria.approved 계약 전달. 수신(APPLIED) 뒤에야 회차를 준비할 수 있다.
@@ -246,7 +275,7 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
     @app.post("/api/v2/projects/{project_id}/criteria-drafts/{draft_id}/resend")
     async def criteria_resend(project_id: str, draft_id: str, request: Request):
         await project(request, project_id)
-        payload = criteria_approval.approved_payload(database, project_id, draft_id)
+        payload = criteria_review.approved_payload(database, project_id, draft_id)
         require(payload is not None, "확정된 평가표가 아닙니다.", "NOT_FOUND", 404)
         await sync()
         ack = await asyncio.to_thread(apply_event, store, event_envelope("criteria.approved", draft_id, payload), "documents")
@@ -256,7 +285,7 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
     @app.get("/api/v2/projects/{project_id}/proposals")
     async def proposals_list(project_id: str, request: Request):
         await project(request, project_id)
-        return {"data": {"uploads": await asyncio.to_thread(proposal_document_adapter.list_proposals,
+        return {"data": {"uploads": await asyncio.to_thread(proposal_uploads.list_proposals,
                                                             database, project_id)}}
 
     @app.post("/api/v2/projects/{project_id}/vendors/{vendor_id}/proposals")
@@ -273,7 +302,7 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
             ).fetchone()[0]
         try:
             upload = await asyncio.to_thread(
-                proposal_document_adapter.register_proposal, database, project_id=project_id,
+                proposal_uploads.register_proposal, database, project_id=project_id,
                 project_name=row["name"], vendor_id=vendor_id, filename=filename, data=data,
                 uploaded_by=person.id, minimum_revision=minimum_revision)
         except (ValueError, zipfile.BadZipFile, ET.ParseError) as exc:
@@ -286,20 +315,20 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
         await sync()
         ack = await asyncio.to_thread(
             apply_event, store,
-            event_envelope("proposal.ready", upload["id"], proposal_document_adapter.ready_event(upload)),
+            event_envelope("proposal.ready", upload["id"], proposal_uploads.ready_event(upload)),
             "documents")
         return JSONResponse({"data": upload | {"display_code": vendor["display_code"], "ack": ack}}, status_code=201)
 
     @app.post("/api/v2/projects/{project_id}/proposals/{upload_id}/resend")
     async def proposal_resend(project_id: str, upload_id: str, request: Request):
         await project(request, project_id)
-        upload = await asyncio.to_thread(run, proposal_document_adapter.get_proposal, database, project_id, upload_id)
+        upload = await asyncio.to_thread(run, proposal_uploads.get_proposal, database, project_id, upload_id)
         require(upload["status"] in {"READY", "ARCHIVED"}, "전달할 수 없는 제안서 상태입니다.", "NOT_READY", 409)
         await sync()
         ack = await asyncio.to_thread(
             apply_event, store,
             event_envelope("proposal.archived" if upload["status"] == "ARCHIVED" else "proposal.ready",
-                           upload["id"], proposal_document_adapter.ready_event(upload),
+                           upload["id"], proposal_uploads.ready_event(upload),
                            version=upload["version"]),
             "documents")
         return {"data": {"ack": ack}}
@@ -307,7 +336,7 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
     @app.get("/api/v2/projects/{project_id}/proposals/{upload_id}/download")
     async def proposal_download(project_id: str, upload_id: str, request: Request):
         await project(request, project_id)
-        upload = await asyncio.to_thread(run, proposal_document_adapter.get_proposal, database, project_id, upload_id)
+        upload = await asyncio.to_thread(run, proposal_uploads.get_proposal, database, project_id, upload_id)
         source = await asyncio.to_thread(document_gateway.view_source, database, upload["document_id"])
         require(source is not None, "원본 파일을 찾을 수 없습니다.", "NOT_FOUND", 404)
         return attachment(source[1], upload["filename"])
@@ -315,13 +344,13 @@ def install_document_module_routes(app, store, actor, sync, project, database: P
     @app.get("/api/v2/projects/{project_id}/proposals/{upload_id}/source")
     async def proposal_source(project_id: str, upload_id: str, request: Request):
         await project(request, project_id)
-        upload = await asyncio.to_thread(run, proposal_document_adapter.get_proposal, database, project_id, upload_id)
+        upload = await asyncio.to_thread(run, proposal_uploads.get_proposal, database, project_id, upload_id)
         parsed = await asyncio.to_thread(run, document_gateway.parsed_blocks, database,
                                          upload["document_id"], upload["parse_revision"])
         return {"data": parsed | {"filename": upload["filename"], "revision": upload["upload_revision"]}}
 
     def proposal_reader(db, project_id: str, upload_id: str) -> tuple[DocumentReader, dict]:
-        upload = run(proposal_document_adapter.get_proposal, database, project_id, upload_id)
+        upload = run(proposal_uploads.get_proposal, database, project_id, upload_id)
         reader = DocumentReader(db, project_id, upload["document_id"], upload["parse_revision"],
                                 title=upload["filename"], label="제안서")
         return reader, upload

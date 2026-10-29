@@ -2,6 +2,9 @@
 .evr-tx { overflow: auto; overscroll-behavior: contain; padding-right: 4px; }
 .evr-tx.is-rendered { display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0; }
 .evr-page-svg { display: block; width: 100%; height: 100%; object-fit: contain; }
+.evr.is-single .evr-tx { flex: none; overflow: visible; }
+.evr.is-single .evr-tx.is-rendered { display: block; }
+.evr.is-single .evr-page-svg { height: auto; }
 .evr-render-fallback { margin: 0 0 10px; color: var(--text-3); font-size: 13px; }
 /* [임시 CSS 문구 교체] "원본 쪽 렌더링을 쓸 수 없어 파싱된 내용으로 표시합니다" → 짧은 안내. 원 문구를 고치면 아래 두 줄을 삭제하세요. */
 .evr .evr-tx p.evr-render-fallback.evr-render-fallback { font-size: 0; line-height: 0; }

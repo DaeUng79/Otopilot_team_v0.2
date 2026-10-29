@@ -4,7 +4,7 @@
 원본 `apps/documents_daeung/step0_documents_api.py`의 작업 큐 함수를 통합 서비스의
 문서 DB(`project_rfp_uploads` + `rfp_snapshot_bindings`)에 맞춰 옮겼다. HTTP 서버는
 두지 않고 `app/api/project_documents.py`가 이 함수들을 부른다.
-AI 호출은 `step3_ai_requirements_extract_to_SQLite`·`step4_ai_criteria`가 그대로 담당한다.
+AI 호출은 `requirements_extract`·`criteria_generate`가 그대로 담당한다.
 """
 
 from __future__ import annotations
@@ -18,8 +18,9 @@ from functools import partial
 from pathlib import Path
 from typing import Iterator
 
-from . import step3_ai_requirements_extract_to_SQLite as requirements
-from . import step4_ai_criteria as criteria
+from . import requirements_extract as requirements
+from . import criteria_generate as criteria
+from . import requirements_review as specs
 from .document_gateway import VISIBILITY_SCHEMA
 
 JOB_SCHEMA = """
@@ -112,10 +113,13 @@ def _set_job(db_path: Path, table: str, project_id: str, revision: int,
 
 
 def _run_requirements(db_path: Path, project_id: str, revision: int, document_id: str,
-                      *, force: bool = False) -> None:
+                      *, force: bool = False, mode: str = "auto") -> None:
     try:
         _set_job(db_path, "requirement_jobs", project_id, revision, "running")
-        requirements.extract_and_save_requirements(db_path, document_id, force=force)
+        result = requirements.extract_and_save_requirements(db_path, document_id, force=force)
+        if isinstance(result, dict):
+            specs.prepare(db_path, project_id, {"revision": revision, "document_id": document_id},
+                          result, force=force, mode=mode)
         _set_job(db_path, "requirement_jobs", project_id, revision, "done")
     except requirements.RequirementsError as error:
         _set_job(db_path, "requirement_jobs", project_id, revision, "failed", str(error))
@@ -146,8 +150,10 @@ def _queue(db_path: Path, table: str, project_id: str, revision: int,
     return True
 
 
-def queue_requirements(db_path: Path, project_id: str, *, force: bool = False) -> dict:
+def queue_requirements(db_path: Path, project_id: str, *, force: bool = False, mode: str = "auto") -> dict:
     """DOC-04: 최신 제안요청서의 요구사항 추출을 뒤에서 실행한다."""
+    if mode not in {"auto", "numbered", "narrative"}:
+        raise requirements.RequirementsError("분석 유형을 확인해 주세요.")
     latest = latest_rfp(db_path, project_id)
     if latest is None:
         raise requirements.RequirementsError("등록된 제안요청서가 없습니다.")
@@ -163,7 +169,7 @@ def queue_requirements(db_path: Path, project_id: str, *, force: bool = False) -
     if force:
         _set_job(db_path, "requirement_jobs", project_id, latest["revision"], "failed", None)
     _queue(db_path, "requirement_jobs", project_id, latest["revision"],
-           latest["document_id"], partial(_run_requirements, force=force))
+           latest["document_id"], partial(_run_requirements, force=force, **({"mode": mode} if mode != "auto" else {})))
     return requirement_status(db_path, project_id)
 
 
@@ -179,6 +185,8 @@ def requirement_status(db_path: Path, project_id: str) -> dict:
         ).fetchone()
     status, error = (row["status"], row["error"]) if row else ("none", None)
     summary = None
+    ready = False
+    review = None
     if status in {"none", "done"}:
         try:
             saved = requirements.load_saved_requirements(db_path, latest["document_id"])
@@ -188,19 +196,33 @@ def requirement_status(db_path: Path, project_id: str) -> dict:
             status = "done"
             summary = {
                 "created_at": str(saved.get("created_at")),
-                "detail_count": len(saved.get("details", [])),
+                "detail_count": len(saved.get("details", {}).get("block_ids", [])),
                 "warning_count": len(saved.get("warnings", [])),
             }
+            with _open(db_path) as connection:
+                review = specs.latest(connection, project_id, latest["revision"], saved)
+                effective = specs.effective(connection, project_id, latest["revision"], saved)
+            ready = bool(specs.active_items(effective)) if effective.get("specification") else specs.numbered(saved)
+            summary.update(analysis_type="narrative" if review else "numbered" if specs.numbered(saved) else "undetermined",
+                           review_status=review["status"] if review else saved.get("status"),
+                           specification_id=review["id"] if review else None)
+            if review:
+                summary["detail_count"] = len(review["items"])
+            if not ready:
+                status = "needs_review"
+
         elif status == "done":
             status, error = "failed", "저장된 요구사항 결과를 찾을 수 없습니다."
-    return {"status": status, "revision": latest["revision"], "error": error, "summary": summary}
+    return {"status": status, "revision": latest["revision"], "error": error, "summary": summary,
+            "ready": ready, "preview_available": summary is not None}
 
 
 def _run_criteria(db_path: Path, project_id: str, revision: int, document_id: str,
                   *, force: bool = False) -> None:
     try:
         _set_job(db_path, "criteria_jobs", project_id, revision, "running")
-        criteria.extract_and_save_criteria(document_id, db_path=db_path, force=force)
+        criteria.extract_and_save_criteria(document_id, db_path=db_path, force=force,
+                                            project_id=project_id, upload_revision=revision)
         _set_job(db_path, "criteria_jobs", project_id, revision, "done")
     except (criteria.CriteriaError, requirements.RequirementsError) as error:
         _set_job(db_path, "criteria_jobs", project_id, revision, "failed", str(error))
@@ -217,6 +239,9 @@ def queue_criteria(db_path: Path, project_id: str, *, force: bool = False) -> di
         raise criteria.CriteriaError("등록된 제안요청서가 없습니다.")
     if requirements.load_saved_requirements(db_path, latest["document_id"]) is None:
         raise criteria.CriteriaError("제안 요구사항 추출이 끝난 뒤 평가기준을 생성할 수 있습니다.")
+    state = requirement_status(db_path, project_id)
+    if state.get("status") == "needs_review":
+        raise criteria.CriteriaError("문서 단계에서 요구사항 명세서를 검토·확정한 뒤 평가표를 생성해 주세요.")
     current = criteria_status(db_path, project_id)
     if current["status"] in {"queued", "running"}:
         return current
@@ -292,7 +317,8 @@ def criteria_status(db_path: Path, project_id: str) -> dict:
     saved = None
     if requirements_ready and status in {"none", "done"}:
         try:
-            saved = criteria.load_saved_criteria(db_path, latest["document_id"])
+            saved = criteria.load_saved_criteria(db_path, latest["document_id"],
+                project_id=project_id, upload_revision=latest["revision"])
         except (criteria.CriteriaError, requirements.RequirementsError) as exc:
             saved, error = None, str(exc)
     if saved is not None:
@@ -304,6 +330,7 @@ def criteria_status(db_path: Path, project_id: str) -> dict:
         result = {key: saved.get(key) for key in (
             "created_at", "template_source", "reference_filename", "total_score",
             "rows", "selection_rationale", "supplemental_items", "guideline_url", "_id",
+            "source_specification_id", "requirement_mapping", "unmapped_requirements",
         )}
         result["created_at"] = str(result["created_at"])
     return {"status": status, "revision": latest["revision"],

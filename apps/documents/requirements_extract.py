@@ -1,7 +1,7 @@
 """SQLite 문서의 사업현황·요구사항 총괄표·세부 내역 추출.
 
 파싱 블록 압축과 원문 복사, 분석 결과 저장·조회까지 이 파일에서 처리한다.
-실행: python -m apps.documents.step3_ai_requirements_extract_to_SQLite --document-id ID
+실행: python -m apps.documents.requirements_extract --document-id ID
 """
 
 from __future__ import annotations

@@ -29,7 +29,7 @@ from app.api.document_module_routes import event_envelope  # noqa: E402
 from app.api.project_documents import _save as save_rfp, resolve_database  # noqa: E402
 from app.committee import candidate_pool  # noqa: E402
 from app.committee.committee_app.v2_core import Context, digest, now  # noqa: E402
-from app.documents import criteria_approval, proposal_document_adapter  # noqa: E402
+from app.documents import criteria_review, proposal_uploads  # noqa: E402
 from app.shared import sample_pool  # noqa: E402
 from app.shared.db import Store, insert  # noqa: E402
 from app.shared.integration_contracts import apply_event  # noqa: E402
@@ -143,7 +143,7 @@ def seed_project(store: Store, spec: dict) -> list[dict]:
 
 def seed_documents(store: Store, database: Path, samples: Path, spec: dict, vendors: list[dict]) -> None:
     pid = spec["id"]
-    from app.documents.rfp_api import latest_rfp
+    from app.documents.rfp_workflow import latest_rfp
     if latest_rfp(database, pid) is None:
         source = samples / spec["rfp"]
         upload = save_rfp(database, pid, spec["name"], source.name, source.read_bytes())
@@ -152,7 +152,7 @@ def seed_documents(store: Store, database: Path, samples: Path, spec: dict, vend
         with store.connect(write=True) as db:
             ref(db, "ref_rfp_bindings", binding | {"id": digest(binding)}, upload["revision"])
         print(f"  제안요청서 등록: {source.name} ({upload['page_count']}쪽)")
-    ready = proposal_document_adapter.latest_ready(database, pid)
+    ready = proposal_uploads.latest_ready(database, pid)
     for vendor, (_name, rel) in zip(vendors, spec["vendors"]):
         if vendor["id"] in ready:
             continue
@@ -166,7 +166,7 @@ def seed_documents(store: Store, database: Path, samples: Path, spec: dict, vend
                 "WHERE project_id=? AND vendor_id=?", (pid, vendor["id"])
             ).fetchone()[0]
         try:
-            upload = proposal_document_adapter.register_proposal(
+            upload = proposal_uploads.register_proposal(
                 database, project_id=pid, project_name=spec["name"], vendor_id=vendor["id"],
                 filename=source.name, data=source.read_bytes(), uploaded_by=ADMIN,
                 minimum_revision=minimum_revision)
@@ -177,24 +177,24 @@ def seed_documents(store: Store, database: Path, samples: Path, spec: dict, vend
             print(f"  [건너뜀] {vendor['display_code']}사 {source.name}: {exc}")
             continue
         ack = apply_event(store, event_envelope("proposal.ready", upload["id"],
-                                                proposal_document_adapter.ready_event(upload)), "documents")
+                                                proposal_uploads.ready_event(upload)), "documents")
         print(f"  {vendor['display_code']}사 제안서 등록: {source.name} ({upload['pages']}쪽) → 평가 연결 {ack['status']}")
 
 
 def seed_criteria(store: Store, database: Path, spec: dict) -> None:
     pid = spec["id"]
-    versions = criteria_approval.list_versions(database, pid)
+    versions = criteria_review.list_versions(database, pid)
     if any(v["status"] == "APPROVED" for v in versions):
         return
-    draft = criteria_approval.open_draft(database, project_id=pid, source="template", ai_result=None, actor_id=ADMIN)
+    draft = criteria_review.open_draft(database, project_id=pid, source="template", ai_result=None, actor_id=ADMIN)
     # 기본 서식 복사본에 근거 쪽이 없으면 제안요청서의 평가표 쪽(없으면 1쪽)을 채워 확정한다.
     page = next((i["source_page"] for i in draft["items"] if i["source_page"]), None) or 1
     items = [{"code": i["code"], "parent_code": i["parent_code"], "title": i["title"], "description": i["description"],
               "max_score": i["points"], "source_page": i["source_page"] or page, "sort_order": i["sort_order"]}
              for i in draft["items"]]
-    draft = criteria_approval.save_draft(database, project_id=pid, draft_id=draft["id"], version=draft["version"],
+    draft = criteria_review.save_draft(database, project_id=pid, draft_id=draft["id"], version=draft["version"],
                                          items=items, total_points=draft["total_points"])
-    saved, payload = criteria_approval.approve_criteria(database, project_id=pid, draft_id=draft["id"],
+    saved, payload = criteria_review.approve_criteria(database, project_id=pid, draft_id=draft["id"],
                                                         version=draft["version"], actor_id=ADMIN, confirmed=True)
     ack = apply_event(store, event_envelope("criteria.approved", saved["id"], payload), "documents")
     print(f"  평가표 확정: {saved['total_points']:g}점 · {len(saved['items'])}항목 → 평가 연결 {ack['status']}")

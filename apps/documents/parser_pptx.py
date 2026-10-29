@@ -1,8 +1,8 @@
 """연결용 신규 파서 · 오대웅(DaeUng79) 문서 모듈 검토 대상.
 
-PPTX 제안서를 hwpx_parser와 같은 문서 JSON 모양으로 바꾼다. 결과는 그대로
-`hwpx_storage.save_to_sqlite`에 넣을 수 있고, 평가 화면의 DocumentReader와
-step3 요구사항 추출(compact_blocks)이 그대로 읽는다.
+PPTX 제안서를 parser_hwpx와 같은 문서 JSON 모양으로 바꾼다. 결과는 그대로
+`storage_documents.save_to_sqlite`에 넣을 수 있고, 평가 화면의 DocumentReader와
+요구사항 추출 모듈(compact_blocks)이 그대로 읽는다.
 
 - 물리 페이지 1장 = 슬라이드 1장(슬라이드 순서). page_number도 슬라이드 번호다.
 - 도형은 그룹 안까지 재귀로 돌며 (top, left) 순으로 읽는다. 제목 자리표시자는 항상 먼저 읽는다.
@@ -10,9 +10,9 @@ step3 요구사항 추출(compact_blocks)이 그대로 읽는다.
 - 그림·차트·슬라이드 노트는 읽지 않고 warnings에 한 번 남긴다.
 
 이 모듈은 import 시점에 서드파티를 불러오지 않는다. python-pptx는 parse_pptx 안에서만 쓴다.
-문서 뼈대·블록 생성 함수는 pdf_parser와 같이 쓴다.
+문서 뼈대·블록 생성 함수는 parser_pdf와 같이 쓴다.
 
-예: python apps/documents/pptx_parser.py 제안서.pptx
+예: python apps/documents/parser_pptx.py 제안서.pptx
 """
 
 from __future__ import annotations
@@ -22,10 +22,10 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from .pdf_parser import (add_paragraph_block, add_table_block, document_skeleton,
+    from .parser_pdf import (add_paragraph_block, add_table_block, document_skeleton,
                              finish_document, normalize_space, page_entry)
 except ImportError:  # 단독 실행 (apps/documents가 sys.path에 있을 때)
-    from pdf_parser import (add_paragraph_block, add_table_block, document_skeleton,
+    from parser_pdf import (add_paragraph_block, add_table_block, document_skeleton,
                             finish_document, normalize_space, page_entry)
 
 PPTX_PARSER_VERSION = "pptx-text-1.0"
@@ -87,7 +87,7 @@ def parse_pptx(path: str | Path) -> dict[str, Any]:
         from pptx.exc import PackageNotFoundError
     except ImportError as error:
         raise RuntimeError(
-            "PPTX 제안서를 읽으려면 python-pptx 패키지가 필요합니다. apps/documents/requirements.txt를 확인하세요."
+            "PPTX 제안서를 읽으려면 python-pptx 패키지가 필요합니다. apps/server/requirements.txt를 확인하세요."
         ) from error
 
     import io
@@ -147,7 +147,7 @@ def parse_pptx(path: str | Path) -> dict[str, Any]:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        sys.exit("사용법: python pptx_parser.py <제안서.pptx>")
+        sys.exit("사용법: python parser_pptx.py <제안서.pptx>")
     result = parse_pptx(sys.argv[1])
     print("파싱 완료:", result["filename"])
     print("페이지:", len(result["pages"]), "블록:", len(result["blocks"]),

@@ -2,7 +2,7 @@
 
 연결용 신규 파일 · 오대웅(DaeUng79) 문서 모듈 검토 대상.
 설계(인계서 v2 §15 CRITERIA 모듈)의 `open_draft`·`save_draft`·`approve_criteria`를 구현한다.
-AI 초안(`criteria_results`, step4)은 읽기만 하고 수정하지 않는다. 검토 시작은 초안을
+AI 초안(`criteria_results`, `criteria_generate.py`)은 읽기만 하고 수정하지 않는다. 검토 시작은 초안을
 복사해 `approved_criteria_versions(DRAFT)`를 만들고, 확정은 APPROVED로 바꾼 뒤
 `criteria.approved` 계약 payload를 돌려준다(평가 DB 전달은 서버 어댑터가 한다).
 표 열은 schema_v2.json을 따르되 `criteria_results`·`requirement_results`·`ref_admin_users`
@@ -20,7 +20,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from .hwpx_storage import SCHEMA, connect
+from .storage_documents import SCHEMA, connect
+from . import requirements_review as specs
 
 SCALE = 10000
 CRITERIA_SCHEMA = """
@@ -259,6 +260,10 @@ def _items_from_ai(rows: list[dict[str, Any]], page: int | None) -> list[dict[st
         criteria = (row.get("evaluation_criteria") or "").strip()
         elements = row.get("evaluation_elements") or []
         description = criteria + ("".join("\n- " + e for e in elements) if elements else "")
+        if row.get("score_bands"):
+            description += "\n원문 배점기준: " + " / ".join(f"{k} {v}점" for k, v in row["score_bands"].items())
+        if row.get("requirement_codes"):
+            description += "\n연결 요구사항: " + ", ".join(row["requirement_codes"])
         items.append({"code": f"{divisions.index(division) + 1}.{number}",
                       "parent_code": str(divisions.index(division) + 1),
                       "title": row.get("evaluation_item") or "평가항목",
@@ -402,6 +407,8 @@ def open_draft(db_path: Path, *, project_id: str, source: str, ai_result: dict[s
         if source == "ai":
             if not ai_result or not ai_result.get("rows"):
                 raise CriteriaApprovalError("AI 초안이 아직 없습니다. 초안 생성을 먼저 실행해 주세요.")
+            if ai_result.get("source_specification_id"):
+                _check_specification(db, project_id, binding["upload_revision"], binding["document_id"], ai_result["source_specification_id"])
             items = _items_from_ai(_rows_with_source_pages(
                 db, binding, ai_result["rows"], ai_result.get("template_source")), page)
             total = float(ai_result.get("total_score") or sum(r.get("score", 0) for r in ai_result["rows"]))
@@ -424,7 +431,10 @@ def open_draft(db_path: Path, *, project_id: str, source: str, ai_result: dict[s
             "INSERT INTO approved_criteria_versions VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL)",
             (identity, _now(), _now(), 1, project_id, binding["upload_revision"], draft_result_id, None,
              binding["document_id"], binding["parse_revision"], approval_no, "DRAFT",
-             round(total * SCALE), _packed({"source": source, "items": normalized, "opened_by": actor_id})))
+             round(total * SCALE), _packed({"source": source, "items": normalized, "opened_by": actor_id,
+                      "source_specification_id": (ai_result or {}).get("source_specification_id"),
+                      "requirement_mapping": (ai_result or {}).get("requirement_mapping", []),
+                      "unmapped_requirements": (ai_result or {}).get("unmapped_requirements", [])})))
         _write_items(db, identity, project_id, normalized)
         return _read_version(db, identity)
 
@@ -451,6 +461,17 @@ def save_draft(db_path: Path, *, project_id: str, draft_id: str, version: int,
         return _read_version(db, draft_id)
 
 
+def _check_specification(db, project_id, revision, document_id, spec_id):
+    row = db.execute("SELECT result_json FROM requirement_results WHERE document_id=? ORDER BY created_at DESC LIMIT 1", (document_id,)).fetchone()
+    if not row:
+        raise CriteriaApprovalError("명세서의 원문 분석 결과를 찾을 수 없습니다.")
+    result = json.loads(row[0])
+    active = specs.latest(db, project_id, revision, result, approved=True)
+    if not active or active["id"] != spec_id:
+        raise CriteriaApprovalError("요구사항 명세서가 변경되었습니다. 새 평가표 초안으로 검토를 시작해 주세요.")
+    specs.assert_source(db, project_id, revision, result)
+
+
 def approve_criteria(db_path: Path, *, project_id: str, draft_id: str, version: int,
                      actor_id: str, confirmed: bool) -> tuple[dict[str, Any], dict[str, Any]]:
     """CRT-05: 검증 후 APPROVED로 바꾸고 (저장본, criteria.approved payload)를 돌려준다."""
@@ -465,6 +486,9 @@ def approve_criteria(db_path: Path, *, project_id: str, draft_id: str, version: 
             raise CriteriaApprovalError("이미 확정된 평가표입니다.")
         if current["version"] != version:
             raise CriteriaApprovalError("다른 작업에서 변경했습니다. 다시 조회하세요.")
+        snapshot = json.loads(current["draft_snapshot_json"])
+        if snapshot.get("source_specification_id"):
+            _check_specification(db, project_id, current["upload_revision"], current["document_id"], snapshot["source_specification_id"])
         items = current["items"]
         leaves = [i for i in items if i["is_scorable"]]
         if sum(i["max_score"] for i in leaves) != current["total_max_score"]:

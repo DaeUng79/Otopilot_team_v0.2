@@ -14,7 +14,7 @@ POST /api/v2/evaluator/projects/{p}/sessions/{s}/chat {vendors[], question, hist
 POST /api/v2/evaluator/projects/{p}/sessions/{s}/chat/stream
      같은 권한·문서를 검사한 뒤 NDJSON으로 delta, answer, done 이벤트를 순서대로 보낸다.
 POST /api/v2/evaluator/projects/{p}/sessions/{s}/comparisons/summary {criterion_id}
-     고정된 제안서 근거 블록을 apps/documents/proposal_item_summary.py에서 업체별로 정리한다.
+     고정된 제안서 근거 블록을 apps/documents/proposal_evidence_summary.py에서 업체별로 정리한다.
 """
 
 from __future__ import annotations
@@ -33,8 +33,8 @@ from app.evaluation.documents.settings import PM01_DIR
 
 @lru_cache(maxsize=1)
 def _summary_module():
-    path = PM01_DIR / "proposal_item_summary.py"
-    spec = importlib.util.spec_from_file_location("proposal_item_summary", path)
+    path = PM01_DIR / "proposal_evidence_summary.py"
+    spec = importlib.util.spec_from_file_location("proposal_evidence_summary", path)
     if spec is None or spec.loader is None:
         raise ApiError("UPSTREAM_UNAVAILABLE", "AI 정리 모듈을 읽을 수 없습니다.", 503)
     module = importlib.util.module_from_spec(spec)

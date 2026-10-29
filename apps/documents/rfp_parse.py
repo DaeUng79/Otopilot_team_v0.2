@@ -1,6 +1,6 @@
 """1단계: HWPX 원본을 문서 JSON으로 파싱한다.
 
-핵심 파서 구현은 hwpx_parser.py에 두고, 서비스와 수동 실행의 단계 진입점을
+핵심 파서 구현은 parser_hwpx.py에 두고, 서비스와 수동 실행의 단계 진입점을
 이 파일로 통일한다. 이 단계는 SQLite를 수정하지 않는다.
 """
 
@@ -10,7 +10,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .hwpx_parser import parse_hwpx
+from .parser_hwpx import parse_hwpx
 
 
 def parse_document(source: Path, *, asset_dir: Path | None = None) -> dict:

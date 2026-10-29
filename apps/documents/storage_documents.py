@@ -1,6 +1,6 @@
 """파싱 JSON과 이미지 바이너리를 하나의 SQLite 파일에 저장한다.
 
-예: python apps/documents/hwpx_storage.py output/json/parsed.json \
+예: python apps/documents/storage_documents.py output/json/parsed.json \
         --database documents.sqlite3 --source 원본.hwpx
 
 JSON을 원본 그대로 보관하고 조회에 필요한
@@ -476,7 +476,7 @@ def load_source(db_path: str | Path, sha256: str) -> bytes | None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="HWPX 파싱 JSON과 이미지를 SQLite에 저장")
-    parser.add_argument("json_path", type=Path, help="hwpx_parser.py 결과 JSON")
+    parser.add_argument("json_path", type=Path, help="parser_hwpx.py 결과 JSON")
     parser.add_argument("--database", type=Path, default=Path(__file__).resolve().parent / "documents.sqlite3")
     parser.add_argument("--source", type=Path, help="원본 HWPX/HWP도 BLOB으로 저장할 때 지정")
     parser.add_argument("--asset-root", type=Path, help="이미지 폴더 (기본: JSON 폴더의 형제 images/)")

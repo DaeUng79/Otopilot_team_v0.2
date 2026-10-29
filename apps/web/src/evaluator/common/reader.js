@@ -161,6 +161,7 @@ export function mountReader(el, data, io, opts = {}) {
     st.token += 1;
     el.classList.toggle('is-single', st.mode === 'single');
     book.innerHTML = st.mode === 'spread' ? pageShell(st.p) + pageShell(st.p + 1) : pageShell(st.p);
+    book.scrollTop = 0;
     top.innerHTML = topHtml();
     const n = STEP();
     fill.style.height = pct(st.p - 1 + n);

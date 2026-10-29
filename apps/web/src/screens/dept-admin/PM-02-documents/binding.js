@@ -22,7 +22,7 @@ function savePendingAnalysis(){sessionStorage.setItem(autoAnalysisKey,JSON.strin
 const fmtSize=b=>(b/1048576).toFixed(1)+'MB',fmtAt=t=>new Date(t).toLocaleString('ko-KR');
 async function getJson(url,options){const response=await fetch(url,{credentials:'same-origin',headers:{'X-Simsa-Client':'v2-web',...(options?.json!==undefined?{'Content-Type':'application/json'}:{})},method:options?.method||'GET',body:options?.json!==undefined?JSON.stringify(options.json):options?.body});const body=await response.json().catch(()=>({}));if(!response.ok)throw Error(body.error?.message||'요청을 처리하지 못했습니다.');return body.data;}
 async function downloadUrl(url,filename){const response=await fetch(url,{credentials:'same-origin'});if(!response.ok)throw Error('파일을 내려받지 못했습니다.');const object=URL.createObjectURL(await response.blob());const link=document.createElement('a');link.href=object;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(object),1000);}
-const REQ={none:['','요약 전','제안요청서는 저장됐습니다. 요구사항 요약을 시작하지 못했습니다.'],queued:['info','분석 대기','요구사항 분석을 기다리고 있습니다. 완료될 때까지 자동으로 확인합니다.'],running:['info','분석 중','요구사항을 분석 중입니다. 완료될 때까지 자동으로 확인합니다.'],failed:['danger','실패','제안요청서는 저장됐지만 요구사항 요약에 실패했습니다. API 키와 통신 상태를 확인한 뒤 다시 시도해 주세요.'],done:['success','완료','제안요청서 저장과 요구사항 요약이 끝났습니다.']};
+const REQ={needs_review:['warning','검토 필요','요구사항 명세서를 검토·확정해 주세요.'],none:['','요약 전','제안요청서는 저장됐습니다. 요구사항 요약을 시작하지 못했습니다.'],queued:['info','분석 대기','요구사항 분석을 기다리고 있습니다. 완료될 때까지 자동으로 확인합니다.'],running:['info','분석 중','요구사항을 분석 중입니다. 완료될 때까지 자동으로 확인합니다.'],failed:['danger','실패','제안요청서는 저장됐지만 요구사항 요약에 실패했습니다. API 키와 통신 상태를 확인한 뒤 다시 시도해 주세요.'],done:['success','완료','제안요청서 저장과 요구사항 요약이 끝났습니다.']};
 function extractionRows(){
   return sorted().map(view=>{
     const vendor=vendorRows[S.v.indexOf(view)];
@@ -100,7 +100,7 @@ paint=()=>{
     $('#rfp .fa [data-retry="rfp"]')?.remove();
     const badge=$('#rfp .rfp-head .badge');
     const st=REQ[requirementState?.status]||REQ.none;
-    if(badge){badge.className='badge '+st[0];badge.textContent=requirementState?.status==='done'?'✓ 완료':requirementState?.status==='failed'?'! 요약 실패':'⟳ 분석 중';}
+    if(badge){badge.className='badge '+st[0];badge.textContent=requirementState?.status==='needs_review'?'검토 필요':requirementState?.status==='done'?'✓ 완료':requirementState?.status==='failed'?'! 분석 실패':'⟳ 분석 중';}
     const message=$('#rfp .msg');
     if(message&&requirementState?.status==='failed'){
       message.className='msg bad';message.textContent=st[2]+(requirementState.error?' '+requirementState.error:'');
@@ -108,19 +108,33 @@ paint=()=>{
   }
   const status=$('#m-xr');
   if(status&&S.rfp.revs.length){const st=REQ[requirementState?.status]||REQ.none;
-    status.innerHTML=`<div class="mrow extraction-row"><strong class="extraction-name">제안요청서</strong><span class="badge ${st[0]}">${st[1]}</span><span class="tx ${['queued','running'].includes(requirementState?.status)?'analysis-progress':''}" role="status" aria-live="polite">${st[2]}${requirementState?.error?' · '+h(requirementState.error):''}</span>${['none','failed'].includes(requirementState?.status||'none')?'<button class="tl pri" type="button" data-retry="rfp">'+(requirementState?.status==='failed'?'다시 시도':'요구사항 요약')+'</button>':''}${requirementState?.status==='done'?'<button class="tl" type="button" data-reextract>요구사항 재 추출</button>':''}</div>`+extractionRows();}
+    status.innerHTML=`<div class="mrow extraction-row"><strong class="extraction-name">제안요청서</strong><span class="badge ${st[0]}">${st[1]}</span><span class="tx ${['queued','running'].includes(requirementState?.status)?'analysis-progress':''}" role="status" aria-live="polite">${st[2]}${requirementState?.error?' · '+h(requirementState.error):''}</span><span class="extraction-actions">${['none','failed'].includes(requirementState?.status||'none')?'<button class="tl pri" type="button" data-retry="rfp">'+(requirementState?.status==='failed'?'다시 시도':'요구사항 요약')+'</button>':''}${requirementState?.status==='done'?'<button class="tl" type="button" data-reextract>요구사항 재 추출</button>':''}</span></div>`+extractionRows();}
   if(S.rfp.revs.length){
     const actions=$('#rfp .fa');
     if(actions){
-      const ready=requirementState?.status==='done';
+      const ready=['done','needs_review'].includes(requirementState?.status);
       const preview=document.createElement('button');
       preview.type='button';preview.className='btn';preview.dataset.previewRfp='';
-      preview.textContent='제안요청서 확인';preview.disabled=!ready;
+      preview.textContent='제안요청서 보기';preview.disabled=!ready;
       if(!ready)preview.title='요구사항 요약 처리가 끝나면 사용할 수 있습니다.';
       actions.appendChild(preview);
     }
-    const view=$('[data-view="rfp"]');if(view){view.textContent='제안요청서 확인';view.disabled=requirementState?.status!=='done';}
+    const view=$('[data-view="rfp"]');if(view){view.textContent='제안요청서 보기';view.disabled=!['done','needs_review'].includes(requirementState?.status);}
     const replace=$('#rfp [data-up="rfp"]');if(replace)replace.textContent='파일 재등록';
+  }
+  if(S.rfp.revs.length){
+    const actions=$('#m-xr .extraction-actions');
+    if(actions){
+      const review=document.createElement('a');review.className='tl pri';
+      review.href='/app/dept-admin/PM-02/design/requirements-preview.html?project_id='+encodeURIComponent(Live.pid);
+      review.textContent=requirementState?.summary?.analysis_type==='narrative'?'AI 요구사항 명세서 검토':'요구사항 확인 · 분석 유형 선택';
+      actions.append(review);
+      if(requirementState?.summary){
+        const note=document.createElement('span');note.className='tx';
+        note.textContent=` ${requirementState.summary.detail_count}건 · ${requirementState.summary.review_status==='DRAFT'?'명세서 초안 검토 필요':requirementState.summary.analysis_type==='narrative'?'확정 명세서 사용':'원문 추출 결과'}`;
+        actions.append(note);
+      }
+    }
   }
   // The prototype's TOC confirmation and synthetic state controls are not persisted.
   $('#demo').hidden=true;
@@ -134,7 +148,7 @@ async function loadRfp(){
   S.rfp={s:rfpUploads.length?'run':'none',toc:'none',entries:[],err:'',revs:rfpUploads.map(u=>
     rv(u.revision,u.filename,fmtAt(u.uploaded_at),fmtSize(u.byte_size)))};
   requirementState=rfpUploads.length?await getJson(projectUrl+'/requirements').catch(error=>({status:'failed',error:'처리 상태를 확인하지 못했습니다. 통신 상태를 확인하고 새로고침해 주세요. '+error.message})):null;
-  if(rfpUploads.length)S.rfp.s=requirementState?.status==='done'?'done':requirementState?.status==='failed'?'fail':'run';
+  if(rfpUploads.length)S.rfp.s=['done','needs_review'].includes(requirementState?.status)?'done':requirementState?.status==='failed'?'fail':'run';
   paint();
   if(comparisonInitialized&&requirementState?.status==='done')void flushAutoAnalysis();
   clearTimeout(requirementTimer);
@@ -290,7 +304,7 @@ async function showParsedProposal(index){
 }
 Live.capture('[data-toc="rfp"]','click',showParsedRfp);
 function openRfpPreview(){
-  if(requirementState?.status!=='done')return;
+  if(!['done','needs_review'].includes(requirementState?.status))return;
   location.href='/app/dept-admin/PM-02/design/rfp-preview.html?project_id='+encodeURIComponent(Live.pid);
 }
 Live.capture('[data-preview-rfp],[data-view="rfp"]','click',openRfpPreview);
@@ -362,7 +376,7 @@ const comparisonSearch=$('#comparison-search');
 function renderBusinessStatus(data){
   const panel=$('#business-panel');
   const categories=[['current_status','현황'],['background_and_need','배경 및 필요성'],['scope','사업 범위']];
-  const status=data?.status==='ready'?data.business_status||{}:{};
+  const status=['ready','review_draft'].includes(data?.status)?data.business_status||{}:{};
   const entries=categories.map(([key,title])=>({title,points:Array.isArray(status[key])?status[key].filter(point=>point?.text?.trim()):[]}));
   panel.hidden=!entries.some(entry=>entry.points.length);
   $('#business-grid').innerHTML=panel.hidden?'':entries.map(({title,points})=>
@@ -384,20 +398,24 @@ function renderComparison(){
   const data=comparisonData;
   if(!data)return;
   renderBusinessStatus(data);
-  if(data.status!=='ready'){
-    comparisonStatus.textContent='제안요청서 요구사항 추출이 완료되면 비교 표를 볼 수 있습니다.';
+  const reviewing=data.status==='review_draft';
+  if(data.status!=='ready'&&!reviewing){
+    comparisonStatus.textContent='요구사항 분석이 완료되면 목록을 볼 수 있습니다.';
     $('#comparison-tools').hidden=true;$('#comparison-wrap').hidden=true;return;
   }
-  const vendors=sorted().map(v=>{
+  const vendors=reviewing?[]:sorted().map(v=>{
     const row=vendorRows[S.v.indexOf(v)];
     return {view:v,column:data.proposals.find(p=>p.vendor_id===row?.id)};
   });
   const total=data.categories.reduce((n,c)=>n+c.requirements.length,0);
   const vendorStatus=vendors.map(({view,column})=>
     `${view.code} ${column?column.status==='complete'?`확인 ${column.confirmed} · 미확인 ${column.unconfirmed}`:column.status==='partial'?`${column.processed}/${column.total}건 처리`:'2차 분석 전':'제안서 미등록'}`).join(' · ');
-  comparisonStatus.textContent=`${total}개 요구사항`+(vendorStatus?' · '+vendorStatus:'')
-    +' · 확인됨은 관련 제안 문구를 찾았다는 뜻이며 요구사항 충족 판정은 아닙니다. 확인되지 않음도 내용 부재 판정이 아닙니다.'
-    +(data.review_warnings?.length?' · 검토 필요: '+data.review_warnings.join(' / '):'');
+  comparisonStatus.textContent=reviewing
+    ? `${total}개 AI 요구사항 초안 · 검토·확정 전입니다. 업체 제안서 분석에는 아직 사용되지 않습니다.`
+    : `${total}개 요구사항`+(Number.isInteger(data.analysis_total)&&data.analysis_total<total?` · 업체 분석 대상 ${data.analysis_total}건`:'')
+      +(vendorStatus?' · '+vendorStatus:'')
+      +' · 확인됨은 관련 제안 문구를 찾았다는 뜻이며 요구사항 충족 판정은 아닙니다. 확인되지 않음도 내용 부재 판정이 아닙니다.'
+      +(data.review_warnings?.length?' · 검토 필요: '+data.review_warnings.join(' / '):'');
   $('#comparison-tools').hidden=false;$('#comparison-wrap').hidden=false;
   const selected=comparisonCategory.value;
   comparisonCategory.innerHTML='<option value="">모든 요구사항 구분</option>'+data.categories.map(c=>
@@ -414,11 +432,12 @@ function renderComparison(){
       +requirements.map(req=>{
         const detail=String(req.rfp_detail||'');
         const short=detail.slice(0,180);
-        const rfpCell=`<span class="req-title">${h(req.title)}</span><span class="detail-preview">${h(short)}${detail.length>180?'…':''}</span>`
+        const reviewLabel=reviewing||req.usage?`<span class="finding-status wait">${req.origin==='suggested'?'AI 보완 제안':reviewing?(req.included?'원문 근거 초안':'초안에서 제외'):(req.included?'명세서 반영':'검토 제외')} · ${req.usage==='scored'?'점수 평가':req.usage==='checklist'?'필수 확인':req.usage==='delivery'?'수행·검수':'참고'}</span>`:'';
+        const rfpCell=`<span class="req-title">${h(req.title)}</span>${reviewLabel}<span class="detail-preview">${h(short)}${detail.length>180?'…':''}</span>`
           +(detail.length>180?`<details><summary>요구사항 전체 보기</summary><div class="detail-preview">${h(detail)}</div></details>`:'')
           +(req.rfp_page?`<span class="citation"><button type="button" data-rfp-page="${h(req.rfp_page)}">제안요청서 ${h(req.rfp_page)}쪽</button></span>`:'');
         return `<tr><th scope="row">${h(req.code)}</th><td>${rfpCell}</td>`
-          +vendors.map(({view,column})=>`<td>${findingHtml(req.findings[providerId(view)]||null,column)}</td>`).join('')+'</tr>';
+          +vendors.map(({view,column})=>`<td>${req.analysis_target===false?'<span class="finding-status wait">업체 비교 대상 아님</span>':findingHtml(req.findings[providerId(view)]||null,column)}</td>`).join('')+'</tr>';
       }).join('');
   }).join('');
   const labels=vendors.map(({view,column})=>`<th scope="col">${h(view.code)}${column?`<small> · ${h(view.name)}</small>`:''}</th>`).join('');
@@ -438,7 +457,8 @@ async function loadComparison(){
     const [data,jobState]=await Promise.all([
       getJson(projectUrl+'/requirements/proposal-comparison'),
       getJson(projectUrl+'/requirements/proposal-analysis/jobs')]);
-    comparisonData=data;analysisJobs=jobState.jobs||{};
+    comparisonData=data;
+    analysisJobs=jobState.jobs||{};
     renderComparison();
     paint();
   }catch(error){comparisonStatus.textContent='비교 표를 불러오지 못했습니다. '+error.message;

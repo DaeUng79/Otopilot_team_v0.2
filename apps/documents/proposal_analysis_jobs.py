@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
 
-from . import step5_ai_proposal_analysis as analysis
+from . import proposal_analysis as analysis
 
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="proposal-analysis")
 _lock = Lock()

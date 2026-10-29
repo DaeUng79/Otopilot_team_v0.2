@@ -20,7 +20,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from .step3_ai_requirements_extract_to_SQLite import EXTRACTOR_VERSION, group_detail_items
+from .requirements_extract import EXTRACTOR_VERSION, group_detail_items
+from . import requirements_review as specs
 
 DEFAULT_DB = Path(__file__).resolve().parents[1] / "server/data/database/documents_parse.sqlite3"
 DEFAULT_MODEL = "gpt-4o"
@@ -103,6 +104,12 @@ def _rows(table: dict, lookup: dict[str, dict]) -> list[list[str]]:
 
 def extract_requirements(result: dict) -> list[dict]:
     """3단계의 상세 표를 1 요구사항 = 1 항목으로 정규화한다."""
+    if result.get("specification"):
+        specs.require_ready(result)
+        return [{"code": i["code"], "category": i["category"], "title": i["title"],
+                 "rfp_detail": i["statement"], "rfp_block_id": i["sources"][0]["block_id"],
+                 "rfp_page": next(iter(i["sources"][0].get("pages") or []), None)}
+                for i in specs.active_items(result)]
     section = result.get("details") or {}
     blocks = section.get("blocks") or []
     requirements = []
@@ -195,7 +202,7 @@ def _requirements_ready(conn: sqlite3.Connection, rfp: dict, result: dict) -> bo
     """Do not expose cached results while the current upload is being extracted."""
     if result.get("extractor_version") not in (None, EXTRACTOR_VERSION):
         return False
-    if result.get("status") == "needs_review":
+    if not result.get("specification") and result.get("status") == "needs_review":
         validation = result.get("validation") or {}
         if validation.get("missing_detail_codes") or not validation.get("detail_codes"):
             return False
@@ -365,6 +372,16 @@ def verify_summary(client, model: str, finding: dict) -> dict:
     return finding
 
 
+def _effective_rfp(conn, row):
+    if row is None:
+        return None
+    row = dict(row)
+    result = specs.effective(conn, row["project_id"], row["revision"], json.loads(row["result_json"]))
+    if result.get("specification"):
+        row["result_json"] = _json(result)
+    return row
+
+
 def _source(conn: sqlite3.Connection, project_id: str, proposal_id: str | None) -> tuple[dict, list[dict]]:
     rfp = conn.execute(f"""SELECT r.project_id, r.document_id, r.revision, q.result_id, q.result_json, q.source_revision
       FROM ({_latest_visible_rfp(conn)}) r
@@ -372,7 +389,8 @@ def _source(conn: sqlite3.Connection, project_id: str, proposal_id: str | None) 
       JOIN requirement_results q ON q.document_id=r.document_id AND q.source_revision=d.active_revision
       WHERE q.status IN ('complete', 'needs_review') ORDER BY q.created_at DESC LIMIT 1""",
                        (project_id,)).fetchone()
-    if not rfp or not _requirements_ready(conn, dict(rfp), json.loads(rfp["result_json"])):
+    rfp = _effective_rfp(conn, rfp)
+    if not rfp or not _requirements_ready(conn, rfp, json.loads(rfp["result_json"])):
         raise ValueError("현재 프로젝트의 완료된 제안요청서 요구사항 추출 결과가 없습니다.")
     sql = """SELECT p.*, s.document_json FROM project_proposal_uploads p
       JOIN parse_snapshots s ON s.document_id=p.document_id AND s.revision=p.parse_revision
@@ -408,12 +426,17 @@ def _check_sources(conn: sqlite3.Connection, rfp: dict, proposal: dict) -> None:
                               (proposal["project_id"],)).fetchone()
     row = conn.execute("SELECT active_revision FROM documents WHERE document_id=?", (rfp["document_id"],)).fetchone()
     current = conn.execute("SELECT result_json FROM requirement_results WHERE result_id=?", (rfp["result_id"],)).fetchone()
+    if current:
+        current_result = specs.effective(conn, rfp["project_id"], rfp["revision"], json.loads(current[0]))
+        current_hash = _digest(_json(current_result)) if current_result.get("specification") else _digest(current[0])
+    else:
+        current_hash = None
     upload = conn.execute("SELECT document_id,parse_revision,status FROM project_proposal_uploads WHERE id=?", (proposal["id"],)).fetchone()
     proposal_revision = conn.execute("SELECT active_revision FROM documents WHERE document_id=?",
                                      (proposal["document_id"],)).fetchone()
     if (not latest_rfp or tuple(latest_rfp) != (rfp["document_id"], rfp["revision"])
             or not row or row[0] != rfp["source_revision"] or not current
-            or _digest(current[0]) != _digest(rfp["result_json"])
+            or current_hash != _digest(rfp["result_json"])
             or not proposal_revision or proposal_revision[0] != proposal["parse_revision"]
             or not upload or tuple(upload) != (proposal["document_id"], proposal["parse_revision"], "READY")):
         raise RuntimeError("분석 중 제안요청서 또는 제안서 버전이 변경되었습니다. 다시 실행하세요.")
@@ -450,7 +473,30 @@ def comparison_overview(db: Path, project_id: str, *, model: str = DEFAULT_MODEL
           JOIN documents d ON d.document_id=r.document_id
           JOIN requirement_results q ON q.document_id=r.document_id AND q.source_revision=d.active_revision
           WHERE q.status IN ('complete', 'needs_review') ORDER BY q.created_at DESC LIMIT 1""", (project_id,)).fetchone()
-        if not rfp or not _requirements_ready(conn, dict(rfp), json.loads(rfp["result_json"])):
+        rfp = _effective_rfp(conn, rfp)
+        if not rfp or not _requirements_ready(conn, rfp, json.loads(rfp["result_json"])):
+            if rfp:
+                raw_result = json.loads(rfp["result_json"])
+                draft = specs.latest(conn, project_id, rfp["revision"], raw_result)
+                if draft and draft["status"] == "DRAFT":
+                    grouped = defaultdict(list)
+                    for item in draft["items"]:
+                        source = next((ref for ref in item.get("sources", []) if ref.get("pages")), None)
+                        grouped[item["category"]].append({
+                            "code": item["code"], "title": item["title"],
+                            "rfp_detail": item["statement"],
+                            "rfp_page": source["pages"][0] if source else None,
+                            "origin": item["origin"], "usage": item["usage"],
+                            "included": item["included"], "findings": {},
+                        })
+                    return {
+                        "status": "review_draft", "specification_id": draft["id"],
+                        "business_status": raw_result.get("business_status") or {},
+                        "review_warnings": raw_result.get("warnings") or [],
+                        "categories": [{"name": name, "requirements": items}
+                                       for name, items in grouped.items()],
+                        "proposals": [],
+                    }
             return {"status": "waiting_for_requirements", "categories": [], "proposals": []}
         rfp = dict(rfp)
         result = json.loads(rfp["result_json"])
@@ -486,9 +532,23 @@ def comparison_overview(db: Path, project_id: str, *, model: str = DEFAULT_MODEL
             columns.append(column)
             by_vendor[proposal["vendor_id"]] = items
     grouped = defaultdict(list)
-    for req in requirements:
+    analysis_codes = {req["code"] for req in requirements}
+    specification = result.get("specification")
+    display_requirements = ([{
+        "code": spec_item["code"], "category": spec_item["category"],
+        "title": spec_item["title"], "rfp_detail": spec_item["statement"],
+        "rfp_page": next((page for source in spec_item.get("sources", [])
+                          for page in source.get("pages", [])), None),
+        "origin": spec_item["origin"], "usage": spec_item["usage"],
+        "included": spec_item["included"],
+    } for spec_item in specification["items"] if spec_item["included"] and spec_item["origin"] != "suggested"]
+        if specification else requirements)
+    for req in display_requirements:
         item = {"code": req["code"], "title": req["title"], "rfp_detail": req["rfp_detail"],
-                "rfp_page": req["rfp_page"], "findings": {}}
+                "rfp_page": req["rfp_page"], "analysis_target": req["code"] in analysis_codes,
+                "findings": {}}
+        if specification:
+            item.update(origin=req["origin"], usage=req["usage"], included=req["included"])
         for column in columns:
             finding = by_vendor[column["vendor_id"]].get(req["code"])
             item["findings"][column["vendor_id"]] = (
@@ -496,6 +556,7 @@ def comparison_overview(db: Path, project_id: str, *, model: str = DEFAULT_MODEL
                  "evidence": finding["evidence"]} if finding else None)
         grouped[req["category"]].append(item)
     return {"status": "ready", "rfp_result_id": rfp["result_id"],
+            "analysis_total": len(requirements),
             "business_status": result.get("business_status") or {},
             "review_warnings": result.get("warnings") or [],
             "categories": [{"name": name, "requirements": items} for name, items in grouped.items()],

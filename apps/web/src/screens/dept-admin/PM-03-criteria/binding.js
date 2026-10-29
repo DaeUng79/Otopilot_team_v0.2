@@ -61,7 +61,7 @@ function splitScoredRows(rows){
 function treeFromAi(rows,page){
   uid=0;descriptionByCode={};const roots=[];
   for(const row of splitScoredRows(rows)){const division=row.evaluation_division||'평가부문';let parent=roots.find(r=>r.t===division);if(!parent){parent=N(String(roots.length+1),division,0,page,'',[]);roots.push(parent);}
-    const code=`${parent.code}.${parent.kids.length+1}`;descriptionByCode[code]=(row.evaluation_criteria||'')+((row.evaluation_elements||[]).map(e=>'\n- '+e).join(''));parent.kids.push(N(code,row.evaluation_item||'평가항목',Number(row.score||0),pageLabel(row),row.source_block_id?'파싱 원문':'',[]));}
+    const code=`${parent.code}.${parent.kids.length+1}`;descriptionByCode[code]=(row.evaluation_criteria||'')+((row.evaluation_elements||[]).map(e=>'\n- '+e).join(''))+(row.score_bands?'\n원문 배점기준: '+Object.entries(row.score_bands).map(([k,v])=>`${k} ${v}점`).join(' / '):'')+(row.requirement_codes?.length?'\n연결 요구사항: '+row.requirement_codes.join(', '):'');parent.kids.push(N(code,row.evaluation_item||'평가항목',Number(row.score||0),pageLabel(row),row.source_block_id?'파싱 원문':'',[]));}
   return roots;
 }
 function itemsFromTree(){return flat().map((r,i)=>{const pages=String(r.n.pg||'').split('~').map(Number);return {code:String(r.n.code).trim(),parent_code:r.par?String(r.par.code).trim():null,title:r.n.t,description:descriptionByCode[String(r.n.code).trim()]||null,max_score:r.n.kids.length?0:Number(r.n.pt||0),source_page:r.n.pg==null?null:pages[0],source_page_end:pages.length>1?pages[1]:null,sort_order:i};});}
@@ -137,7 +137,11 @@ paint=function(){
       announcement='AI 초안 생성에 실패했습니다.';
     }else if(phase==='reqwait'){
       const requirements=criteriaState?.requirements||{};
-      if(requirements.status==='failed'){
+      if(requirements.status==='needs_review'){
+        empty.querySelector('h2').textContent='요구사항 명세서를 먼저 검토·확정해 주세요';
+        const p=empty.querySelector('p');p.textContent='서술형 요구사항의 원문 근거와 평가 활용 범위를 확인한 뒤 평가표를 생성할 수 있습니다. ';
+        const link=document.createElement('a');link.href='/app/dept-admin/PM-02/design/requirements-preview.html?project_id='+encodeURIComponent(Live.pid);link.textContent='명세서 검토하기';p.append(link);
+      }else if(requirements.status==='failed'){
         empty.querySelector('h2').textContent='제안요청서 요구사항 분석에 실패했어요';
         empty.querySelector('p').textContent='문서 단계에서 실패 이유를 확인하고 다시 분석해 주세요.';
       }else if(['queued','running'].includes(requirements.status)){
@@ -162,6 +166,18 @@ paint=function(){
   if(phase==='ready'){
     const foot=card.querySelector('.foot');
     if(foot){const regenerate=document.createElement('button');regenerate.type='button';regenerate.className='btn';regenerate.dataset.act='regenerate';regenerate.textContent=criteriaSubmitting?'생성 요청 중…':'AI 초안 다시 생성';regenerate.disabled=criteriaSubmitting||!criteriaState?.ai_ready;foot.insertBefore(regenerate,foot.querySelector('button'));}
+  }
+  const mapping=criteriaState?.draft?.result?.requirement_mapping;
+  card.querySelector('[data-spec-mapping]')?.remove();
+  if(mapping?.length&&['ready','edit','locked'].includes(phase)){
+    const panel=document.createElement('details');panel.dataset.specMapping='';panel.style.padding='16px';
+    const summary=document.createElement('summary');summary.textContent=`요구사항 ↔ 평가항목 연결 (${mapping.length}건 · 미연결 ${mapping.filter(m=>!m.row_ids.length).length}건)`;panel.append(summary);
+    const rows=criteriaState.draft.result.rows||[];
+    for(const link of mapping){const p=document.createElement('p');
+      const linked=rows.filter(row=>link.row_ids.includes(row.row_id));
+      const codes=linked.flatMap(row=>row.requirement_codes||[]);
+      p.textContent=`${link.code||link.requirement_id} → ${linked.map(row=>row.evaluation_item).join(', ')||'미연결 · 검토 필요'}: ${link.reason}`;panel.append(p);}
+    const note=document.createElement('p');note.textContent='최신 AI 초안 기준의 연결입니다. 검토본의 항목을 수정하면 연결 근거도 함께 확인해 주세요. 연결이 없는 요구사항에는 점수를 자동 추가하지 않습니다.';panel.append(note);card.append(panel);
   }
   const live=$('#criteria-progress');if(live.textContent!==announcement)live.textContent=announcement;
 };

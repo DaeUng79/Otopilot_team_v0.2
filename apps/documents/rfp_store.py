@@ -1,6 +1,6 @@
 """2단계: 1단계 문서 JSON과 원본 HWPX를 SQLite에 저장한다.
 
-테이블·저장 로직은 hwpx_storage.py가 소유한다. 이 파일은 유지보수용 단계
+테이블·저장 로직은 storage_documents.py가 소유한다. 이 파일은 유지보수용 단계
 진입점이며 요구사항 AI 추출은 수행하지 않는다.
 """
 
@@ -10,7 +10,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .hwpx_storage import save_to_sqlite
+from .storage_documents import save_to_sqlite
 
 DEFAULT_DATABASE = Path(__file__).resolve().parents[1] / "server/data/database/documents_parse.sqlite3"
 

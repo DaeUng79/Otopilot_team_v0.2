@@ -957,9 +957,9 @@ if __name__ == "__main__":
     print("파싱 경고:", len(result.get("warnings", [])))
     if not args.no_save:
         if __package__:
-            from .hwpx_storage import save_to_sqlite
+            from .storage_documents import save_to_sqlite
         else:
-            from hwpx_storage import save_to_sqlite
+            from storage_documents import save_to_sqlite
         try:
             saved = save_to_sqlite(result, args.database, source_path=input_path)
         except (OSError, ValueError, KeyError, TypeError, sqlite3.Error) as error:
