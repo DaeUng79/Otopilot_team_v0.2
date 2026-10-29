@@ -1337,16 +1337,13 @@ footer{align-items:baseline}
 <script>
 (function(){
   document.body.classList.add('vb');
-  var demo={admin:['sa-admin','Temp1234!'],biz:['info01','demo1234'],eval:['김가상','0001']};
   var body=document.body,stage=document.getElementById('stage'),msg=document.getElementById('msg'),f=document.getElementById('f');
   var picks=document.querySelectorAll('.pick'),cur=null;
   function setForm(role){
     var t=role==='eval'?[['이름','text'],['휴대전화 뒤 4자리','tel']]:[['아이디','text'],['비밀번호','password']];
-    var local=window.simsaLocalLoginAccounts;
-    var credentials=local?{admin:[local.super,local.password],biz:[local.department,local.password],eval:['','']}:demo;
     f.querySelectorAll('label').forEach(function(l,i){
       l.querySelector('.lt').textContent=t[i][0];
-      var inp=l.querySelector('input');inp.type=t[i][1];inp.value=credentials[role][i];
+      var inp=l.querySelector('input');inp.type=t[i][1];inp.value='';
       if(t[i][1]==='tel'){inp.setAttribute('inputmode','numeric');inp.setAttribute('maxlength','4');inp.placeholder='0000'}
       else{inp.removeAttribute('inputmode');inp.placeholder=''}
     });

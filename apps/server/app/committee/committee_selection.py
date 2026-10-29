@@ -272,7 +272,7 @@ async def draw_shortlist(ctx: Context, command: DTO, *, runtime: Runtime) -> DTO
 
 
 async def export_shortlist(ctx: Context, command: DTO, *, runtime: Runtime) -> ExportFile:
-    from app.committee.committee_app.v2_excel import export_xlsx
+    from app.committee.committee_app.v2_excel import export_xlsx, format_mobile_phone
 
     body = validate(ExportDraw, command)
 
@@ -302,7 +302,7 @@ async def export_shortlist(ctx: Context, command: DTO, *, runtime: Runtime) -> E
                     r["name"],
                     r["organization_name"],
                     r["specialty_id"],
-                    runtime.decrypt(r["phone_cipher"], r["id"] + ":phone"),
+                    format_mobile_phone(runtime.decrypt(r["phone_cipher"], r["id"] + ":phone")),
                 ]
                 for r in rows
             ]

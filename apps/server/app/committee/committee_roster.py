@@ -25,7 +25,7 @@ from app.committee.committee_app.v2_core import (
     validate,
     version,
 )
-from app.committee.committee_app.v2_excel import export_xlsx
+from app.committee.committee_app.v2_excel import export_xlsx, format_mobile_phone
 
 # 예비위원 1~3명 (권장 2명) — 2026-10-18 사용자 결정(처음 2~3에서 하한 완화)
 RESERVE_MIN, RESERVE_MAX = 1, 3
@@ -329,7 +329,7 @@ async def export_roster(ctx: Context, command: DTO, *, runtime: Runtime) -> Expo
             )
 
         def phone(candidate: sqlite3.Row) -> str:
-            return runtime.decrypt(candidate["phone_cipher"], candidate["id"] + ":phone")
+            return format_mobile_phone(runtime.decrypt(candidate["phone_cipher"], candidate["id"] + ":phone"))
 
         # 초청 확정 목록: 구분·예비 순위·성명·소속·분야·휴대전화
         rows = []

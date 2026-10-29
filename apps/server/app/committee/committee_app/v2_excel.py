@@ -1,12 +1,22 @@
 """Spreadsheet exports shared by the headless modules."""
 
 from io import BytesIO
+import re
 from typing import Any
 
 from openpyxl import Workbook
 from openpyxl.styles import Font
 
 from .v2_core import ExportFile
+
+
+def format_mobile_phone(value: str) -> str:
+    digits = re.sub(r"\D", "", value or "")
+    if len(digits) == 11:
+        return f"{digits[:3]}-{digits[3:7]}-{digits[7:]}"
+    if len(digits) == 10:
+        return f"{digits[:3]}-{digits[3:6]}-{digits[6:]}"
+    return value or ""
 
 
 def export_xlsx(filename: str, headers: list[str], rows: list[list[Any]]) -> ExportFile:

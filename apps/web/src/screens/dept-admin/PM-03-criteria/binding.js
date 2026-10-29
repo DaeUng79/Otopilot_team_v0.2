@@ -228,7 +228,8 @@ Live.capture('[data-act="review"]','click',async()=>{
   await getJson('/api/v2/projects/'+encodeURIComponent(Live.pid)+'/criteria-drafts',{method:'POST',json:{source:'ai'}});
   agreed=false;criteriaView='current';await loadCriteria();toast('AI 초안을 검토본으로 복사했어요.');
 });
-Live.capture('[data-act="template"],[data-act="reopen"]','click',async()=>{await getJson('/api/v2/projects/'+encodeURIComponent(Live.pid)+'/criteria-drafts',{method:'POST',json:{source:'template'}});criteriaView='current';await loadCriteria();agreed=false;toast('기본 서식 검토본을 열었어요.');});
+Live.capture('[data-act="template"]','click',async()=>{await getJson('/api/v2/projects/'+encodeURIComponent(Live.pid)+'/criteria-drafts',{method:'POST',json:{source:'template'}});criteriaView='current';await loadCriteria();agreed=false;toast('기본 서식 검토본을 열었어요.');});
+Live.capture('[data-act="reopen"]','click',()=>{criteriaView='draft';applyState();toast('초안 생성 단계로 이동했어요. 새 검토에 사용할 초안을 선택해 주세요.');});
 async function saveDraft(){
   const items=itemsFromTree();
   currentVersion=await getJson('/api/v2/projects/'+encodeURIComponent(Live.pid)+'/criteria-drafts/'+encodeURIComponent(currentVersion.id),{method:'PUT',json:{version:currentVersion.version,items,total_points:LIMIT}});

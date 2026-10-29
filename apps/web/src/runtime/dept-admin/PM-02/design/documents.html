@@ -179,7 +179,9 @@ textarea[aria-invalid="true"]{border-color:var(--danger-50);background:var(--dan
 .rfp-side header{height:56px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 20px;border-bottom:1px solid var(--line)}
 .rfp-side header strong{font-size:var(--t-lg)}
 .rfp-side iframe{display:block;flex:1;min-height:0;width:100%;border:0;background:var(--gray-5)}
+.rfp-side.requirements-side{width:min(980px,72vw)}
 @media (max-width:900px){.rfp-side{width:100vw}}
+@media (max-width:900px){.rfp-side.requirements-side{width:100vw}}
 /* [임시 CSS 문구 교체] 요구사항 요약 실패(배지 .danger) 때만, 카드 안 긴 오류 문단(API 키·.env 안내 포함)을 짧은 안내로 바꿔 보임.
    업로드 실패 문구(배지가 .danger가 아닐 때)는 그대로 보임. JS 담당자가 원 문구를 고치면 아래 두 규칙을 삭제하세요. */
 #rfp:has(.rfp-head .badge.danger) .filebox .msg.bad{font-size:0;line-height:0;display:block;-webkit-line-clamp:unset}

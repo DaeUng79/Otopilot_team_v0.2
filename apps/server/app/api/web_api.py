@@ -61,8 +61,8 @@ def clear_session_cookie(response: Response, request: Request, role: str) -> Non
 
 
 def create_app(
-    store: Store, *, demo: bool = False, port: int = 5190, original_ui: bool = False,
-    documents_db: Path | None = None, local_test_login: bool = False,
+    store: Store, *, port: int = 5190, original_ui: bool = False,
+    documents_db: Path | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="심사임당 v2 통합", docs_url=None, redoc_url=None, openapi_url=None
@@ -198,30 +198,9 @@ def create_app(
     async def config() -> DTO:
         return {
             "data": {
-                "demo": demo,
-                "local_login_accounts": {
-                    "super": "super-demo",
-                    "department": "web-demo",
-                    "other_department": "other-demo",
-                    "password": "DemoOnly!2026",
-                }
-                if local_test_login
-                else None,
                 "action_manifest": json.loads(
                     (ROOT / "contracts/actions_v2.json").read_text("utf8")
                 ),
-                "demo_accounts": {
-                    "super": "super-demo",
-                    "department": "web-demo",
-                    "password": "DemoOnly!2026",
-                    "project_id": "demo-evaluation",
-                    "evaluators": [
-                        {"name": f"가상위원{i:02d}", "last4": f"{i:04d}"}
-                        for i in range(1, 8)
-                    ],
-                }
-                if demo
-                else None,
             }
         }
 
@@ -418,7 +397,7 @@ def create_app(
                 return {
                     "data": {
                         "actor": asdict(person) | {"name": assignment["name_snapshot"]},
-                        "synthetic_data": demo,
+                        "synthetic_data": False,
                         "projects": [
                             {
                                 k: project_info[k]
@@ -461,7 +440,7 @@ def create_app(
                     | {"name": user["display_name"], "username": user["username"]},
                     "must_change_password": auth_service.must_change(store, person),
                     "shared_auth_connected": True,
-                    "synthetic_data": demo,
+                    "synthetic_data": False,
                     "projects": rows(
                         c,
                         "SELECT p.id,p.name,p.department_id,p.status,t.evaluation_date FROM projects p LEFT JOIN project_evaluation_dates t ON t.project_id=p.id WHERE p.deleted_at IS NULL AND (?='SUPER_ADMIN' OR p.department_id=?) ORDER BY p.created_at,p.id",
@@ -612,45 +591,9 @@ def create_app(
                         "SELECT p.id,v.display_code,p.format,p.status FROM ref_proposal_uploads p JOIN ref_project_vendors v ON v.id=p.vendor_id WHERE p.project_id=?",
                         (project_id,),
                     ),
-                    "samples": [
-                        {k: v for k, v in f.items() if k != "path"}
-                        for f in sample_files()
-                    ]
-                    if demo and project_id == "demo-evaluation"
-                    else [],
-                    "external_notice": "문서 업로드·파싱·평가표 승인·제안서 등록은 apps/documents 연결 모듈(오대웅 담당 검토 대상)이 처리합니다. demo-evaluation의 가상 승인표는 평가 연동 테스트용입니다.",
+                    "external_notice": "문서 업로드·파싱·평가표 승인·제안서 등록은 문서 모듈에서 처리합니다.",
                 }
             }
-
-    def sample_files() -> list[DTO]:
-        path = store.evaluation_path.parent / "sample-manifest.json"
-        return json.loads(path.read_text("utf8")) if path.exists() else []
-
-    @app.get("/api/v2/samples/{sample_id}")
-    async def sample_download(sample_id: str, request: Request) -> Response:
-        person = await actor(request)
-        require(demo, "시연 모드에서만 제공됩니다.", "NOT_FOUND", 404)
-        if person.role == "EVALUATOR":
-            require(
-                person.project_id == "demo-evaluation",
-                "사업 접근 권한이 없습니다.",
-                "FORBIDDEN",
-                403,
-            )
-        else:
-            store.admin(person, "MANAGE_DOCUMENTS", "demo-evaluation")
-        item = next((f for f in sample_files() if f["id"] == sample_id), None)
-        require(item is not None, "샘플 파일이 없습니다.", "NOT_FOUND", 404)
-        assert item is not None
-        path = Path(item["path"])
-        require(path.is_file(), "샘플 원본 경로를 확인하세요.", "NOT_FOUND", 404)
-        return FileResponse(
-            path,
-            filename=sample_id + path.suffix,
-            media_type="application/pdf"
-            if path.suffix.lower() == ".pdf"
-            else "application/octet-stream",
-        )
 
     @app.get("/committee-v2/")
     async def committee_index() -> FileResponse:

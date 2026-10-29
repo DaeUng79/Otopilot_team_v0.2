@@ -204,7 +204,7 @@ def parse_pdf(path: str | Path) -> dict[str, Any]:
         except ImportError as error:
             raise RuntimeError(
                 "PDF 제안서를 읽으려면 pypdf 또는 PyMuPDF 패키지가 필요합니다. "
-                "apps/server/requirements.txt를 확인하세요."
+                "루트 requirements.txt를 확인하세요."
             ) from error
         document = document_skeleton(path, data, "pdf-text-pymupdf-1.0", "pdf")
         try:

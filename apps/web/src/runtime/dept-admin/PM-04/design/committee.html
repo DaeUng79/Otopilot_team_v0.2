@@ -197,7 +197,7 @@ const base=()=>({mode:'POOL',cap:7,q:[2,2,2,1],saved:false,pool:'ok',err:false,d
 let S=base();
 const need=()=>S.q.map(x=>x*3);
 const sum=()=>S.q.reduce((a,b)=>a+b,0);
-const tel=c=>'010-****-'+c.l4;
+const tel=c=>h(c.phone||'010-****-'+c.l4);
 const reach=()=>!S.saved?0:(S.mode==='DIRECT'||S.drawn)?(S.cands.some(c=>c.st==='수락'&&!c.ex)?3:2):1;
 function dl(name,rows){const t='﻿'+rows.map(r=>r.join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 function drawNow(){S.pool=S.pool;const sh=need().map((n,i)=>n-POOLN[S.pool][i]);
@@ -241,7 +241,7 @@ function stg2(){
   else{
    const selectedFields=FIELDS.map((name,i)=>({name,members:S.cands.filter(c=>c.f===i)})).filter(field=>field.members.length>0);
    body+=`<div class="note"><span>✓</span><span>분야별 3배수 ${S.cands.length}명을 뽑았어요. 명단 확정 전에는 추첨을 취소하고 규칙·후보를 조정한 뒤 다시 선정할 수 있어요.</span></div>
-   ${selectedFields.length?`<div class="dgrid">${selectedFields.map(field=>`<div class="dcard"><h3>${field.name} <span class="badge">${field.members.length}명</span></h3><ul>${field.members.map(c=>`<li>${h(c.name)} <span>…${c.l4}</span></li>`).join('')}</ul></div>`).join('')}</div>`:'<p class="muted">선정된 위원이 없습니다.</p>'}`}
+   ${selectedFields.length?`<div class="dgrid">${selectedFields.map(field=>`<div class="dcard"><h3>${field.name} <span class="badge">${field.members.length}명</span></h3><ul>${field.members.map(c=>`<li>${h(c.name)} <span>${tel(c)}</span></li>`).join('')}</ul></div>`).join('')}</div>`:'<p class="muted">선정된 위원이 없습니다.</p>'}`}
   body+='</div>';$('#stage').innerHTML=body;
   $('#foot').innerHTML=S.drawn
    ?`<span class="why">선정명단에는 연락에 필요한 정보만 들어가요. 다운로드는 기록돼요.</span><button class="btn" type="button" id="dl">선정명단 다운로드</button><button class="btn primary" type="button" id="nx">다음: 연락·초청</button>`
@@ -304,7 +304,7 @@ function rosterDone(){
   const acc=S.cands.filter(c=>S.pick[c.id]),bon=acc.filter(c=>S.pick[c.id]==='본'),res=acc.filter(c=>S.pick[c.id]==='예비').sort((a,b)=>S.ord[a.id]-S.ord[b.id]);
   const rd=S.rost==='ready';
   $('#stage').innerHTML=`<div class="stg"><div class="note ${rd?'':'warn'}"><span>${rd?'✓':'…'}</span><span><b>${rd?'준비 완료 · 위원이 이름과 전화 뒤 4자리로 들어올 수 있어요':'평가 쪽 수신 확인 전 · 위원 로그인 준비 중'}</b><br><span class="muted">${rd?'평가 쪽에서 명단을 받았다고 확인했어요.':'평가 쪽이 명단을 받으면 자동으로 바뀌어요. 이 단계에서는 위원이 아직 들어올 수 없어요.'}</span></span>${rd?'':'<button class="btn sm" type="button" id="rf" style="margin-left:auto">상태 새로고침</button>'}</div>
-   <div class="two-l"><div class="lstcard"><h3>초청 확정 목록 <span class="badge success">본위원 ${bon.length}</span> <span class="badge">예비 ${res.length}</span></h3><ol>${bon.map(c=>`<li><span class="nm">${h(c.name)}</span><span class="muted">${FIELDS[c.f]} · …${c.l4}</span><span class="badge info" style="margin-left:auto">본위원</span></li>`).join('')}${res.map(c=>`<li><span class="nm">${h(c.name)}</span><span class="muted">${FIELDS[c.f]} · …${c.l4}</span><span class="badge" style="margin-left:auto">예비 ${S.ord[c.id]}</span></li>`).join('')}</ol></div>
+   <div class="two-l"><div class="lstcard"><h3>초청 확정 목록 <span class="badge success">본위원 ${bon.length}</span> <span class="badge">예비 ${res.length}</span></h3><ol>${bon.map(c=>`<li><span class="nm">${h(c.name)}</span><span class="muted">${FIELDS[c.f]} · ${tel(c)}</span><span class="badge info" style="margin-left:auto">본위원</span></li>`).join('')}${res.map(c=>`<li><span class="nm">${h(c.name)}</span><span class="muted">${FIELDS[c.f]} · ${tel(c)}</span><span class="badge" style="margin-left:auto">예비 ${S.ord[c.id]}</span></li>`).join('')}</ol></div>
    <div class="lstcard"><h3>후보 3배수 목록 <span class="badge">${S.cands.length}명</span></h3><p class="muted">초청 확정 목록과 따로 보관돼요. 수락 ${S.cands.filter(c=>!c.ex&&c.st==='수락').length} · 거절 ${S.cands.filter(c=>c.st==='거절').length} · 부재 ${S.cands.filter(c=>c.st==='부재').length} · 미연락 ${S.cands.filter(c=>c.st==='미연락'&&!c.ex).length} · 제외 ${S.cands.filter(c=>c.ex).length}</p><ol style="max-height:300px;overflow:auto">${S.cands.map(c=>`<li><span class="nm">${h(c.name)}</span><span class="muted">${FIELDS[c.f]}</span><span class="badge ${c.st==='수락'?'success':''}" style="margin-left:auto">${c.ex?'제외':c.st}</span></li>`).join('')}</ol></div></div></div>`;
   $('#rf')&&($('#rf').onclick=()=>{S.rost='ready';render();toast('위원 로그인 준비가 끝났어요')});
   $('#foot').innerHTML=`<span class="why">${rd?'다음 단계에서 위원의 참석 확인을 기다려요.':'명단은 확정됐어요. 수신 확인을 기다리는 중이에요.'}</span><button class="btn" type="button" id="dlr">확정명단 다운로드</button>${rd?'<a class="btn primary" href="../../PM-05/design/attendance.html">다음: 참석·위원장</a>':''}`;

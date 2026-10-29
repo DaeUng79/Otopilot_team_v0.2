@@ -1,8 +1,13 @@
 const params=new URLSearchParams(location.search);
 const projectId=params.get('project_id')||params.get('id');
+const embedded=params.get('embedded')==='1';
+if(embedded)document.body.classList.add('embedded');
 const state=document.getElementById('state');
 const content=document.getElementById('content');
 if(projectId)document.getElementById('back').href+='?id='+encodeURIComponent(projectId);
+function notifyParent(){
+  if(embedded&&window.parent!==window)window.parent.postMessage({type:'requirements-preview-updated'},location.origin);
+}
 
 function section(title){
   const element=document.createElement('section');element.className='section';
@@ -74,7 +79,7 @@ function generationTools(){
   const label=node('label','처리 방식 ',box),select=node('select',undefined,label);select.setAttribute('aria-label','처리 방식');
   for(const [value,text] of [['auto','자동 판정'],['numbered','기존 요구사항 추출'],['narrative','서술형 요구사항 명세서 생성']]){const option=node('option',text,select);option.value=value;}
   const button=node('button','선택한 방식으로 다시 분석',box);button.type='button';
-  button.onclick=async()=>{button.disabled=true;try{await request('/requirements/jobs','POST',{force:true,mode:select.value});state.hidden=false;state.textContent='분석을 시작했습니다. 완료 후 다시 열면 명세서를 검토할 수 있습니다.';button.textContent='분석 요청 완료';}catch(e){state.hidden=false;state.textContent=e.message;button.disabled=false;}};
+  button.onclick=async()=>{button.disabled=true;try{await request('/requirements/jobs','POST',{force:true,mode:select.value});notifyParent();state.hidden=false;state.textContent='분석을 시작했습니다. 완료 후 다시 열면 명세서를 검토할 수 있습니다.';button.textContent='분석 요청 완료';}catch(e){state.hidden=false;state.textContent=e.message;button.disabled=false;}};
 }
 function renderSpecification(result){
   const spec=result.specification;if(!spec)return;
@@ -120,6 +125,7 @@ function renderSpecification(result){
       save.disabled=approve.disabled=true;
       try{const items=controls.map(({item,fields})=>({id:item.id,...Object.fromEntries(Object.entries(fields).map(([key,input])=>[key,key==='included'?input.checked:input.value]))}));
         await request('/requirements/specifications/'+encodeURIComponent(spec.id),'PUT',{version:spec.version,items,approve:approval,confirmed:check.checked});
+        notifyParent();
         location.reload();
       }catch(e){state.hidden=false;state.textContent=e.message;save.disabled=false;approve.disabled=!check.checked;}
     };

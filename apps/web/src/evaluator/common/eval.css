@@ -45,7 +45,9 @@ p { margin: 0; }
 .ev-tab .ev-lock { font-size: 14px; }
 .ev-tab .ev-lock-text { font-size: 14px; border: 1px solid var(--gray-30); border-radius: var(--radius-lg); padding: 0 8px; line-height: 20px; color: var(--text-3); }
 
-.ev-user { align-self: center; justify-self: end; position: relative; }
+.ev-user { align-self: center; justify-self: end; position: relative; display: flex; align-items: center; gap: 6px; }
+.ev-logout { display: inline-flex; align-items: center; justify-content: center; flex: none; min-height: 36px; padding: 0 12px; border: 1px solid var(--gray-30); border-radius: var(--radius-sm); background: var(--gray-0); color: var(--text-2); font-size: 14px; text-decoration: none; cursor: pointer; white-space: nowrap; }
+.ev-logout:hover { background: var(--gray-5); color: var(--text-1); }
 .ev-user-btn { appearance: none; border: 0; background: none; cursor: pointer; font-size: 16px; color: var(--text-2); min-height: 40px; padding: 0 12px; border-radius: var(--radius-sm); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .ev-user-btn:hover, .ev-user-btn[aria-expanded="true"] { background: var(--gray-5); color: var(--text-1); }
 .ev-user-btn b { font-weight: 700; color: var(--text-1); }
@@ -189,10 +191,11 @@ p { margin: 0; }
 .evc-tip { position: absolute; right: calc(100% + 10px); top: 50%; transform: translateY(-50%); white-space: nowrap; background: var(--gray-90); color: #fff; font-size: 14px; padding: 6px 12px; border-radius: var(--radius-sm); opacity: 0; pointer-events: none; transition: opacity .12s; }
 .evc-fab:hover .evc-tip, .evc-fab:focus-visible .evc-tip { opacity: 1; }
 .evc.open .evc-tip { display: none; }
-.evc-win { position: fixed; right: 24px; bottom: calc(var(--evc-b) + 72px); z-index: 46; width: 380px; max-width: calc(100vw - 32px); height: min(560px, calc(100vh - var(--ev-hd-h) - var(--evc-b) - 72px - 12px)); min-height: 320px; display: flex; flex-direction: column; background: var(--gray-0); border-radius: var(--radius-lg); box-shadow: var(--shadow-4); overflow: hidden; animation: evc-in .2s var(--ease); }
+.evc-win { position: fixed; right: 24px; bottom: calc(var(--evc-b) + 72px); z-index: 46; width: 380px; max-width: calc(100vw - 32px); height: min(720px, calc(100vh - var(--ev-hd-h) - var(--evc-b) - 72px - 12px)); min-height: 320px; display: flex; flex-direction: column; background: var(--gray-0); border-radius: var(--radius-lg); box-shadow: var(--shadow-4); overflow: hidden; }
 .evc-win[hidden] { display: none; }
 @keyframes evc-in { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
-.evc-hd { flex: none; display: flex; align-items: center; gap: 4px; padding: 12px 10px 12px 18px; background: var(--primary-50); color: #fff; }
+.evc-hd { flex: none; display: flex; align-items: center; gap: 4px; padding: 12px 10px 12px 18px; background: var(--primary-50); color: #fff; cursor: move; touch-action: none; user-select: none; }
+.evc-resize { position: absolute; right: 0; bottom: 0; width: 24px; height: 24px; cursor: nwse-resize; touch-action: none; background: linear-gradient(135deg, transparent 52%, var(--gray-30) 53%, var(--gray-30) 60%, transparent 61%, transparent 70%, var(--gray-30) 71%, var(--gray-30) 78%, transparent 79%); border-bottom-right-radius: var(--radius-lg); }
 .evc-ti { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
 .evc-ti b { font-size: 18px; font-weight: 700; }
 .evc-ti span { font-size: 14px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -221,6 +224,20 @@ p { margin: 0; }
 .evc-vs h4 { margin: 0; display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 700; }
 .evc-vs h4 i { width: 9px; height: 9px; border-radius: 50%; background: var(--dot); }
 .evc-vs p { font-size: 14px; line-height: 1.5; }
+.evc-answer { font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.evc-answer > * + * { margin-top: 8px; }
+.evc-answer h5 { font-size: 15px; line-height: 1.4; font-weight: 700; }
+.evc-answer ul, .evc-answer ol { padding-left: 20px; }
+.evc-answer li + li { margin-top: 3px; }
+.evc-answer blockquote { padding-left: 10px; border-left: 3px solid var(--primary-20); color: var(--text-2); }
+.evc-answer code { padding: 1px 4px; border-radius: 4px; background: var(--gray-0); font-size: .9em; }
+.evc-answer pre { padding: 9px; border-radius: var(--radius-sm); background: var(--gray-0); overflow-x: auto; white-space: pre; }
+.evc-answer pre code { padding: 0; }
+.evc-answer a { color: var(--primary-60); text-decoration: underline; }
+.evc-answer hr { border: 0; border-top: 1px solid var(--line); }
+.evc-table-wrap { overflow-x: auto; }
+.evc-answer table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.evc-answer th, .evc-answer td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; }
 .evc-vs.none { background: var(--gray-5); border: 1px dashed var(--gray-30); }
 .evc-vs.none p { color: var(--text-2); }
 .evc-src { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 14px; color: var(--text-3); }
@@ -242,7 +259,7 @@ p { margin: 0; }
 .evc-sq { appearance: none; border: 1px solid var(--primary-20); background: var(--gray-0); color: var(--primary-70); border-radius: var(--radius-full); min-height: 42px; padding: 0 16px; font-size: 16px; cursor: pointer; }
 .evc-sq:hover { background: var(--primary-5); border-color: var(--primary-50); }
 .evc-note { flex: none; margin: 0; padding: 6px 14px 0; font-size: 14px; color: var(--text-3); text-align: center; background: var(--gray-0); }
-.evc-form { flex: none; display: flex; align-items: flex-end; gap: 8px; padding: 8px 12px 12px; background: var(--gray-0); }
+.evc-form { flex: none; display: flex; align-items: flex-end; gap: 8px; padding: 8px 28px 12px 12px; background: var(--gray-0); }
 .evc-in { flex: 1; resize: none; min-height: 44px; max-height: 110px; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); padding: 10px 14px; font-size: 16px; line-height: 1.4; background: var(--gray-0); }
 .evc-in:focus { outline: 3px solid var(--primary-20); border-color: var(--primary-50); }
 .evc-send { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--primary-50); color: #fff; display: grid; place-items: center; cursor: pointer; }
@@ -271,7 +288,7 @@ p { margin: 0; }
   /* 주소창이 줄었다 늘었다 하는 브라우저: vh 는 남겨 두고 dvh 를 덧붙인다 */
   .ev-app { height: 100vh; height: 100dvh; }
   .ev-modal { max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); }
-  .evc-win { height: min(560px, calc(100vh - var(--ev-hd-h) - var(--evc-b) - 72px - 12px)); height: min(560px, calc(100dvh - var(--ev-hd-h) - var(--evc-b) - 72px - 12px)); }
+  .evc-win { height: min(720px, calc(100vh - var(--ev-hd-h) - var(--evc-b) - 72px - 12px)); height: min(720px, calc(100dvh - var(--ev-hd-h) - var(--evc-b) - 72px - 12px)); }
 
   /* 누르는 칸은 44px 이상 */
   .ev-mark { min-height: 44px; }

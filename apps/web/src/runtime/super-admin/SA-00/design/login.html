@@ -116,7 +116,7 @@ body{display:flex;flex-direction:column;background:var(--gray-0)}
 <aside class="drawer" id="acct" role="dialog" aria-modal="true" aria-labelledby="acct-t">
   <header><h2 id="acct-t">내 계정</h2><button class="x" type="button" data-close aria-label="닫기">×</button></header>
   <form class="dbody" id="f-acct" novalidate>
-    <dl class="kv"><dt>아이디</dt><dd>sa-admin</dd><dt>역할</dt><dd>총괄관리자</dd><dt>마지막 로그인</dt><dd class="tnum"></dd></dl>
+    <dl class="kv"><dt>아이디</dt><dd></dd><dt>역할</dt><dd>총괄관리자</dd><dt>마지막 로그인</dt><dd class="tnum"></dd></dl>
     <div class="note"></div>
     <h3 class="sec-h" style="margin:0">비밀번호 바꾸기</h3>
     <label class="field">현재 비밀번호<input id="a0" type="password" autocomplete="current-password" aria-describedby="a0-e"><span class="err" id="a0-e" hidden></span></label>
@@ -150,7 +150,7 @@ function rowKey(tr,fn){tr.addEventListener('click',fn);tr.addEventListener('keyd
 function confirmDlg({title,body,ok,danger=true,onOk}){const d=$('#dlg');$('#dlg-t').textContent=title;$('#dlg-b').textContent=body;const b=$('#dlg-ok');b.textContent=ok;b.className='btn '+(danger?'danger':'primary');
   b.onclick=()=>{closeLayer(d);onOk&&onOk()};openLayer(d,'#dlg-cancel')}
 
-let pw='Temp1234!',tries=0,locked=false,firstDone=false;
+let pw='',tries=0,locked=false,firstDone=false;
 const views=['login','first','app'];
 function view(v){views.forEach(x=>$('#v-'+x).hidden=x!==v);if(v==='login')setTimeout(()=>$('#uid').focus(),30);if(v==='first')setTimeout(()=>$('#np1').focus(),30)}
 function msg(kind,title,body,extra){const m=$('#msg');if(!kind){m.hidden=true;m.className='';m.innerHTML='';return}
@@ -160,8 +160,7 @@ function setLock(){locked=true;msg('lock','5번 틀려서 잠시 잠겼어요','
 function unlock(){locked=false;tries=0;$('#go').disabled=false;$('#uid').disabled=$('#upw').disabled=false}
 $('#f-login').addEventListener('submit',e=>{e.preventDefault();if(locked)return;const u=$('#uid').value.trim(),p=$('#upw').value;
   if(!u||!p){msg('wrong','아이디와 비밀번호를 모두 입력해 주세요','');return}
-  if(u==='sa-admin'){if(p===pw){msg();tries=0;if(!firstDone)view('first');else location.href='../../SA-01/design/dashboard.html';sync('first')}else fail()}
-  else fail()});
+  fail()});
 const rule=(v)=>({len:v.length>=10,mix:/[A-Za-z가-힣]/.test(v)&&/\d/.test(v)});
 $('#np1').addEventListener('input',e=>{const r=rule(e.target.value);$$('#np1-r li').forEach(li=>li.classList.toggle('ok',r[li.dataset.r]))});
 const sh=(id,m)=>{const e=$('#'+id);e.textContent=m||'';e.hidden=!m;const i=e.previousElementSibling;i&&i.tagName==='INPUT'&&(m?i.setAttribute('aria-invalid','true'):i.removeAttribute('aria-invalid'));return !m};
@@ -183,9 +182,9 @@ function logout(){stack.slice().forEach(l=>closeLayer(l.el));reset();firstDone=t
 $('#acct-logout').addEventListener('click',logout);
 function sync(s){$$('#demo [data-st]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.st===s))}
 $$('#demo [data-st]').forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.st;stack.slice().forEach(l=>closeLayer(l.el));reset();firstDone=true;sync(s);
-  if(s==='wrong'){$('#uid').value='sa-admin';tries=1;msg('wrong','아이디 또는 비밀번호가 맞지 않아요','다시 확인해 주세요. 여러 번 틀리면 잠시 로그인할 수 없어요.')}
-  if(s==='lock'){$('#uid').value='sa-admin';setLock()}
-  if(s==='perm'){$('#uid').value='info01';tries=1;msg('wrong','아이디 또는 비밀번호가 맞지 않아요','다시 확인해 주세요. 여러 번 틀리면 잠시 로그인할 수 없어요.')}
+  if(s==='wrong'){tries=1;msg('wrong','아이디 또는 비밀번호가 맞지 않아요','다시 확인해 주세요. 여러 번 틀리면 잠시 로그인할 수 없어요.')}
+  if(s==='lock'){setLock()}
+  if(s==='perm'){tries=1;msg('wrong','아이디 또는 비밀번호가 맞지 않아요','다시 확인해 주세요. 여러 번 틀리면 잠시 로그인할 수 없어요.')}
   if(s==='first'){firstDone=false;view('first')}
   if(s==='app'){view('app');openAcct()}
   if(s==='base'){firstDone=false}}));

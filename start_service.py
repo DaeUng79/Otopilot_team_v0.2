@@ -19,7 +19,6 @@ def main() -> int:
     command = [
         sys.executable,
         str(root / "apps" / "server" / "run.py"),
-        "--local-test-login",
         *sys.argv[1:],
     ]
     if not {"--port", "--help", "-h"}.intersection(sys.argv[1:]):

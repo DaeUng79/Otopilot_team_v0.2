@@ -1,13 +1,13 @@
 /* Behavior only. Original design markup, CSS and visual renderers stay authoritative. */
 window.Live=(()=>{
-  let boot=null,config=null,screen='',pid='',busy=false;
+  let boot=null,config=null,screen='',pid='',busy=false,activeRole='';
   const nativeFetch=window.fetch.bind(window);
   // Each tab identifies its screen role while the browser keeps separate role cookies.
   window.fetch=(input,init={})=>{
     const url=new URL(input instanceof Request?input.url:String(input),location.href);
     if(url.origin!==location.origin||!(/^\/api\/v2(?:\/|$)/.test(url.pathname)||/^\/committee-v2\/api(?:\/|$)/.test(url.pathname)))
       return nativeFetch(input,init);
-    const role=screen==='SA-00'&&query.get('role')==='department'?'DEPARTMENT_ADMIN':screen.startsWith('SA')?'SUPER_ADMIN':screen.startsWith('PM')?'DEPARTMENT_ADMIN':screen.startsWith('EV')?'EVALUATOR':'';
+    const role=screen==='SA-00'?(activeRole|| (query.get('role')==='department'?'DEPARTMENT_ADMIN':'SUPER_ADMIN')):screen.startsWith('SA')?'SUPER_ADMIN':screen.startsWith('PM')?'DEPARTMENT_ADMIN':screen.startsWith('EV')?'EVALUATOR':'';
     if(!role)return nativeFetch(input,init);
     const headers=new Headers(init.headers||input.headers);
     headers.set('X-Simsa-Role',role);
@@ -68,7 +68,7 @@ window.Live=(()=>{
     try{await reload();}catch{boot=null;}
     const publicPage=['ENTRY','SA-00','PM-00','EV-00'].includes(key);
     if(!publicPage&&!boot){go(key.startsWith('EV')?'EV-00':key.startsWith('SA')?'SA-00':'PM-00',query.has('project_id')?{project_id:query.get('project_id')}:{});throw Error('로그인이 필요합니다.');}
-    if(!publicPage){if(boot.must_change_password){go('SA-00',{change:'1'});throw Error('임시 비밀번호로 로그인한 뒤 비밀번호를 변경하세요.');}const role=boot.actor.role;if(key.startsWith('SA')&&role!=='SUPER_ADMIN'||key.startsWith('PM')&&role==='EVALUATOR'||key.startsWith('EV')&&role!=='EVALUATOR')throw Error('해당 역할로 로그인하세요.');}
+    if(!publicPage){if(boot.must_change_password){go('SA-00',{change:'1',...(boot.actor.role==='DEPARTMENT_ADMIN'?{role:'department'}:{})});throw Error('임시 비밀번호로 로그인한 뒤 비밀번호를 변경하세요.');}const role=boot.actor.role;if(key.startsWith('SA')&&role!=='SUPER_ADMIN'||key.startsWith('PM')&&role==='EVALUATOR'||key.startsWith('EV')&&role!=='EVALUATOR')throw Error('해당 역할로 로그인하세요.');}
     if(boot){const wanted=query.get('id')||query.get('project_id')||sessionStorage.getItem('simsa.original.project');pid=boot.actor.project_id||boot.projects.find(p=>p.id===wanted)?.id||'';}
     if(key.startsWith('PM')&&typeof window.renderSteps==='function'){
       const originalSteps=window.renderSteps;
@@ -103,5 +103,5 @@ window.Live=(()=>{
   }
   function fail(error){document.documentElement.inert=false;document.documentElement.dataset.liveError=error.message;document.querySelectorAll('form,main,#main,#stage,#sc').forEach(el=>el.inert=true);message(error.message);console.error(error);}
   const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  return {api,get,reload,all,selectProject,capture,message,begin,finish,fail,go,paths,escape,evaluatorLogin,evaluatorState,get boot(){return boot;},get config(){return config;},get pid(){return pid;},get query(){return query;}};
+  return {api,get,reload,all,selectProject,capture,message,begin,finish,fail,go,paths,escape,evaluatorLogin,evaluatorState,setRole(role){activeRole=role;},get boot(){return boot;},get config(){return config;},get pid(){return pid;},get query(){return query;}};
 })();

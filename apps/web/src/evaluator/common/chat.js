@@ -3,6 +3,7 @@
 // 대화는 저장하지 않는다. 사업·문서 버전이 바뀌면(회차 id 변경) 초기화한다.
 import { get, postStream } from './api.js';
 import { messageFor } from './errors.js';
+import { renderAnswerMarkdown } from './markdown.js';
 import { screenHref } from './session.js';
 import { esc, toast } from './shell.js';
 
@@ -46,18 +47,9 @@ function openPage(vendorId, page, btn) {
 
 function answerHtml(text, vendorId, vendorName, pages) {
   const valid = new Set((pages || []).map(Number));
-  const citation = /\[(\d{1,4})(?:\s*[~\-–]\s*(\d{1,4}))?쪽\]/g;
-  let html = '', from = 0, match;
-  while ((match = citation.exec(text || ''))) {
-    html += esc(text.slice(from, match.index)).replace(/\n/g, '<br>');
-    const page = Number(match[1]);
-    const label = match[0];
-    html += valid.has(page)
-      ? `<button type="button" class="evc-pg evc-cite" data-v="${esc(vendorId)}" data-p="${page}" aria-label="${esc(vendorName)} 제안서 ${page}쪽 열기">${esc(label)}</button>`
-      : esc(label);
-    from = citation.lastIndex;
-  }
-  return html + esc((text || '').slice(from)).replace(/\n/g, '<br>');
+  return renderAnswerMarkdown(text, { citation: (page, label) => valid.has(page)
+    ? `<button type="button" class="evc-pg evc-cite" data-v="${esc(vendorId)}" data-p="${page}" aria-label="${esc(vendorName)} 제안서 ${page}쪽 열기">${esc(label)}</button>`
+    : esc(label) });
 }
 
 function msgHtml(m) {
@@ -71,7 +63,7 @@ function msgHtml(m) {
     const sources = a.streaming ? '' : pages.length
       ? `<div class="evc-src">${sourceLabel}${pages.map((p) => `<button type="button" class="evc-pg" data-v="${esc(vid)}" data-p="${p}" aria-label="${esc(v.name)} 제안서 ${p}쪽 열기">p.${p}</button>`).join('')}</div>`
       : '<div class="evc-src">출처 쪽 미확인</div>';
-    return `<section class="evc-vs ev-vt-${esc(v.code)}"><h4><i></i>${esc(v.name)}</h4><p>${answerHtml(a.text, vid, v.name, pages)}</p>${sources}</section>`;
+    return `<section class="evc-vs ev-vt-${esc(v.code)}"><h4><i></i>${esc(v.name)}</h4><div class="evc-answer">${answerHtml(a.text, vid, v.name, pages)}</div>${sources}</section>`;
   }).join('');
   const any = m.vs.some((vid) => m.ans[vid] && m.ans[vid].text);
   return `<div class="evc-m a"><div class="evc-b"><p class="evc-lead">${any ? '선택한 업체별로 정리했어요.' : (m.lead || '관련 내용을 찾지 못했어요. 다르게 물어봐 주세요.')}</p>${secs}</div><time>${m.t}</time></div>`;
@@ -155,9 +147,50 @@ function build() {
     '<div class="evc-vendors" role="group" aria-labelledby="evc-vl"></div>' +
     '<div class="evc-list" role="log" aria-live="polite" aria-label="대화"></div>' +
     '<p class="evc-note">이 사업 문서 안에서만 답해요 · 대화는 저장하지 않아요</p>' +
-    '<form class="evc-form"><textarea class="evc-in" rows="1" placeholder="궁금한 점을 입력하세요" aria-label="질문 입력 (Enter 보내기, Shift+Enter 줄바꿈)"></textarea><button type="submit" class="evc-send" aria-label="보내기"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6l-.1 6.5L15 12 3.3 13.9l.1 6.5Z"/></svg></button></form></section>';
+    '<form class="evc-form"><textarea class="evc-in" rows="1" placeholder="궁금한 점을 입력하세요" aria-label="질문 입력 (Enter 보내기, Shift+Enter 줄바꿈)"></textarea><button type="submit" class="evc-send" aria-label="보내기"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6l-.1 6.5L15 12 3.3 13.9l.1 6.5Z"/></svg></button></form><div class="evc-resize" title="드래그하여 창 크기 조절" aria-label="창 크기 조절"></div></section>';
   document.body.appendChild(root);
   const fab = root.querySelector('.evc-fab'), win = root.querySelector('.evc-win'), ta = root.querySelector('.evc-in');
+  const geometryKey = 'evc-window-geometry';
+  const clamp = (value, low, high) => Math.min(Math.max(value, low), high);
+  function place(box) {
+    const margin = 8;
+    const width = clamp(box.width, Math.min(320, innerWidth - margin * 2), innerWidth - margin * 2);
+    const height = clamp(box.height, Math.min(360, innerHeight - margin * 2), innerHeight - margin * 2);
+    const left = clamp(box.left, margin, innerWidth - width - margin);
+    const top = clamp(box.top, margin, innerHeight - height - margin);
+    Object.assign(win.style, { left: `${left}px`, top: `${top}px`, right: 'auto', bottom: 'auto', width: `${width}px`, height: `${height}px` });
+  }
+  function remember() {
+    const r = win.getBoundingClientRect();
+    try { localStorage.setItem(geometryKey, JSON.stringify({ left: r.left, top: r.top, width: r.width, height: r.height })); } catch (_) { /* 저장을 막은 브라우저에서는 현재 창에만 적용 */ }
+  }
+  function restore() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(geometryKey)); } catch (_) { /* 기본 위치 사용 */ }
+    if (saved && ['left', 'top', 'width', 'height'].every((key) => Number.isFinite(saved[key]))) place(saved);
+    else if (!win.style.left) { const r = win.getBoundingClientRect(); place(r); }
+    else place(win.getBoundingClientRect());
+  }
+  function dragFrom(handle, resizing) {
+    handle.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || (!resizing && e.target.closest('button'))) return;
+      e.preventDefault();
+      const start = win.getBoundingClientRect(), x = e.clientX, y = e.clientY;
+      handle.setPointerCapture(e.pointerId);
+      const move = (event) => {
+        if (resizing) place({ left: start.left, top: start.top, width: start.width + event.clientX - x, height: start.height + event.clientY - y });
+        else place({ left: start.left + event.clientX - x, top: start.top + event.clientY - y, width: start.width, height: start.height });
+      };
+      const done = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', done); handle.removeEventListener('pointercancel', done); remember(); };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', done);
+      handle.addEventListener('pointercancel', done);
+    });
+  }
+  dragFrom(root.querySelector('.evc-hd'), false);
+  dragFrom(root.querySelector('.evc-resize'), true);
+  window.addEventListener('resize', () => { if (CH.isOpen) { place(win.getBoundingClientRect()); remember(); } });
+  win.addEventListener('evc-open', restore);
   fab.addEventListener('click', () => (CH.isOpen ? close(true) : open()));
   root.querySelector('.evc-x').addEventListener('click', () => close(true));
   root.querySelector('.evc-reset').addEventListener('click', () => { CH.runId += 1; CH.controller?.abort(); CH.controller = null; CH.busy = false; CH.streaming = false; CH.msgs = []; renderList(); syncSend(); toast('대화를 초기화했어요', 1600); ta.focus(); });
@@ -199,6 +232,7 @@ export function open(question) {
   const win = cq('.evc-win'), fab = cq('.evc-fab');
   CH.last = document.activeElement;
   win.hidden = false; CH.isOpen = true;
+  win.dispatchEvent(new Event('evc-open'));
   fab.setAttribute('aria-expanded', 'true'); fab.setAttribute('aria-label', '문서 도우미 닫기');
   document.querySelector('.evc').classList.add('open');
   if (question && typeof question === 'string') ask(question); else setTimeout(() => cq('.evc-in').focus(), 30);

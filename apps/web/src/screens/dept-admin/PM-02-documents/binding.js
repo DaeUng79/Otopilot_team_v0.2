@@ -125,8 +125,8 @@ paint=()=>{
   if(S.rfp.revs.length){
     const actions=$('#m-xr .extraction-actions');
     if(actions){
-      const review=document.createElement('a');review.className='tl pri';
-      review.href='/app/dept-admin/PM-02/design/requirements-preview.html?project_id='+encodeURIComponent(Live.pid);
+      const review=document.createElement('button');review.type='button';review.className='tl pri';
+      review.dataset.requirementsReview='';
       review.textContent=requirementState?.summary?.analysis_type==='narrative'?'AI 요구사항 명세서 검토':'요구사항 확인 · 분석 유형 선택';
       actions.append(review);
       if(requirementState?.summary){
@@ -476,14 +476,18 @@ const documentSideFrame=$('#rfp-side-frame');
 let documentSideTrigger=null;
 function closeDocumentSide(){
   if(documentSide.hidden)return;
+  const wasRequirements=documentSide.classList.contains('requirements-side');
   documentSide.hidden=true;
+  documentSide.classList.remove('requirements-side');
   $('#rfp-side-scrim').hidden=true;
   documentSideFrame.src='about:blank';
-  documentSideTrigger?.focus();
+  if(documentSideTrigger?.isConnected)documentSideTrigger.focus();
+  else if(wasRequirements)$('#m-xr [data-requirements-review]')?.focus();
   documentSideTrigger=null;
 }
 function openDocumentSide(button,title,url){
   documentSideTrigger=button;
+  documentSide.classList.toggle('requirements-side',url.includes('/requirements-preview.html'));
   $('#rfp-side-title').textContent=title;
   documentSideFrame.title=title;
   documentSideFrame.src=url;
@@ -491,6 +495,11 @@ function openDocumentSide(button,title,url){
   documentSide.hidden=false;
   $('#rfp-side-close').focus();
 }
+Live.capture('[data-requirements-review]','click',(_event,button)=>{
+  openDocumentSide(button,button.textContent.trim(),
+    '/app/dept-admin/PM-02/design/requirements-preview.html?project_id='
+    +encodeURIComponent(Live.pid)+'&embedded=1');
+});
 $('#comparison-table').addEventListener('click',event=>{
   const button=event.target.closest('button[data-rfp-page],button[data-proposal-upload]');
   if(!button)return;
@@ -509,8 +518,11 @@ $('#rfp-side-close').addEventListener('click',closeDocumentSide);
 $('#rfp-side-scrim').addEventListener('click',closeDocumentSide);
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeDocumentSide();});
 window.addEventListener('message',event=>{
-  if(event.origin===location.origin&&event.source===documentSideFrame.contentWindow
-    &&['rfp-preview-close','proposal-preview-close'].includes(event.data?.type))closeDocumentSide();
+  if(event.origin!==location.origin||event.source!==documentSideFrame.contentWindow)return;
+  if(['rfp-preview-close','proposal-preview-close'].includes(event.data?.type))closeDocumentSide();
+  if(event.data?.type==='requirements-preview-updated'){
+    Promise.all([loadRfp(),loadComparison()]).catch(error=>Live.message(error.message));
+  }
 });
 comparisonInitialized=true;
 loadComparison().then(flushAutoAnalysis);

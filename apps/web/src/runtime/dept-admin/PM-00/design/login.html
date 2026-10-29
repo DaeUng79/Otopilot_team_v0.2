@@ -40,8 +40,8 @@ body{display:flex;flex-direction:column;background:var(--gray-0)}
   </div>
   <form class="box" id="f-login" novalidate>
     <div id="msg" role="alert" hidden></div>
-    <label class="field">아이디<input id="uid" autocomplete="username" spellcheck="false" value="info01"></label>
-    <label class="field">비밀번호<input id="upw" type="password" autocomplete="current-password" value="demo1234"></label>
+    <label class="field">아이디<input id="uid" autocomplete="username" spellcheck="false"></label>
+    <label class="field">비밀번호<input id="upw" type="password" autocomplete="current-password"></label>
     <button class="btn primary go" id="go" type="submit">로그인</button>
     <p class="seed">계정이 없으면 총괄관리자에게 요청하세요</p>
   </form>
@@ -64,17 +64,16 @@ function msg(kind,title,body){const m=$('#msg');if(!kind){m.hidden=true;m.classN
   m.className='msg '+(kind==='wrong'?'':kind);m.hidden=false;m.innerHTML=`<span class="mk" aria-hidden="true">${kind==='lock'?'⏳':kind==='off'?'ⓘ':'!'}</span><div><b>${title}</b>${body}</div>`}
 const fail=()=>{tries++;if(tries>=5)setLock();else msg('wrong','아이디 또는 비밀번호가 맞지 않아요','다시 확인해 주세요. 여러 번 틀리면 잠시 로그인할 수 없어요.')};
 function setLock(){locked=true;msg('lock','5번 틀려서 잠시 잠겼어요','10분 뒤에 다시 시도해 주세요. 계속 안 되면 총괄관리자에게 알려 주세요.');$('#go').disabled=true;$('#uid').disabled=$('#upw').disabled=true}
-function reset(){locked=false;tries=0;$('#go').disabled=false;$('#uid').disabled=$('#upw').disabled=false;msg();$('#uid').value='info01';$('#upw').value='demo1234'}
+function reset(){locked=false;tries=0;$('#go').disabled=false;$('#uid').disabled=$('#upw').disabled=false;msg();$('#uid').value=$('#upw').value=''}
 const offMsg=()=>fail(); /* 비활성 계정도 틀린 입력과 같은 문구 (계정 존재 여부를 알려 주지 않음) */
 $('#f-login').addEventListener('submit',e=>{e.preventDefault();if(locked)return;const u=$('#uid').value.trim(),p=$('#upw').value;
   if(!u||!p){msg('wrong','아이디와 비밀번호를 모두 입력해 주세요','');return}
-  if(u==='info02'){offMsg();return}
-  if(u==='info01'&&p==='demo1234'){msg();location.href='../../PM-01/design/projects.html'}else fail()});
+  fail()});
 function sync(s){$$('#demo [data-st]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.st===s))}
 $$('#demo [data-st]').forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.st;reset();sync(s);
   if(s==='wrong'){$('#upw').value='abcd0000';tries=1;msg('wrong','아이디 또는 비밀번호가 맞지 않아요','다시 확인해 주세요. 여러 번 틀리면 잠시 로그인할 수 없어요.')}
   if(s==='lock'){setLock()}
-  if(s==='off'){$('#uid').value='info02';tries=1;msg('wrong','아이디 또는 비밀번호가 맞지 않아요','다시 확인해 주세요. 여러 번 틀리면 잠시 로그인할 수 없어요.')}}));
+  if(s==='off'){tries=1;msg('wrong','아이디 또는 비밀번호가 맞지 않아요','다시 확인해 주세요. 여러 번 틀리면 잠시 로그인할 수 없어요.')}}));
 if(location.hash==='#logout'){$('#uid').value=$('#upw').value='';toast('로그아웃했어요')}
 setTimeout(()=>$('#go').focus(),30);
 </script>

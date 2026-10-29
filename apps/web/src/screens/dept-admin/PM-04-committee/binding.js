@@ -1,6 +1,12 @@
 if(!Live.pid)throw Error('사업 목록에서 사업을 선택하세요.');
 let liveCommittee,liveCandidates=[],excludeIndex=null;
 const specialties=Live.boot.specialties,department=Live.boot.projects.find(p=>p.id===Live.pid).department_id;
+const fullPhone=value=>{const digits=String(value||'').replace(/\D/g,'');return digits.length===11?`${digits.slice(0,3)}-${digits.slice(3,7)}-${digits.slice(7)}`:digits.length===10?`${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}`:String(value||'');};
+function rosterFilename(kind){
+ const project=Live.boot.projects.find(p=>p.id===Live.pid)?.name||'프로젝트';
+ const safe=project.replace(/[\\/:*?"<>|\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().replace(/[. ]+$/,'').slice(0,80)||'프로젝트';
+ return `${safe}_${kind}.xlsx`;
+}
 FIELDS.splice(0,FIELDS.length,...specialties.map(s=>h(s.name)));
 // 통화 결과는 화면에서 완료/미완료 두 가지로 단순화(2026-10-18 사용자 요청). 서버 상태값은 그대로: 완료=AVAILABLE, 미완료=NOT_CONTACTED. 거절·부재는 [제외]로 처리.
 const statusNames={NOT_CONTACTED:'미연락',AVAILABLE:'수락',UNAVAILABLE:'미연락',CALLBACK:'미연락'};
@@ -86,7 +92,7 @@ async function loadCommittee(stage,view){
  const mode=rule?.selection_mode==='DIRECT'?'DIRECT':'POOL';
  liveCandidates=await Live.all('COM-01',{department_id:department,scope:'DEPARTMENT_POOL',active:true});
  POOLN.ok=specialties.map(s=>liveCandidates.filter(c=>c.specialty_ids.includes(s.id)).length);
- const members=liveCommittee.items.map((n,i)=>{const drawField=liveCommittee.draw_members.find(d=>d.id===n.draw_member_id)?.specialty_id;return {id:i,name:n.candidate.name,f:Math.max(0,specialties.findIndex(s=>s.id===(drawField||n.candidate.specialty_ids[0]))),l4:n.candidate.phone.slice(-4),st:statusNames[n.contact_status],memo:n.contact_note||'',src:mode==='DIRECT'?'직접':'추첨',ex:n.exclusion_reason};});
+ const members=liveCommittee.items.map((n,i)=>{const drawField=liveCommittee.draw_members.find(d=>d.id===n.draw_member_id)?.specialty_id;return {id:i,name:n.candidate.name,f:Math.max(0,specialties.findIndex(s=>s.id===(drawField||n.candidate.specialty_ids[0]))),phone:fullPhone(n.candidate.phone),l4:n.candidate.phone.slice(-4),st:statusNames[n.contact_status],memo:n.contact_note||'',src:mode==='DIRECT'?'직접':'추첨',ex:n.exclusion_reason};});
  const q=specialties.map(s=>liveCommittee.quotas.find(q=>q.specialty_id===s.id)?.final_count||0);
  if(!rule){const firstAvailable=POOLN.ok.findIndex(count=>count>0);if(firstAvailable>=0)q[firstAvailable]=7;}
  const picks={},orders={};for(const a of liveCommittee.assignments){const i=liveCommittee.items.findIndex(n=>n.id===a.nominee_id);picks[i]=a.member_kind==='PRIMARY'?'본':'예비';orders[i]=a.reserve_order;}
@@ -116,7 +122,7 @@ Live.capture('#reset-draw','click',async()=>{
   version:rule.version,clear_nominees:true});
  await loadCommittee(0);toast('기존 추첨을 취소했어요. 규칙과 후보를 조정한 뒤 다시 선정할 수 있어요.');
 });
-Live.capture('#dl','click',()=>Live.api('DRAW-03',{project_id:Live.pid,draw_id:liveCommittee.draw.id},'선정명단.xlsx'));
+Live.capture('#dl','click',()=>Live.api('DRAW-03',{project_id:Live.pid,draw_id:liveCommittee.draw.id},rosterFilename('선정명단')));
 Live.capture('[data-st],[data-memo]','change',async(_e,el)=>{const i=Number(el.dataset.st??el.dataset.memo),n=liveCommittee.items[i];await Live.api('ROS-03',{project_id:Live.pid,nominee_id:n.id,version:n.version,contact_status:el.dataset.st!==undefined?Object.keys(statusNames).find(k=>statusNames[k]===el.value):n.contact_status,contact_note:el.dataset.memo!==undefined?el.value:n.contact_note||''});await loadCommittee(2);toast('통화 결과를 저장했어요');});
 Live.capture('[data-ex]','click',(_e,el)=>{$('#p').style.width='';excludeIndex=Number(el.dataset.ex);exclude(excludeIndex);});
 Live.capture('#xo','click',async()=>{const n=liveCommittee.items[excludeIndex];await Live.api('ROS-04',{project_id:Live.pid,nominee_id:n.id,version:n.version,reason:$('#xr').value+($('#xm').value?' · '+$('#xm').value:'')});closeLayer($('#p'));await loadCommittee(2);toast('후보를 제외했어요');});
@@ -135,7 +141,7 @@ const fieldNames=c=>c.specialty_ids.map(id=>specialties.find(s=>s.id===id)?.name
 function renderPick(){
  const have=new Set(liveCommittee.items.map(n=>n.candidate_id)),q=pickQuery.trim();
  const rows=liveCandidates.map((c,i)=>({c,i})).filter(({c})=>!q||[c.name,c.organization_name,c.position||'',fieldNames(c)].join(' ').includes(q));
- $('#p-body tbody').innerHTML=rows.length?rows.map(({c,i})=>{const added=have.has(c.id);return `<tr style="${added?'color:var(--text-3)':''}"><td style="width:48px"><input class="cb" type="checkbox" data-pick="${i}" ${added?'disabled checked':pickSet.has(i)?'checked':''} aria-label="${h(c.name)} 선택"></td><td class="strong">${h(c.name)}</td><td>${h(c.organization_name)}${c.position?` <span class="muted">${h(c.position)}</span>`:''}</td><td>${h(fieldNames(c))}</td><td class="tnum">010-****-${h(c.phone.slice(-4))}</td><td>${added?'<span class="badge success">✓ 추가됨</span>':''}</td></tr>`;}).join(''):'<tr><td colspan="6" class="muted" style="text-align:center;height:80px">맞는 위원이 없어요</td></tr>';
+ $('#p-body tbody').innerHTML=rows.length?rows.map(({c,i})=>{const added=have.has(c.id);return `<tr style="${added?'color:var(--text-3)':''}"><td style="width:48px"><input class="cb" type="checkbox" data-pick="${i}" ${added?'disabled checked':pickSet.has(i)?'checked':''} aria-label="${h(c.name)} 선택"></td><td class="strong">${h(c.name)}</td><td>${h(c.organization_name)}${c.position?` <span class="muted">${h(c.position)}</span>`:''}</td><td>${h(fieldNames(c))}</td><td class="tnum">${h(fullPhone(c.phone))}</td><td>${added?'<span class="badge success">✓ 추가됨</span>':''}</td></tr>`;}).join(''):'<tr><td colspan="6" class="muted" style="text-align:center;height:80px">맞는 위원이 없어요</td></tr>';
  const visible=rows.filter(({c})=>!have.has(c.id)).length,picked=pickSet.size;
  $('#pick-count').textContent=`${q?`검색 ${rows.length}명 · `:''}추가 가능 ${visible}명${picked?` · 선택 ${picked}명`:''}`;
  const go=$('#addm');if(go){go.disabled=!picked;go.textContent=picked?`선택 ${picked}명 추가`:'위원을 선택하세요';}
@@ -170,4 +176,4 @@ Live.capture('#dlg-ok','click',async()=>{
  await Live.api('ROS-05',{project_id:Live.pid,rule_version:rule.version,members,reserve_count:reserves});closeAll();await loadCommittee(3);toast(`본위원 ${primaries}명 · 예비 ${reserves}명으로 명단을 확정했어요`);
 });
 Live.capture('#rf','click',()=>loadCommittee(3));
-Live.capture('#dlr','click',()=>Live.api('ROS-06',{project_id:Live.pid,roster_id:liveCommittee.roster.id},'확정명단.xlsx'));
+Live.capture('#dlr','click',()=>Live.api('ROS-06',{project_id:Live.pid,roster_id:liveCommittee.roster.id},rosterFilename('확정명단')));

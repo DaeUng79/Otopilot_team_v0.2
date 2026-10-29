@@ -1,12 +1,9 @@
 // SA-00 · AUTH-01. Existing login form and error message.
 reset();
-if(Live.config.local_login_accounts||Live.config.demo_accounts){
-  const account=Live.config.local_login_accounts||Live.config.demo_accounts;
-  $('#uid').value=account.super;
-  $('#upw').value=account.password;
-}
+$('#uid').value='';
+$('#upw').value='';
 Live.capture('#f-login','submit',async()=>{
-  try{const actor=await Live.api('AUTH-01',{username:$('#uid').value.trim(),password:$('#upw').value});if(actor.must_change_password){$('#first-current').value=$('#upw').value;$('#upw').value='';view('first');return;}Live.go(actor.role==='SUPER_ADMIN'?'SA-01':'PM-01');}
+  try{const actor=await Live.api('AUTH-01',{username:$('#uid').value.trim(),password:$('#upw').value});Live.setRole(actor.role);if(actor.must_change_password){$('#first-current').value=$('#upw').value;$('#upw').value='';view('first');return;}Live.go(actor.role==='SUPER_ADMIN'?'SA-01':'PM-01');}
   catch(error){msg('wrong',error.message,'');}
 });
 Live.capture('#f-first','submit',async()=>{

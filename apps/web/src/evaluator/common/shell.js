@@ -61,6 +61,7 @@ export function mountShell(host, { active = null, me, chat = true }) {
     `<nav class="ev-tabs" aria-label="평가위원 메뉴">${tabs}</nav>` +
     '<div class="ev-user"><button type="button" class="ev-user-btn" aria-haspopup="menu" aria-expanded="false">' +
     `${esc(me.project.name)} · <b>${who}</b><span aria-hidden="true">▾</span></button>` +
+    '<button type="button" class="ev-logout" data-logout>로그아웃</button>' +
     '<div class="ev-menu" role="menu" hidden><button type="button" role="menuitem" data-logout>로그아웃</button></div></div>';
 
   if (me.session && me.session.dev) {

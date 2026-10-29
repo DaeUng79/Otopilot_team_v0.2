@@ -71,6 +71,7 @@
       '<nav class="ev-tabs" aria-label="평가위원 메뉴">' + tabs + '</nav>' +
       '<div class="ev-user"><button type="button" class="ev-user-btn" aria-haspopup="menu" aria-expanded="false" id="ev-user-btn">' +
       esc(o.project) + ' · <b>' + who + '</b><span aria-hidden="true">▾</span></button>' +
+      '<a class="ev-logout" data-logout href="' + LOGIN_HREF + '">로그아웃</a>' +
       '<div class="ev-menu" role="menu" hidden><a role="menuitem" href="' + LOGIN_HREF + '">로그아웃</a></div></div>';
   }
 
@@ -403,9 +404,49 @@
       '<div class="evc-vendors" role="group" aria-labelledby="evc-vl"></div>' +
       '<div class="evc-list" role="log" aria-live="polite" aria-label="대화"></div>' +
       '<p class="evc-note">이 사업 문서 안에서만 답해요 · 대화는 저장하지 않아요</p>' +
-      '<form class="evc-form"><textarea class="evc-in" rows="1" placeholder="궁금한 점을 입력하세요" aria-label="질문 입력 (Enter 보내기, Shift+Enter 줄바꿈)"></textarea><button type="submit" class="evc-send" aria-label="보내기"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6l-.1 6.5L15 12 3.3 13.9l.1 6.5Z"/></svg></button></form></section>';
+      '<form class="evc-form"><textarea class="evc-in" rows="1" placeholder="궁금한 점을 입력하세요" aria-label="질문 입력 (Enter 보내기, Shift+Enter 줄바꿈)"></textarea><button type="submit" class="evc-send" aria-label="보내기"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6l-.1 6.5L15 12 3.3 13.9l.1 6.5Z"/></svg></button></form><div class="evc-resize" title="드래그하여 창 크기 조절" aria-label="창 크기 조절"></div></section>';
     document.body.appendChild(root);
     var fab = root.querySelector('.evc-fab'), win = root.querySelector('.evc-win'), ta = root.querySelector('.evc-in');
+    var geometryKey = 'evc-window-geometry';
+    function clamp(value, low, high) { return Math.min(Math.max(value, low), high); }
+    function place(box) {
+      var margin = 8;
+      var width = clamp(box.width, Math.min(320, innerWidth - margin * 2), innerWidth - margin * 2);
+      var height = clamp(box.height, Math.min(360, innerHeight - margin * 2), innerHeight - margin * 2);
+      var left = clamp(box.left, margin, innerWidth - width - margin);
+      var top = clamp(box.top, margin, innerHeight - height - margin);
+      Object.assign(win.style, { left: left + 'px', top: top + 'px', right: 'auto', bottom: 'auto', width: width + 'px', height: height + 'px' });
+    }
+    function remember() {
+      var r = win.getBoundingClientRect();
+      try { localStorage.setItem(geometryKey, JSON.stringify({ left: r.left, top: r.top, width: r.width, height: r.height })); } catch (_) { /* 현재 창에만 적용 */ }
+    }
+    function restore() {
+      var saved = null;
+      try { saved = JSON.parse(localStorage.getItem(geometryKey)); } catch (_) { /* 기본 위치 사용 */ }
+      if (saved && ['left', 'top', 'width', 'height'].every(function (key) { return Number.isFinite(saved[key]); })) place(saved);
+      else place(win.getBoundingClientRect());
+    }
+    function dragFrom(handle, resizing) {
+      handle.addEventListener('pointerdown', function (e) {
+        if (e.button !== 0 || (!resizing && e.target.closest('button'))) return;
+        e.preventDefault();
+        var start = win.getBoundingClientRect(), x = e.clientX, y = e.clientY;
+        handle.setPointerCapture(e.pointerId);
+        function move(event) {
+          if (resizing) place({ left: start.left, top: start.top, width: start.width + event.clientX - x, height: start.height + event.clientY - y });
+          else place({ left: start.left + event.clientX - x, top: start.top + event.clientY - y, width: start.width, height: start.height });
+        }
+        function done() { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', done); handle.removeEventListener('pointercancel', done); remember(); }
+        handle.addEventListener('pointermove', move);
+        handle.addEventListener('pointerup', done);
+        handle.addEventListener('pointercancel', done);
+      });
+    }
+    dragFrom(root.querySelector('.evc-hd'), false);
+    dragFrom(root.querySelector('.evc-resize'), true);
+    window.addEventListener('resize', function () { if (CH.isOpen) { place(win.getBoundingClientRect()); remember(); } });
+    win.addEventListener('evc-open', restore);
     fab.addEventListener('click', function () { CH.isOpen ? EvalChat.close(true) : EvalChat.open(); });
     root.querySelector('.evc-x').addEventListener('click', function () { EvalChat.close(true); });
     root.querySelector('.evc-reset').addEventListener('click', function () { clearTimeout(CH.timer); CH.busy = false; CH.msgs = []; renderList(); syncSend(); toast('대화를 초기화했어요', 1600); ta.focus(); });
@@ -440,7 +481,7 @@
         if (!CH.built || !cq('.evc-win')) { if (tries++ < 40) setTimeout(wait, 50); return; }
         var win = cq('.evc-win'), fab = cq('.evc-fab');
         CH.last = document.activeElement;
-        win.hidden = false; CH.isOpen = true; fab.setAttribute('aria-expanded', 'true'); fab.setAttribute('aria-label', '문서 도우미 닫기'); document.querySelector('.evc').classList.add('open');
+        win.hidden = false; CH.isOpen = true; win.dispatchEvent(new Event('evc-open')); fab.setAttribute('aria-expanded', 'true'); fab.setAttribute('aria-label', '문서 도우미 닫기'); document.querySelector('.evc').classList.add('open');
         if (q && typeof q === 'string') ask(q); else setTimeout(function () { cq('.evc-in').focus(); }, 30);
       })();
     },

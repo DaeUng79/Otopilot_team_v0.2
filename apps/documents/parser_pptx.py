@@ -87,7 +87,7 @@ def parse_pptx(path: str | Path) -> dict[str, Any]:
         from pptx.exc import PackageNotFoundError
     except ImportError as error:
         raise RuntimeError(
-            "PPTX 제안서를 읽으려면 python-pptx 패키지가 필요합니다. apps/server/requirements.txt를 확인하세요."
+            "PPTX 제안서를 읽으려면 python-pptx 패키지가 필요합니다. 루트 requirements.txt를 확인하세요."
         ) from error
 
     import io

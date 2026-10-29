@@ -83,10 +83,10 @@ async def json_body(request: Request) -> dict:
 
 
 def install_document_module_routes(app, store, actor, sync, project, database: Path) -> None:
-    try:
-        rfp_workflow.initialize_jobs(database)
-    except Exception:  # 문서 DB가 아직 없으면 첫 업로드 때 만들어진다.
-        log.info("document DB not initialized yet: %s", database)
+    # PM-02 reads the comparison before the first proposal is uploaded.
+    # Create its upload table alongside the RFP/job tables at startup.
+    proposal_uploads.initialize(database)
+    rfp_workflow.initialize_jobs(database)
 
     async def vendor_of(project_id: str, vendor_id: str) -> dict:
         with store.connect("admin") as db:
